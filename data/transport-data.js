@@ -12,7 +12,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "台灣高鐵本線 (12站)",
     color: "#fb923c",
     stKind: "thsr",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["高鐵南港站", 25.05319, 121.60706], ["高鐵台北站", 25.04775, 121.51711], ["高鐵板橋站", 25.01423, 121.46375],
       ["高鐵桃園站", 25.01363, 121.21395], ["高鐵新竹站", 24.80844, 121.04026], ["高鐵苗栗站", 24.60545, 120.82527],
@@ -28,7 +28,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "縱貫線北段 (基隆—竹南)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["基隆", 25.1320, 121.7390], ["三坑", 25.1230, 121.7418], ["八堵", 25.1082, 121.7289], ["七堵", 25.0928, 121.7142],
       ["百福", 25.0778, 121.6935], ["五堵", 25.0782, 121.6675], ["汐止", 25.0682, 121.6612], ["汐科", 25.0625, 121.6462],
@@ -47,7 +47,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "臺中線・山線 (竹南—苗栗—臺中—彰化)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["竹南", 24.6863, 120.8808], ["造橋", 24.6416, 120.8669], ["豐富", 24.6044, 120.8256], ["苗栗", 24.5700, 120.8222],
       ["南勢", 24.5223, 120.7916], ["銅鑼", 24.4863, 120.7862], ["三義", 24.4214, 120.7740], ["泰安", 24.3315, 120.7418],
@@ -63,7 +63,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "海岸線・海線 (竹南—大甲—清水—彰化)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["竹南", 24.6863, 120.8808], ["談文", 24.6562, 120.8582], ["大山", 24.6455, 120.8038], ["後龍", 24.6162, 120.7872],
       ["龍港", 24.6115, 120.7582], ["白沙屯", 24.5648, 120.7082], ["新埔", 24.5402, 120.6955], ["通霄", 24.4922, 120.6782],
@@ -78,7 +78,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "成追線 (成功—追分)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["成功", 24.1142, 120.5902], ["追分", 24.1205, 120.5695]
     ]
@@ -89,7 +89,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "縱貫線南段 (彰化—嘉義—臺南—高雄)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["彰化", 24.0818, 120.5385], ["花壇", 24.0250, 120.5372], ["大村", 23.9902, 120.5605], ["員林", 23.9592, 120.5698],
       ["永靖", 23.9282, 120.5715], ["社頭", 23.8958, 120.5808], ["田中", 23.8585, 120.5915], ["二水", 23.8165, 120.6182],
@@ -111,7 +111,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "屏東線 (高雄—屏東—潮州—枋寮)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["高雄", 22.6395, 120.3025], ["民族", 22.6388, 120.3152], ["科工館", 22.6372, 120.3265], ["正義", 22.6345, 120.3425],
       ["鳳山", 22.6312, 120.3580], ["後庄", 22.6405, 120.3912], ["九曲堂", 22.6572, 120.4208], ["六塊厝", 22.6662, 120.4648],
@@ -127,7 +127,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "南迴線 (枋寮—大武—知本—臺東)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["枋寮", 22.3682, 120.5952], ["加祿", 22.3312, 120.6245], ["內獅", 22.2965, 120.6435], ["枋山", 22.2612, 120.6620],
       ["枋野", 22.2795, 120.7165], ["大武", 22.3658, 120.9008], ["瀧溪", 22.4672, 120.9412], ["金崙", 22.5315, 120.9672],
@@ -140,7 +140,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "臺東線・花東線 (花蓮—玉里—關山—臺東)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["花蓮", 23.9932, 121.6012], ["吉安", 23.9682, 121.5835], ["志學", 23.9082, 121.5295], ["平和", 23.8825, 121.5122],
       ["壽豐", 23.8690, 121.5108], ["豐田", 23.8482, 121.4962], ["林榮新光", 23.7982, 121.4725], ["南平", 23.7818, 121.4595],
@@ -157,7 +157,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "北迴線 (蘇澳新—南澳—和平—花蓮)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["蘇澳新", 24.60912, 121.82711], ["永樂", 24.56843, 121.84458], ["東澳", 24.51835, 121.83080], ["南澳", 24.45890, 121.80105],
       ["武塔", 24.45000, 121.77611], ["漢本", 24.33542, 121.76828], ["和平", 24.29881, 121.75478], ["和仁", 24.24325, 121.71214],
@@ -171,7 +171,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "宜蘭線 (八堵—瑞芳—頭城—宜蘭—蘇澳)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["八堵", 25.1082, 121.7289], ["暖暖", 25.1022, 121.7402], ["四腳亭", 25.1028, 121.7625], ["瑞芳", 25.1088, 121.8062],
       ["猴硐", 25.0870, 121.8272], ["三貂嶺", 25.0652, 121.8225], ["牡丹", 25.0585, 121.8520], ["雙溪", 25.0385, 121.8660],
@@ -188,7 +188,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "平溪／深澳支線 (八斗子—瑞芳—十分—菁桐)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["八斗子", 25.1352, 121.8028], ["海科館", 25.1382, 121.7995], ["瑞芳", 25.1088, 121.8062], ["猴硐", 25.0870, 121.8272],
       ["三貂嶺", 25.0652, 121.8225], ["大華", 25.0502, 121.8045], ["十分", 25.0418, 121.7758], ["望古", 25.0345, 121.7628],
@@ -201,7 +201,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "內灣／六家支線 (新竹—竹中—六家／內灣)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     branches: [
       [
         ["新竹", 24.80160, 120.97160], ["北新竹", 24.80865, 120.98390], ["千甲", 24.80680, 121.00320], ["新莊", 24.78820, 121.02180],
@@ -226,7 +226,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "集集支線 (二水—集集—水里—車埕)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["二水", 23.8165, 120.6182], ["源泉", 23.7985, 120.6428], ["濁水", 23.8345, 120.7048], ["龍泉", 23.8336, 120.7379],
       ["集集", 23.8265, 120.7848], ["水里", 23.8182, 120.8532], ["車埕", 23.8325, 120.8658]
@@ -238,7 +238,7 @@ const TAIWAN_SELECTABLE_LINES = [
     name: "沙崙支線 (中洲—長榮大學—沙崙)",
     color: "#003b73",
     stKind: "tra",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["中洲", 22.9045, 120.2528], ["長榮大學", 22.9070, 120.2725], ["沙崙", 22.9242, 120.2862]
     ]
@@ -564,7 +564,7 @@ const TAIWAN_SELECTABLE_LINES = [
     color: "#10b981",
     dash: "5, 3",
     stKind: "mrt",
-    drawCustomLine: false,
+    drawCustomLine: true,
     stations: [
       ["嘉義", 23.4792, 120.4412], ["北門", 23.4858, 120.4545], ["鹿麻產", 23.5042, 120.5318],
       ["竹崎", 23.5262, 120.5482], ["木履寮", 23.5275, 120.5805], ["樟腦寮", 23.5322, 120.6025],
@@ -801,3 +801,13 @@ const INTER_STATION_CURVE_WAYPOINTS = {
   "十字路_屏遮那": [[23.4950, 120.7450]],
   "二萬平_神木": [[23.5120, 120.7980]]
 };
+
+// 套用高對比路線專屬色碼與強制開啟向量繪製
+if (typeof window !== 'undefined' && typeof TAIWAN_SELECTABLE_LINES !== 'undefined') {
+  TAIWAN_SELECTABLE_LINES.forEach(line => {
+    if (line.id !== 'hw_freeway') line.drawCustomLine = true;
+    if (window.RAILISLAND_LINE_COLORS && window.RAILISLAND_LINE_COLORS[line.id]) {
+      line.color = window.RAILISLAND_LINE_COLORS[line.id];
+    }
+  });
+}

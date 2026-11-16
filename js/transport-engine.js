@@ -763,9 +763,7 @@ function updateRoadAndRailwayTileOverlays() {
     TAIWAN_SELECTABLE_LINES.forEach((line) => {
       if (line.isHighway || !activeLineSet.has(line.id)) return;
 
-      if (line.stKind === "thsr" || line.stKind === "tra") {
-        if (isOpenRailActive || hasGisBase) return;
-      } else if (line.stKind === "mrt" || line.stKind === "lrt") {
+      if (line.stKind === "mrt" || line.stKind === "lrt") {
         if (isOpenRailReady && state.hideMrtLinesOnOpenRail) return;
       } else if (line.drawCustomLine === false) {
         return;
@@ -784,15 +782,18 @@ function updateRoadAndRailwayTileOverlays() {
           interactive: false
         }).addTo(customGroup);
 
-        L.polyline(pts, {
+        const isHl = typeof state !== "undefined" && state.highlightedLineId === line.id;
+        const fgLine = L.polyline(pts, {
           renderer: railCanvasRenderer,
           pane: "roadRailVectorPane",
           color: line.color || (line.stKind === "tra" ? "#003b73" : "#38bdf8"),
           weight: 2.6,
           opacity: 0.96,
           dashArray: line.dash || null,
-          interactive: false
+          interactive: true
         }).addTo(customGroup);
+        if (isHl) fgLine.setStyle({ weight: 4.4, opacity: 1 });
+        if (typeof window.bindRailIslandLineInteraction === "function") window.bindRailIslandLineInteraction(fgLine, line);
       });
     });
   }
@@ -882,3 +883,94 @@ function updateRoadAndRailwayTileOverlays() {
     circleMarker.addTo(customGroup);
   });
 }
+
+
+// === [Open-Data High-Precision Rail Vector & Interactive Line Upgrade v3] ===
+(function applyRailIslandVectorUpgrade() {
+  function snapPointToSegments(lat, lng, segments, maxDistDeg = 0.008) {
+    if (!Array.isArray(segments) || !segments.length) return [lat, lng];
+    let bestLat = lat, bestLng = lng, minD2 = maxDistDeg * maxDistDeg;
+    const cosLat = Math.cos((lat * Math.PI) / 180);
+    for (const seg of segments) {
+      for (let i = 0; i < seg.length - 1; i++) {
+        const [y1, x1] = seg[i];
+        const [y2, x2] = seg[i + 1];
+        const dx = (x2 - x1) * cosLat;
+        const dy = y2 - y1;
+        const len2 = dx * dx + dy * dy;
+        let t = 0;
+        if (len2 > 1e-12) {
+          t = (((lng - x1) * cosLat) * dx + (lat - y1) * dy) / len2;
+          t = Math.max(0, Math.min(1, t));
+        }
+        const projLat = y1 + t * (y2 - y1);
+        const projLng = x1 + t * (x2 - x1);
+        const d2 = Math.pow((lng - projLng) * cosLat, 2) + Math.pow(lat - projLat, 2);
+        if (d2 < minD2) {
+          minD2 = d2;
+          bestLat = Number(projLat.toFixed(6));
+          bestLng = Number(projLng.toFixed(6));
+        }
+      }
+    }
+    return [bestLat, bestLng];
+  }
+
+  if (typeof TAIWAN_SELECTABLE_LINES !== 'undefined' && window.RAILISLAND_SHAPES) {
+    TAIWAN_SELECTABLE_LINES.forEach(line => {
+      if (window.RAILISLAND_LINE_COLORS && window.RAILISLAND_LINE_COLORS[line.id]) {
+        line.color = window.RAILISLAND_LINE_COLORS[line.id];
+      }
+      if (line.id !== 'hw_freeway') {
+        line.drawCustomLine = true;
+      }
+      const segs = window.RAILISLAND_SHAPES[line.id];
+      if (Array.isArray(segs) && segs.length > 0 && Array.isArray(line.stations)) {
+        line.stations.forEach(st => {
+          if (Array.isArray(st) && st.length >= 3) {
+            const [snappedLat, snappedLng] = snapPointToSegments(st[1], st[2], segs);
+            st[1] = snappedLat;
+            st[2] = snappedLng;
+          }
+        });
+      }
+    });
+  }
+
+  const origBuildPolylines = typeof buildStationAnchoredVectorPolylines === 'function'
+    ? buildStationAnchoredVectorPolylines
+    : null;
+
+  window.buildStationAnchoredVectorPolylines = function(line) {
+    if (line && window.RAILISLAND_SHAPES && Array.isArray(window.RAILISLAND_SHAPES[line.id]) && window.RAILISLAND_SHAPES[line.id].length > 0) {
+      return window.RAILISLAND_SHAPES[line.id];
+    }
+    return origBuildPolylines ? origBuildPolylines(line) : [];
+  };
+  if (typeof buildStationAnchoredVectorPolylines !== 'undefined') {
+    buildStationAnchoredVectorPolylines = window.buildStationAnchoredVectorPolylines;
+  }
+
+  window.bindRailIslandLineInteraction = function(poly, line) {
+    if (!poly || !line) return;
+    poly.on('click', function(ev) {
+      if (window.L && L.DomEvent) L.DomEvent.stopPropagation(ev);
+      if (typeof state !== 'undefined') {
+        state.highlightedLineId = (state.highlightedLineId === line.id) ? null : line.id;
+      }
+      if (typeof setFeedback === 'function') {
+        const stCount = Array.isArray(line.stations) ? line.stations.length : 0;
+        setFeedback(`🛤️ 已選取路線：【${line.name}】（共 ${stCount} 站）`, 'ok');
+      }
+      if (typeof updateRoadAndRailwayTileOverlays === 'function') {
+        updateRoadAndRailwayTileOverlays();
+      }
+    });
+    poly.bindTooltip(`<b>${line.name}</b>`, {
+      sticky: true,
+      direction: 'top',
+      offset: [0, -6],
+      className: 'tw-st-tip-hover'
+    });
+  };
+})();
