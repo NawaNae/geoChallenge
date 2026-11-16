@@ -11,8 +11,8 @@ function setDifficulty(diff) {
   });
   updateModeBadgeText();
   resetGame();
-  if (state.opponent.connected || state.roomCode) {
-    broadcastP2PConfig();
+  if (state.isHost && (state.opponent.connected || state.roomCode)) {
+    broadcastP2PConfig(true);
   }
 }
 
@@ -32,8 +32,8 @@ function setPlayMode(pm) {
     updateTargetBannerUI();
     refreshAllPolygonStyles();
   }
-  if (state.opponent.connected || state.roomCode) {
-    broadcastP2PConfig();
+  if (state.isHost && (state.opponent.connected || state.roomCode)) {
+    broadcastP2PConfig(true);
   }
 }
 
@@ -98,6 +98,8 @@ function renderScopeModalGrid() {
   // Render Station Quiz Lines Checklist inside #modal-scope
   const stGrid = document.getElementById("scope-stations-grid");
   if (stGrid) {
+    const chkTerminusScope = document.getElementById("chk-station-terminus-hints");
+    if (chkTerminusScope) chkTerminusScope.checked = !!state.showStationTerminusHints;
     stGrid.innerHTML = "";
     const groups = new Map();
     TAIWAN_SELECTABLE_LINES.forEach((l) => {
@@ -134,10 +136,11 @@ function renderScopeModalGrid() {
         item.className = `flex items-center gap-2 p-1.5 rounded-xl border cursor-pointer transition ${
           checked ? "bg-pink-500/15 border-pink-400/60 text-white" : "bg-slate-950/60 border-slate-800 text-slate-400"
         }`;
+        const lineTitle = typeof getLineDisplayName === "function" ? getLineDisplayName(l) : l.name;
         item.innerHTML = `
           <input type="checkbox" ${checked ? "checked" : ""} class="rounded bg-slate-900 border-slate-600 text-pink-500" />
           <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${l.color}"></span>
-          <span class="truncate text-[11px] font-medium">${l.name} (${l.stations.length}站)</span>
+          <span class="truncate text-[11px] font-medium">${lineTitle} (${l.stations.length}站)</span>
         `;
         item.querySelector("input").addEventListener("change", (ev) => {
           if (ev.target.checked) state.quizStationLines.add(l.id);
@@ -175,6 +178,10 @@ function renderScopeModalGrid() {
         ? "不猜車站 (0站)"
         : `${state.quizStationLines.size} 條路線 (${totalStations} 座車站)`;
     counterEl.textContent = `已選題庫：${adminPart} ＋ ${stPart}`;
+  }
+
+  if (typeof renderP2PHostSettingsUI === "function" && document.getElementById("p2p-host-settings")) {
+    renderP2PHostSettingsUI();
   }
 }
 
@@ -264,10 +271,23 @@ function bindAllUIEvents() {
         : "tmode-btn p-2 rounded-xl border border-slate-700 bg-slate-900/70 hover:bg-slate-800 text-left transition";
     });
 
+    const chkLegacySt = document.getElementById("chk-enable-legacy-stations-only");
+    const btnLegacySt = document.getElementById("btn-tmode-stations-only");
+    const tmodeGrid = document.getElementById("transport-mode-grid");
+    if (chkLegacySt) chkLegacySt.checked = !!state.enableLegacyStationOnlyMode;
+    if (btnLegacySt) btnLegacySt.classList.toggle("hidden", !state.enableLegacyStationOnlyMode);
+    if (tmodeGrid) {
+      tmodeGrid.className = state.enableLegacyStationOnlyMode
+        ? "grid grid-cols-1 sm:grid-cols-4 gap-2"
+        : "grid grid-cols-1 sm:grid-cols-3 gap-2";
+    }
+
     const chkHideMrt = document.getElementById("chk-hide-mrt-lines-openrail");
     if (chkHideMrt) chkHideMrt.checked = !!state.hideMrtLinesOnOpenRail;
     const chkRawRail = document.getElementById("chk-raw-rail-tile");
     if (chkRawRail) chkRawRail.checked = !!state.showRawOpenRailwayTile;
+    const chkTerminusTrans = document.getElementById("chk-transport-terminus-hints");
+    if (chkTerminusTrans) chkTerminusTrans.checked = !!state.showStationTerminusHints;
 
     // Group lines by group name
     const groups = new Map();
@@ -304,10 +324,11 @@ function bindAllUIEvents() {
         item.className = `flex items-center gap-2 p-1.5 rounded-xl border cursor-pointer transition ${
           checked ? "bg-slate-800/90 border-sky-500/40 text-white" : "bg-slate-950/60 border-slate-800 text-slate-400"
         }`;
+        const lineTitle = typeof getLineDisplayName === "function" ? getLineDisplayName(l) : l.name;
         item.innerHTML = `
           <input type="checkbox" ${checked ? "checked" : ""} class="rounded bg-slate-900 border-slate-600 text-sky-500" />
           <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${l.color}"></span>
-          <span class="truncate text-[11px] font-medium">${l.name}</span>
+          <span class="truncate text-[11px] font-medium">${lineTitle}</span>
         `;
         item.querySelector("input").addEventListener("change", (ev) => {
           if (ev.target.checked) state.selectedTransportLines.add(l.id);
@@ -327,31 +348,97 @@ function bindAllUIEvents() {
   }
 
   document.getElementById("btn-toggle-rail").addEventListener("click", () => {
-    if (state.p2pRailRule && state.p2pRailRule !== "free") {
-      setFeedback("🔒 本場對戰房主已鎖定或禁用路網與車站模式！", "warn");
+    if (state.p2pRailRule === "ban_rail") {
+      const hasStations =
+        (state.stationQuizEnabled && state.quizStationLines.size > 0) ||
+        state.selectedTransportLines.size > 0 ||
+        (typeof getActiveQuizStations === "function" && getActiveQuizStations().length > 0);
+      if (hasStations) {
+        state.transportMode = state.transportMode === "stations_only" ? "off" : "stations_only";
+        updateRoadAndRailwayTileOverlays();
+        refreshAllPolygonStyles();
+        setFeedback(
+          state.transportMode === "stations_only"
+            ? "🚉 已開啟「僅車站」模式（僅顯示車站點位，軌道與公路路網已禁用）"
+            : "🚫 已關閉路網與車站疊圖",
+          "info"
+        );
+        return;
+      }
+      setFeedback("🔒 本場對戰房主已禁用 (Ban) 所有路網與車站！", "warn");
       return;
     }
-    // Cycle: off -> rail_only -> lines_and_stations -> stations_only -> off
-    const order = ["off", "rail_only", "lines_and_stations", "stations_only"];
-    const nextMode = order[(order.indexOf(state.transportMode) + 1) % order.length];
+    if (state.p2pRailRule === "force_lines" || state.p2pRailRule === "force_rail_only") {
+      setFeedback("🔒 本場對戰房主已強制鎖定路網模式！", "warn");
+      return;
+    }
+    if (state.p2pRailRule === "ban_roads_only") {
+      // Toggle only between off and rail_only
+      state.transportMode = state.transportMode === "rail_only" ? "off" : "rail_only";
+      updateRoadAndRailwayTileOverlays();
+      refreshAllPolygonStyles();
+      setFeedback(
+        state.transportMode === "rail_only"
+          ? "🚄 已開啟「純軌道路網」模式（線路+車站，公路已禁用）"
+          : "🚫 已關閉路網與車站疊圖",
+        "info"
+      );
+      return;
+    }
+
+    // Normal Cycle: off -> rail_only -> lines_and_stations -> stations_only (only if legacy enabled) -> off
+    const order = state.enableLegacyStationOnlyMode
+      ? ["off", "rail_only", "lines_and_stations", "stations_only"]
+      : ["off", "rail_only", "lines_and_stations"];
+    const curIdx = order.indexOf(state.transportMode);
+    const nextMode = curIdx >= 0 ? order[(curIdx + 1) % order.length] : "off";
     state.transportMode = nextMode;
     updateRoadAndRailwayTileOverlays();
     refreshAllPolygonStyles();
     const modeDesc =
       nextMode === "rail_only"
-        ? "🚄 已開啟「純軌道路網」模式（線路+點，100% 排除公路雜訊，衛星底圖乾淨無道路）"
+        ? "🚄 已開啟「純軌道路網」模式（軌道線路＋車站點位，100% 排除公路雜訊）"
         : nextMode === "lines_and_stations"
-        ? "🛤️ 已開啟「完整路網」模式（顯示軌道＋車站點位＋公路路標）"
+        ? "🛤️ 已開啟「完整路網」模式（軌道＋各線車站＋公路盾牌）"
         : nextMode === "stations_only"
-        ? "📍 已切換為「單純開車站」模式（隱藏路線與站名，僅顯示車站點位）"
+        ? "📍 已開啟舊版「僅車站」模式（僅顯示車站圓點，不顯示路線）"
         : "🚫 已關閉路網與車站疊圖";
     setFeedback(modeDesc, "info");
   });
 
+  // Legacy Stations-Only Mode Toggle Event
+  const chkLegacySt = document.getElementById("chk-enable-legacy-stations-only");
+  const btnLegacySt = document.getElementById("btn-tmode-stations-only");
+  const tmodeGrid = document.getElementById("transport-mode-grid");
+  if (chkLegacySt) {
+    chkLegacySt.addEventListener("change", (e) => {
+      state.enableLegacyStationOnlyMode = e.target.checked;
+      if (btnLegacySt) btnLegacySt.classList.toggle("hidden", !state.enableLegacyStationOnlyMode);
+      if (tmodeGrid) {
+        tmodeGrid.className = state.enableLegacyStationOnlyMode
+          ? "grid grid-cols-1 sm:grid-cols-4 gap-2"
+          : "grid grid-cols-1 sm:grid-cols-3 gap-2";
+      }
+      if (!state.enableLegacyStationOnlyMode && state.transportMode === "stations_only") {
+        state.transportMode = "rail_only";
+        renderTransportModalChecklist();
+        updateRoadAndRailwayTileOverlays();
+        refreshAllPolygonStyles();
+        setFeedback("已關閉舊版純車站模式，自動切換至純軌道路網", "info");
+      }
+    });
+  }
+
   document.getElementById("btn-open-transport-cfg").addEventListener("click", () => {
     if (state.p2pRailRule === "ban_rail") {
-      setFeedback("🚫 本場對戰已禁用 (Ban) 路網與車站模式！", "warn");
-      return;
+      const hasStations =
+        (state.stationQuizEnabled && state.quizStationLines.size > 0) ||
+        state.selectedTransportLines.size > 0 ||
+        (typeof getActiveQuizStations === "function" && getActiveQuizStations().length > 0);
+      if (!hasStations) {
+        setFeedback("🚫 本場對戰已禁用 (Ban) 路網與車站模式！", "warn");
+        return;
+      }
     }
     renderTransportModalChecklist();
     document.getElementById("modal-transport").classList.remove("hidden");
@@ -403,6 +490,27 @@ function bindAllUIEvents() {
       state.hideMrtLinesOnOpenRail = e.target.checked;
       updateRoadAndRailwayTileOverlays();
     });
+  }
+
+  const handleTerminusToggle = (checked) => {
+    state.showStationTerminusHints = checked;
+    const c1 = document.getElementById("chk-station-terminus-hints");
+    const c2 = document.getElementById("chk-transport-terminus-hints");
+    if (c1) c1.checked = checked;
+    if (c2) c2.checked = checked;
+    renderScopeModalGrid();
+    renderTransportModalChecklist();
+    if (typeof updateRoadAndRailwayTileOverlays === "function") updateRoadAndRailwayTileOverlays();
+    if (state.targetStationKey && typeof updateTargetBannerUI === "function") updateTargetBannerUI();
+  };
+
+  const chkTerminusScope = document.getElementById("chk-station-terminus-hints");
+  if (chkTerminusScope) {
+    chkTerminusScope.addEventListener("change", (e) => handleTerminusToggle(e.target.checked));
+  }
+  const chkTerminusTrans = document.getElementById("chk-transport-terminus-hints");
+  if (chkTerminusTrans) {
+    chkTerminusTrans.addEventListener("change", (e) => handleTerminusToggle(e.target.checked));
   }
 
   // Transport Preset Buttons
@@ -537,7 +645,7 @@ function bindAllUIEvents() {
       });
       updateLiveCombinedPreview();
       setFeedback(`🏷️ 左右鍵快速切換後綴：「${nextSuffix || "無後綴"}」`, "info");
-      inputEl.focus();
+      inputEl.focus({ preventScroll: true });
     } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       if (!prefixSelectEl || prefixSelectEl.options.length <= 1) return;
       e.preventDefault();
@@ -550,7 +658,7 @@ function bindAllUIEvents() {
       const opt = prefixSelectEl.options[nextIdx];
       const chosenText = (opt && opt.value) || "無固定前綴";
       setFeedback(`📍 上下鍵快速切換縣市前綴：「${chosenText}」`, "info");
-      inputEl.focus();
+      inputEl.focus({ preventScroll: true });
     }
   });
 
@@ -597,7 +705,7 @@ function bindAllUIEvents() {
 
   prefixSelect.addEventListener("change", () => {
     updateLiveCombinedPreview();
-    answerInput.focus();
+    answerInput.focus({ preventScroll: true });
   });
 
   suffixInput.addEventListener("input", () => {
@@ -615,7 +723,7 @@ function bindAllUIEvents() {
             : "suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white";
       });
       updateLiveCombinedPreview();
-      answerInput.focus();
+      answerInput.focus({ preventScroll: true });
     });
   });
 
@@ -848,36 +956,218 @@ function bindAllUIEvents() {
       setFeedback(`🚉 已開啟純猜車站挑戰（共 ${state.quizStationLines.size} 條路線、${activeSt.length} 座車站），直接輸入站名即可解鎖！`, "tier");
     }
 
-    if (state.opponent.connected || state.roomCode) {
-      broadcastP2PConfig();
+    if (state.isHost && (state.opponent.connected || state.roomCode)) {
+      onHostSettingChange("題庫範圍");
     }
   });
 
-  // P2P Modal
+  // P2P Modal & Lobby Controls
   document.getElementById("btn-open-p2p").addEventListener("click", () => {
+    updateP2PLobbyUI();
     document.getElementById("modal-p2p").classList.remove("hidden");
+    if (window.lucide && typeof window.lucide.createIcons === "function") lucide.createIcons();
   });
   document.getElementById("btn-close-p2p").addEventListener("click", () => {
     document.getElementById("modal-p2p").classList.add("hidden");
   });
   document.getElementById("btn-p2p-host").addEventListener("click", () => hostP2PRoom());
   document.getElementById("btn-p2p-join").addEventListener("click", () => joinP2PRoom());
-  document.getElementById("btn-copy-p2p-url").addEventListener("click", () => {
-    const input = document.getElementById("p2p-share-url");
-    input.select();
-    try {
-      navigator.clipboard.writeText(input.value);
-    } catch (e) {
-      document.execCommand("copy");
-    }
-    document.getElementById("p2p-modal-status").textContent = "已複製對戰邀請連結！";
+
+  // Copy P2P Share URL with visual feedback
+  const btnCopyUrl = document.getElementById("btn-copy-p2p-url");
+  if (btnCopyUrl) {
+    btnCopyUrl.addEventListener("click", () => {
+      const input = document.getElementById("p2p-share-url");
+      if (!input || !input.value || input.value === "尚未建立房間") return;
+      input.select();
+      try {
+        navigator.clipboard.writeText(input.value).then(() => {
+          btnCopyUrl.innerHTML = `<span>✓ 已複製!</span>`;
+          setTimeout(() => {
+            btnCopyUrl.innerHTML = `<i data-lucide="copy" class="w-3.5 h-3.5"></i><span>複製</span>`;
+            if (window.lucide) lucide.createIcons();
+          }, 1500);
+        });
+      } catch (e) {
+        document.execCommand("copy");
+        btnCopyUrl.innerHTML = `<span>✓ 已複製!</span>`;
+        setTimeout(() => {
+          btnCopyUrl.innerHTML = `<i data-lucide="copy" class="w-3.5 h-3.5"></i><span>複製</span>`;
+          if (window.lucide) lucide.createIcons();
+        }, 1500);
+      }
+      document.getElementById("p2p-modal-status").textContent = "已複製對戰邀請連結！發送給好友即可直接加入";
+    });
+  }
+
+  document.getElementById("btn-p2p-toggle-ready").addEventListener("click", () => {
+    toggleP2PReady();
   });
-  document.getElementById("btn-p2p-sync-start").addEventListener("click", () => {
+
+  document.getElementById("p2p-nickname-input").addEventListener("input", (e) => {
+    state.nickname = e.target.value.trim() || "玩家";
+    updateP2PLobbyUI();
+    if (state.opponent.connected) {
+      sendP2PMessage("SYNC_READY_STATUS", { ready: state.isReady, name: state.nickname });
+    }
+  });
+
+  // P2P Host Right Panel: Quiz Mode Switcher
+  document.querySelectorAll(".p2p-qmode-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!state.isHost) return;
+      const qm = btn.getAttribute("data-p2pqmode");
+      state.quizTargetMode = qm;
+      if (qm === "region") {
+        state.quizStationLines.clear();
+        state.stationQuizEnabled = false;
+        if (state.selectedCounties.size === 0) {
+          state.selectedCounties = new Set(TAIWAN_ADMIN_DATA.map((c) => c.name));
+        }
+      } else if (qm === "station") {
+        state.selectedCounties.clear();
+        state.stationQuizEnabled = true;
+        if (state.quizStationLines.size === 0) {
+          state.quizStationLines = new Set(
+            TAIWAN_SELECTABLE_LINES.filter((l) => l.id.startsWith("mrt_tpe_") || l.id === "mrt_ntpc_y").map((l) => l.id)
+          );
+        }
+      } else if (qm === "mixed") {
+        state.stationQuizEnabled = true;
+        if (state.selectedCounties.size === 0) {
+          state.selectedCounties = new Set(TAIWAN_ADMIN_DATA.map((c) => c.name));
+        }
+        if (state.quizStationLines.size === 0) {
+          state.quizStationLines = new Set(
+            TAIWAN_SELECTABLE_LINES.filter((l) => l.id.startsWith("mrt_tpe_") || l.id === "mrt_ntpc_y" || l.id.startsWith("tra_")).map((l) => l.id)
+          );
+        }
+      }
+      renderP2PHostSettingsUI();
+      renderScopeModalGrid();
+      onHostSettingChange("挑戰主模式");
+    });
+  });
+
+  // P2P Host Right Panel: Difficulty Buttons
+  document.querySelectorAll(".p2p-diff-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!state.isHost) return;
+      setDifficulty(btn.getAttribute("data-p2pdiff"));
+      renderP2PHostSettingsUI();
+      onHostSettingChange("挑戰難度");
+    });
+  });
+
+  // P2P Host Right Panel: Play Mode Buttons
+  document.querySelectorAll(".p2p-playmode-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!state.isHost) return;
+      setPlayMode(btn.getAttribute("data-p2pplaymode"));
+      renderP2PHostSettingsUI();
+      onHostSettingChange("出題方式");
+    });
+  });
+
+  // P2P Host Right Panel: Admin Scope Presets
+  const bindP2PScopePreset = (btnId, countyFilter) => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      if (!state.isHost) return;
+      state.selectedCounties = new Set(countyFilter ? TAIWAN_ADMIN_DATA.filter(countyFilter).map((c) => c.name) : []);
+      renderP2PHostSettingsUI();
+      renderScopeModalGrid();
+      onHostSettingChange("行政區範圍");
+    });
+  };
+  bindP2PScopePreset("btn-p2p-scope-all", () => true);
+  bindP2PScopePreset("btn-p2p-scope-six", (c) => c.isSpecial);
+  bindP2PScopePreset("btn-p2p-scope-north", (c) => c.region === "north");
+  bindP2PScopePreset("btn-p2p-scope-central", (c) => c.region === "central");
+  bindP2PScopePreset("btn-p2p-scope-south", (c) => c.region === "south");
+  bindP2PScopePreset("btn-p2p-scope-east", (c) => c.region === "east");
+  bindP2PScopePreset("btn-p2p-scope-islands", (c) => c.region === "island" || ["澎湖縣", "金門縣", "連江縣"].includes(c.name));
+  bindP2PScopePreset("btn-p2p-scope-clear", null);
+
+  // P2P Host Right Panel: Railway Lines Presets
+  const bindP2PStationPreset = (btnId, lineFilter) => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      if (!state.isHost) return;
+      state.quizStationLines = new Set(
+        lineFilter ? TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway && lineFilter(l)).map((l) => l.id) : []
+      );
+      state.stationQuizEnabled = state.quizStationLines.size > 0;
+      renderP2PHostSettingsUI();
+      renderScopeModalGrid();
+      onHostSettingChange("車站題庫");
+    });
+  };
+  bindP2PStationPreset("btn-p2p-qst-none", null);
+  bindP2PStationPreset("btn-p2p-qst-tpemrt", (l) => l.id.startsWith("mrt_tpe_") || l.id === "mrt_ntpc_y");
+  bindP2PStationPreset("btn-p2p-qst-allmrt", (l) => l.id.startsWith("mrt_"));
+  bindP2PStationPreset("btn-p2p-qst-lrt", (l) => l.id.startsWith("lrt_"));
+  bindP2PStationPreset("btn-p2p-qst-tra-all", (l) => l.id.startsWith("tra_"));
+  bindP2PStationPreset("btn-p2p-qst-tra-branch", (l) => ["tra_pingxi", "tra_neiwan", "tra_jiji", "tra_shalun"].includes(l.id));
+  bindP2PStationPreset("btn-p2p-qst-thsr", (l) => l.id === "thsr");
+  bindP2PStationPreset("btn-p2p-qst-heritage", (l) => ["alishan", "sugar_train", "cable_maokong"].includes(l.id));
+  bindP2PStationPreset("btn-p2p-qst-all", () => true);
+
+  // P2P Terminus Hints Toggle
+  document.getElementById("chk-p2p-terminus-hints")?.addEventListener("change", (e) => {
+    if (!state.isHost) return;
+    state.showStationTerminusHints = e.target.checked;
+    const chkScope = document.getElementById("chk-station-terminus-hints");
+    if (chkScope) chkScope.checked = e.target.checked;
+    renderP2PHostSettingsUI();
+    renderScopeModalGrid();
+    onHostSettingChange("端點站提示");
+  });
+
+  // Fair Rules Change Listeners (由房主調整，對手即時可見)
+  document.getElementById("p2p-layer-rule-select")?.addEventListener("change", () => {
+    if (!state.isHost) return;
     const lrule = document.getElementById("p2p-layer-rule-select").value;
     const flayer = document.getElementById("p2p-forced-layer-select").value;
-    const rruleEl = document.getElementById("p2p-rail-rule-select");
-    const rrule = rruleEl ? rruleEl.value : "free";
+    const rrule = document.getElementById("p2p-rail-rule-select").value;
+    applyP2PLayerRule(lrule, flayer, rrule);
+    onHostSettingChange("底圖限制");
+  });
+  document.getElementById("p2p-forced-layer-select")?.addEventListener("change", () => {
+    if (!state.isHost) return;
+    const lrule = document.getElementById("p2p-layer-rule-select").value;
+    const flayer = document.getElementById("p2p-forced-layer-select").value;
+    const rrule = document.getElementById("p2p-rail-rule-select").value;
+    applyP2PLayerRule(lrule, flayer, rrule);
+    onHostSettingChange("指定底圖");
+  });
+  document.getElementById("p2p-rail-rule-select")?.addEventListener("change", () => {
+    if (!state.isHost) return;
+    const lrule = document.getElementById("p2p-layer-rule-select").value;
+    const flayer = document.getElementById("p2p-forced-layer-select").value;
+    const rrule = document.getElementById("p2p-rail-rule-select").value;
+    applyP2PLayerRule(lrule, flayer, rrule);
+    onHostSettingChange("路網規則");
+  });
+
+  // Host Start Battle
+  document.getElementById("btn-p2p-sync-start").addEventListener("click", () => {
+    if (!state.isHost) return;
+    if (!state.opponent.connected) {
+      setFeedback("⚠️ 請等待對手加入房間！", "warn");
+      return;
+    }
+    if (!state.opponent.isReady) {
+      setFeedback("⚠️ 請等待對手確認最新設定並點擊「準備」，再開始對戰！", "warn");
+      return;
+    }
+    const lrule = document.getElementById("p2p-layer-rule-select")?.value || "free";
+    const flayer = document.getElementById("p2p-forced-layer-select")?.value || "vector";
+    const rrule = document.getElementById("p2p-rail-rule-select")?.value || "free";
     const payload = {
+      quizTargetMode: state.quizTargetMode || "region",
       difficulty: state.difficulty,
       playMode: state.playMode,
       layerRule: lrule,
@@ -885,11 +1175,42 @@ function bindAllUIEvents() {
       railRule: rrule,
       selectedCounties: Array.from(state.selectedCounties),
       quizStationLines: Array.from(state.quizStationLines),
-      selectedLines: Array.from(state.selectedTransportLines)
+      selectedLines: Array.from(state.selectedTransportLines),
+      showStationTerminusHints: Boolean(state.showStationTerminusHints)
     };
     startSynchronizedP2PCountdown(payload, true);
   });
   document.getElementById("btn-quick-sim-rival").addEventListener("click", () => toggleAiRivalSimulation());
+
+  // Settlement & Report Card Modal Events
+  document.getElementById("btn-download-settlement")?.addEventListener("click", () => downloadSettlementCard());
+  document.getElementById("btn-share-settlement")?.addEventListener("click", () => shareSettlementCard());
+  document.getElementById("btn-rematch-settlement")?.addEventListener("click", () => requestP2PRematch());
+  document.getElementById("btn-close-settlement")?.addEventListener("click", () => {
+    document.getElementById("modal-settlement")?.classList.add("hidden");
+    if (state.isGameOver) document.getElementById("btn-reopen-settlement")?.classList.remove("hidden");
+  });
+  document.getElementById("btn-review-map")?.addEventListener("click", () => {
+    document.getElementById("modal-settlement")?.classList.add("hidden");
+    if (state.isGameOver) document.getElementById("btn-reopen-settlement")?.classList.remove("hidden");
+  });
+  document.getElementById("btn-reopen-settlement")?.addEventListener("click", () => {
+    showSettlementModal();
+  });
+
+  // Opponent Finished Choice Dialog
+  document.getElementById("btn-opp-finish-continue")?.addEventListener("click", () => {
+    document.getElementById("modal-opponent-finished")?.classList.add("hidden");
+    setFeedback("⚔️ 對手已提早結束，你可繼續作答衝刺高分，或隨時點擊【結束並看答案】結算勝負！", "info");
+  });
+  document.getElementById("btn-opp-finish-settle")?.addEventListener("click", () => {
+    document.getElementById("modal-opponent-finished")?.classList.add("hidden");
+    finishGame("giveup");
+  });
+
+  // Rematch Confirmation Dialog
+  document.getElementById("btn-rematch-accept")?.addEventListener("click", () => respondP2PRematch(true));
+  document.getElementById("btn-rematch-decline")?.addEventListener("click", () => respondP2PRematch(false));
 
 
 
@@ -924,7 +1245,12 @@ function bindAllUIEvents() {
   // Audio & Info Modals
   document.getElementById("btn-audio-toggle").addEventListener("click", (e) => {
     state.soundEnabled = !state.soundEnabled;
-    e.currentTarget.innerHTML = `<i data-lucide="${state.soundEnabled ? "volume-2" : "volume-x"}" class="w-4 h-4"></i>`;
+    e.currentTarget.innerHTML = `<i data-lucide="${state.soundEnabled ? "volume-2" : "volume-x"}" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>`;
+    e.currentTarget.className = state.soundEnabled
+      ? "p-1 sm:p-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-sky-400 border border-sky-500/40 transition"
+      : "p-1 sm:p-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-400 border border-slate-700 transition";
+    e.currentTarget.title = state.soundEnabled ? "切換音效 (目前開啟)" : "切換音效 (目前靜音)";
+    setFeedback(state.soundEnabled ? "🔊 已開啟音效" : "🔇 已靜音關閉音效", "info");
     if (window.lucide) lucide.createIcons();
   });
   document.getElementById("btn-toggle-unlocked-list").addEventListener("click", () => openUnlockedAndHelpModal("list"));

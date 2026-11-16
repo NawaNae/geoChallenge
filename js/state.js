@@ -6,14 +6,14 @@ const state = {
   playMode: "free",            // 'free' | 'target_random' | 'target_click'
   mapLayer: "vector",          // 'vector' | 'terrain' | 'street' | 'satellite'
   showRailOverlay: false,      // Default OFF
-  transportMode: "off",        // 'off' | 'rail_only' | 'lines_and_stations' | 'stations_only'
+  transportMode: "off",        // 'off' | 'rail_only' | 'lines_and_stations'
   showDistrictBorders: true,   // Toggleable administrative boundaries (區界開關)
   showStationNames: false,     // Hidden by default so station names don't spoil answers
   openRailLoaded: false,       // True when OpenRailwayMap tiles successfully load in browser
   hideMrtLinesOnOpenRail: false, // User toggle: hide MRT lines on openrail loaded, keep colored dots
   p2pLayerRule: "free",        // 'free' | 'locked'
   p2pForcedLayer: "vector",
-  p2pRailRule: "free",         // 'free' | 'ban_rail' | 'force_lines' | 'force_stations'
+  p2pRailRule: "free",         // 'free' | 'ban_roads_only' | 'ban_rail' | 'force_lines' | 'force_rail_only'
   leaderLineMode: "smart",     // 'smart' | 'all_callout' | 'inline_only'
   // Performance & Label Display Settings
   dragSyncMode: "realtime_raf",// 'hide_on_move' (高效能移動時隱藏) | 'realtime_raf' (即時同步跟隨)
@@ -31,7 +31,8 @@ const state = {
   targetStationKey: null,
   stationQuizEnabled: false,
   quizTargetMode: "region", // 'region' | 'station' | 'mixed'
-  showRawOpenRailwayTile: true,
+  showRawOpenRailwayTile: false,
+  showStationTerminusHints: false, // 軌道猜謎下預設不顯示路線頭尾端點站提示（防劇透，可手動開啟）
   useAlgorithmicCleanRailTile: false,
   quizStationLines: new Set(),
   isGameOver: false,
@@ -44,18 +45,37 @@ const state = {
   elapsedSec: 0,
   timerRunning: false,
   timerInterval: null,
-  soundEnabled: true,
-  nickname: "台灣地理王",
+  soundEnabled: false,
+  enableLegacyStationOnlyMode: false,
+  localInstanceId: "inst_" + Math.random().toString(36).slice(2, 9),
+  nickname: "GeoMasterTW",
   roomCode: "",
   peer: null,
   conn: null,
   bcChannel: null,
+  isHost: false,
+  isReady: false,
+  finished: false,
+  finalStats: null,
+  stats: {
+    totalAttempts: 0,
+    correctAttempts: 0,
+    wrongAttempts: 0,
+    streak: 0,
+    maxStreak: 0
+  },
   opponent: {
     name: "對手",
     score: 0,
     total: 368,
+    stationScore: 0,
+    stationTotal: 0,
+    macroProgress: {},
     lastUnlocked: "尚無動態",
-    connected: false
+    connected: false,
+    isReady: false,
+    finished: false,
+    finalStats: null
   },
   aiRivalTimer: null
 };

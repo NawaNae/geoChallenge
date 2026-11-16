@@ -76,7 +76,7 @@ function updatePrefixDropdownUI() {
             select.value = select.value === opt.val ? "" : opt.val;
             updatePrefixDropdownUI();
             updateLiveCombinedPreview();
-            document.getElementById("answer-input").focus();
+            document.getElementById("answer-input").focus({ preventScroll: true });
           });
           pillsWrap.appendChild(btn);
         });
@@ -612,6 +612,12 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
 }
 
 function onSuccessfulUnlock(msg, lastItemName, isTierOrTarget) {
+  if (!state.stats) state.stats = { totalAttempts: 0, correctAttempts: 0, wrongAttempts: 0, streak: 0, maxStreak: 0 };
+  state.stats.correctAttempts++;
+  state.stats.totalAttempts++;
+  state.stats.streak++;
+  if (state.stats.streak > state.stats.maxStreak) state.stats.maxStreak = state.stats.streak;
+
   playTone(isTierOrTarget ? "tier" : "unlock");
   clearCoreInput();
   setFeedback(msg, "success");
@@ -622,6 +628,11 @@ function onSuccessfulUnlock(msg, lastItemName, isTierOrTarget) {
 }
 
 function triggerWrongFeedback(msg) {
+  if (!state.stats) state.stats = { totalAttempts: 0, correctAttempts: 0, wrongAttempts: 0, streak: 0, maxStreak: 0 };
+  state.stats.wrongAttempts++;
+  state.stats.totalAttempts++;
+  state.stats.streak = 0;
+
   playTone("error");
   setFeedback(msg, "error");
   const card = document.getElementById("input-dock-card");
@@ -768,7 +779,7 @@ function moveTargetByDirection(dir) {
   if (map) {
     map.panTo([best.lat, best.lng], { animate: true, duration: 0.35 });
   }
-  document.getElementById("answer-input").focus();
+  document.getElementById("answer-input").focus({ preventScroll: true });
 }
 
 function handlePolygonClick(townObj) {
@@ -793,7 +804,7 @@ function handlePolygonClick(townObj) {
     state.hintLevel = 0;
     updateTargetBannerUI();
     refreshAllPolygonStyles();
-    document.getElementById("answer-input").focus();
+    document.getElementById("answer-input").focus({ preventScroll: true });
     return;
   }
 
@@ -811,7 +822,7 @@ function handlePolygonClick(townObj) {
       select.value = prefixVal;
       updateLiveCombinedPreview();
       setFeedback(`已將前綴鎖定為「${prefixVal}」，請輸入該區名稱！`, "info");
-      document.getElementById("answer-input").focus();
+      document.getElementById("answer-input").focus({ preventScroll: true });
     }
   } else {
     setFeedback(`🔒 尚未解鎖此區塊（位於未解鎖縣市內，猜中後自動揭曉）`, "info");

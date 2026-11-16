@@ -1,4 +1,4 @@
-# AGENTS.md — Taiwan GeoMaster Pro 專案架構與維護導覽
+P# AGENTS.md — GeoMaster TW 專案架構與維護導覽
 
 > **核心目標**：本專案已將原本單一巨型 HTML（6,920 行 / 348 KB）拆分為「靜態資料 (`data/`)」、「樣式 (`css/`)」、「功能引擎 (`js/`)」與「網頁骨幹 (`index.html`)」。
 > AI 代理（Agents）在維護或擴充功能時，**請根據下方索引只讀取需要修改的目標檔案**，切勿一次讀取全部檔案，以節省 80%~90% 的 Token 消耗。

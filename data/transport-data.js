@@ -811,3 +811,17 @@ if (typeof window !== 'undefined' && typeof TAIWAN_SELECTABLE_LINES !== 'undefin
     }
   });
 }
+
+// 取得路線顯示名稱（依設定決定是否顯示頭尾端點站提示，如基隆—竹南）
+function getLineDisplayName(line, includeTerminus) {
+  if (!line) return "";
+  const raw = typeof line === "string" ? line : (line.name || "");
+  const allowTerminus = typeof includeTerminus === "boolean"
+    ? includeTerminus
+    : (typeof state !== "undefined" && !!state.showStationTerminusHints);
+  if (allowTerminus) return raw;
+  return raw.replace(/\s*[\(（][^()（）]*[—\-][^()（）]*[\)）]/g, "").trim();
+}
+if (typeof window !== "undefined") {
+  window.getLineDisplayName = getLineDisplayName;
+}

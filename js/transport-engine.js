@@ -544,16 +544,19 @@ function getActiveQuizStations() {
   TAIWAN_SELECTABLE_LINES.forEach((line) => {
     if (line.isHighway || !activeSet.has(line.id)) return;
     const meta = LINE_DISPLAY_META[line.id] || { dotName: line.name, sysTotal: line.group, macro: "鐵道" };
-    line.stations.forEach((st) => {
+    const cleanLineName = typeof getLineDisplayName === "function" ? getLineDisplayName(meta.dotName || line.name) : (meta.dotName || line.name);
+    line.stations.forEach((st, idx) => {
       const [rawName, lat, lng] = st;
       const base = cleanStationBaseName(rawName);
       const display = getDisplayStationName(rawName);
+      const isTerminus = idx === 0 || idx === line.stations.length - 1;
       // Deduplicate same station shared by lines of the same system (e.g. 竹南, 彰化, 八堵, 大橋頭, 中正紀念堂) within ~1.8km
       let existing = byNearKey.find(
         (x) => x.stKind === line.stKind && x.baseName === base && Math.hypot(x.lat - lat, x.lng - lng) < 0.018
       );
       if (existing) {
         if (!existing.lineIds.includes(line.id)) existing.lineIds.push(line.id);
+        if (isTerminus) existing.isTerminus = true;
       } else {
         const stableKey = `${line.stKind}_${base}_${Math.round(lat * 5)}_${Math.round(lng * 5)}`;
         const obj = {
@@ -561,7 +564,8 @@ function getActiveQuizStations() {
           rawName,
           displayName: display,
           baseName: base,
-          lineName: meta.dotName || line.name,
+          lineName: cleanLineName,
+          isTerminus,
           lineId: line.id,
           lineIds: [line.id],
           sysTotal: meta.sysTotal,
@@ -654,14 +658,38 @@ function updateRoadAndRailwayTileOverlays() {
   if (!map) return;
 
   if (state.p2pRailRule === "ban_rail") {
-    state.transportMode = "off";
-    state.showRailOverlay = false;
+    const hasStations =
+      (state.stationQuizEnabled && state.quizStationLines.size > 0) ||
+      state.selectedTransportLines.size > 0 ||
+      (typeof getActiveQuizStations === "function" && getActiveQuizStations().length > 0);
+    if (hasStations) {
+      // If stations are enabled, allow "stations_only" or "off" (never rail_only or lines_and_stations)
+      if (state.transportMode !== "stations_only" && state.transportMode !== "off") {
+        state.transportMode = "stations_only";
+      }
+    } else {
+      state.transportMode = "off";
+    }
+    state.showRailOverlay = state.transportMode !== "off";
+  } else if (state.p2pRailRule === "ban_roads_only") {
+    // 🛑 僅 Ban 公路網：若目前為 lines_and_stations 強制轉為 rail_only (保留軌道線路+車站)
+    if (state.transportMode === "lines_and_stations") {
+      state.transportMode = "rail_only";
+    } else if (state.transportMode === "off" && (state.stationQuizEnabled || state.quizStationLines.size > 0)) {
+      state.transportMode = "rail_only";
+    }
+    state.showRailOverlay = state.transportMode !== "off";
   } else if (state.p2pRailRule === "force_lines") {
     state.transportMode = "lines_and_stations";
     state.showRailOverlay = true;
-  } else if (state.p2pRailRule === "force_stations") {
-    state.transportMode = "stations_only";
+  } else if (state.p2pRailRule === "force_rail_only") {
+    state.transportMode = "rail_only";
     state.showRailOverlay = true;
+  }
+
+  // Safety fallback for legacy stations_only mode
+  if (state.transportMode === "stations_only" && !state.enableLegacyStationOnlyMode && state.p2pRailRule !== "ban_rail") {
+    state.transportMode = "rail_only";
   }
 
   const mode = state.transportMode; // 'off' | 'rail_only' | 'lines_and_stations' | 'stations_only'
@@ -677,7 +705,7 @@ function updateRoadAndRailwayTileOverlays() {
           : mode === "lines_and_stations"
           ? "路網: 完整路網"
           : mode === "stations_only"
-          ? "路網: 純車站"
+          ? "路網: 僅車站"
           : "路網: 關";
     }
     btn.className =
@@ -713,8 +741,8 @@ function updateRoadAndRailwayTileOverlays() {
     loadOsmExactRailwayVectors();
   }
 
-  // 1. Tile Overlays (In rail_only mode, highway overlay is strictly suppressed to avoid highway clutter on satellite!)
-  if (mode === "lines_and_stations" && anyHighwaySelected) {
+  // 1. Tile Overlays (In rail_only mode or ban_roads_only rule, highway overlay is strictly suppressed!)
+  if (mode === "lines_and_stations" && anyHighwaySelected && state.p2pRailRule !== "ban_roads_only") {
     const roadsTile = L.tileLayer(GIS_TILES.gis_roads_overlay, {
       maxZoom: 18,
       opacity: 0.85,
@@ -855,7 +883,7 @@ function updateRoadAndRailwayTileOverlays() {
       updateTargetBannerUI();
       setFeedback(`🎯 已點選目標車站（所屬路線：${st.lineName}），請在下方輸入站名猜測！`, "warn");
       const inp = document.getElementById("answer-input");
-      if (inp) inp.focus();
+      if (inp) inp.focus({ preventScroll: true });
     });
 
     if (isUnlocked) {
@@ -874,6 +902,12 @@ function updateRoadAndRailwayTileOverlays() {
       });
     } else if (state.showStationNames) {
       circleMarker.bindTooltip(`${st.lineName} · ${st.displayName}`, {
+        direction: "top",
+        offset: [0, -6],
+        className: "tw-st-tip-hover"
+      });
+    } else if (state.showStationTerminusHints && st.isTerminus) {
+      circleMarker.bindTooltip(`🚩 端點站提示：${st.displayName}（${st.lineName}）`, {
         direction: "top",
         offset: [0, -6],
         className: "tw-st-tip-hover"
@@ -953,6 +987,7 @@ function updateRoadAndRailwayTileOverlays() {
 
   window.bindRailIslandLineInteraction = function(poly, line) {
     if (!poly || !line) return;
+    const displayName = typeof getLineDisplayName === 'function' ? getLineDisplayName(line) : line.name;
     poly.on('click', function(ev) {
       if (window.L && L.DomEvent) L.DomEvent.stopPropagation(ev);
       if (typeof state !== 'undefined') {
@@ -960,13 +995,13 @@ function updateRoadAndRailwayTileOverlays() {
       }
       if (typeof setFeedback === 'function') {
         const stCount = Array.isArray(line.stations) ? line.stations.length : 0;
-        setFeedback(`🛤️ 已選取路線：【${line.name}】（共 ${stCount} 站）`, 'ok');
+        setFeedback(`🛤️ 已選取路線：【${displayName}】（共 ${stCount} 站）`, 'ok');
       }
       if (typeof updateRoadAndRailwayTileOverlays === 'function') {
         updateRoadAndRailwayTileOverlays();
       }
     });
-    poly.bindTooltip(`<b>${line.name}</b>`, {
+    poly.bindTooltip(`<b>${displayName}</b>`, {
       sticky: true,
       direction: 'top',
       offset: [0, -6],
