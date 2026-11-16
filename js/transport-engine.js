@@ -60,7 +60,7 @@ function applyStationCoordCandidates(candidates) {
     let bestDist = Infinity;
     for (let i = 0; i < candidates.length; i++) {
       const c = candidates[i];
-      if (c.base !== base && !c.altBases?.includes(base)) continue;
+      if (c.base !== base && !(c.altBases && c.altBases.includes(base))) continue;
       if (lineKind === "thsr" && c.kind && c.kind !== "thsr" && c.kind !== "any") continue;
       const d = Math.hypot(c.lat - curLat, c.lng - curLng);
       // Must be within ~3.8km of approximate location so same-name stations in other counties never collide
@@ -199,7 +199,7 @@ async function fetchOverpassJson(query) {
 async function initPrecisionRailAndStationEngine() {
   // Step 1: Apply cached station coordinate snaps immediately if present
   try {
-    const cachedSt = localStorage.getItem("tw_geomaster_osm_stations_v4");
+    const cachedSt = localStorage.getItem("tw_geomaster_osm_stations_v5");
     if (cachedSt) {
       const parsed = JSON.parse(cachedSt);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -209,7 +209,7 @@ async function initPrecisionRailAndStationEngine() {
     }
   } catch (_) {}
 
-  // Step 2: Fetch official GeoJSONs (TRA, THSR, Northern Metro) + OSM station nodes in parallel
+  // Step 2: Fetch official THSR & Metro stations + OSM station nodes in parallel (No address geocoding)
   (async () => {
     const collected = [];
     const addNode = (name, lat, lng, kind = "any") => {
@@ -221,23 +221,13 @@ async function initPrecisionRailAndStationEngine() {
     };
 
     await Promise.allSettled([
-      // Official TRA stations GeoJSON
-      fetch("https://cdn.jsdelivr.net/gh/repeat/taiwan-railway-stations@master/station.json")
-        .then((r) => r.json())
-        .then((fc) => {
-          (fc.features || []).forEach((f) => {
-            const coords = f.geometry?.coordinates;
-            const name = f.properties?.["站名"] || f.properties?.name;
-            if (coords && name) addNode(name, Number(coords[1]), Number(coords[0]), "tra");
-          });
-        }),
       // Official THSR stations GeoJSON
       fetch("https://cdn.jsdelivr.net/gh/repeat/taiwan-high-speed-rail-stations@master/taiwan-high-speed-rail.geojson")
         .then((r) => r.json())
         .then((fc) => {
           (fc.features || []).forEach((f) => {
-            const coords = f.geometry?.coordinates;
-            const name = f.properties?.["站名"] || f.properties?.name;
+            const coords = f.geometry && f.geometry.coordinates;
+            const name = (f.properties && f.properties["站名"]) || (f.properties && f.properties.name);
             if (coords && name) addNode(name, Number(coords[1]), Number(coords[0]), "thsr");
           });
         }),
@@ -246,8 +236,8 @@ async function initPrecisionRailAndStationEngine() {
         .then((r) => r.json())
         .then((fc) => {
           (fc.features || []).forEach((f) => {
-            const coords = f.geometry?.coordinates;
-            const name = f.properties?.["站名"] || f.properties?.name;
+            const coords = f.geometry && f.geometry.coordinates;
+            const name = (f.properties && f.properties["站名"]) || (f.properties && f.properties.name);
             if (coords && name) addNode(name, Number(coords[1]), Number(coords[0]), "mrt");
           });
         }),
@@ -256,9 +246,10 @@ async function initPrecisionRailAndStationEngine() {
         `[out:json][timeout:15];(node["railway"~"^(station|halt|tram_stop)$"](21.8,120.0,25.35,122.05);node["aerialway"="station"](21.8,120.0,25.35,122.05););out body qt;`
       ).then((data) => {
         (data.elements || []).forEach((el) => {
-          const name = el.tags?.["name:zh-Hant"] || el.tags?.["name:zh"] || el.tags?.name;
+          const tags = el.tags || {};
+          const name = tags["name:zh-Hant"] || tags["name:zh"] || tags.name;
           if (name && el.lat && el.lon) {
-            const isHsr = /高鐵/.test(name) || el.tags?.network?.includes("高鐵");
+            const isHsr = /高鐵/.test(name) || (tags.network && tags.network.includes("高鐵"));
             addNode(name, el.lat, el.lon, isHsr ? "thsr" : "any");
           }
         });
@@ -268,7 +259,7 @@ async function initPrecisionRailAndStationEngine() {
     if (collected.length > 0) {
       applyStationCoordCandidates(collected);
       try {
-        localStorage.setItem("tw_geomaster_osm_stations_v4", JSON.stringify(collected.slice(0, 1500)));
+        localStorage.setItem("tw_geomaster_osm_stations_v5", JSON.stringify(collected.slice(0, 1500)));
       } catch (_) {}
       if (state.transportMode !== "off") {
         updateRoadAndRailwayTileOverlays();
@@ -487,9 +478,58 @@ function buildStationAnchoredVectorPolylines(line) {
   return resultPolylines;
 }
 
+function projectPointOntoSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  if (dx === 0 && dy === 0) return { lat: x1, lng: y1, distSq: (px - x1) ** 2 + (py - y1) ** 2 };
+  let t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+  t = Math.max(0, Math.min(1, t));
+  const projLat = x1 + t * dx;
+  const projLng = y1 + t * dy;
+  const distSq = (px - projLat) ** 2 + (py - projLng) ** 2;
+  return { lat: projLat, lng: projLng, distSq };
+}
+
 function snapStationsOntoOsmTracks() {
-  // Stations remain the authoritative anchor vertices for buildStationAnchoredVectorPolylines(line),
-  // guaranteeing 0.0px separation between station dots and vector tracks at all zoom levels!
+  if (!osmTracksLoaded || osmWaysByLineId.size === 0) return;
+  let snappedCount = 0;
+
+  const snapStationTuple = (st, ways) => {
+    if (!st || st.length < 3) return;
+    const curLat = st[1];
+    const curLng = st[2];
+    let best = null;
+    let minSq = Infinity;
+
+    for (let w = 0; w < ways.length; w++) {
+      const seg = ways[w];
+      for (let i = 0; i < seg.length - 1; i++) {
+        const proj = projectPointOntoSegment(curLat, curLng, seg[i][0], seg[i][1], seg[i + 1][0], seg[i + 1][1]);
+        if (proj.distSq < minSq) {
+          minSq = proj.distSq;
+          best = proj;
+        }
+      }
+    }
+
+    // Snap if within ~800m (0.008 deg) of actual vector track
+    if (best && minSq < 0.000064) {
+      st[1] = Number(best.lat.toFixed(5));
+      st[2] = Number(best.lng.toFixed(5));
+      snappedCount++;
+    }
+  };
+
+  TAIWAN_SELECTABLE_LINES.forEach((line) => {
+    const ways = osmWaysByLineId.get(line.id);
+    if (!ways || ways.length === 0) return;
+    line.stations.forEach((st) => snapStationTuple(st, ways));
+    if (Array.isArray(line.branches)) {
+      line.branches.forEach((br) => br.forEach((st) => snapStationTuple(st, ways)));
+    }
+  });
+
+  return snappedCount;
 }
 
 function getActiveQuizStations() {
@@ -624,12 +664,7 @@ function updateRoadAndRailwayTileOverlays() {
     state.showRailOverlay = true;
   }
 
-  if (state.mapLayer === "street" && state.transportMode === "off") {
-    state.transportMode = "lines_and_stations";
-    state.showRailOverlay = true;
-  }
-
-  const mode = state.transportMode; // 'off' | 'lines_and_stations' | 'stations_only'
+  const mode = state.transportMode; // 'off' | 'rail_only' | 'lines_and_stations' | 'stations_only'
   state.showRailOverlay = mode !== "off";
 
   const btn = document.getElementById("btn-toggle-rail");
@@ -637,11 +672,13 @@ function updateRoadAndRailwayTileOverlays() {
     const span = btn.querySelector("span");
     if (span) {
       span.textContent =
-        mode === "lines_and_stations"
-          ? "路網疊圖: 開"
+        mode === "rail_only"
+          ? "路網: 純軌道"
+          : mode === "lines_and_stations"
+          ? "路網: 完整路網"
           : mode === "stations_only"
-          ? "路網疊圖: 純車站"
-          : "路網疊圖: 關";
+          ? "路網: 純車站"
+          : "路網: 關";
     }
     btn.className =
       mode !== "off"
@@ -669,49 +706,75 @@ function updateRoadAndRailwayTileOverlays() {
     state.selectedTransportLines.has("hw_prov") ||
     state.selectedTransportLines.has("hw_county");
   const anyRailSelected = TAIWAN_SELECTABLE_LINES.some(
-    (l) => !l.isHighway && state.selectedTransportLines.has(l.id)
+    (l) => !l.isHighway && (state.selectedTransportLines.has(l.id) || state.quizStationLines.has(l.id))
   );
 
   if (anyRailSelected && !osmTracksLoaded && !osmTracksLoading) {
     loadOsmExactRailwayVectors();
   }
 
-  if (mode === "lines_and_stations") {
-    if (anyHighwaySelected) {
-      const roadsTile = L.tileLayer(GIS_TILES.gis_roads_overlay, {
-        maxZoom: 18,
-        opacity: 0.85,
-        attribution: "Roads &copy; Esri"
-      }).addTo(map);
-      railTileLayers.push(roadsTile);
-    }
-    if (anyRailSelected && state.showRawOpenRailwayTile) {
-      const railTile = L.tileLayer(GIS_TILES.gis_railway_overlay, {
-        subdomains: ["a", "b", "c"],
-        maxZoom: 18,
-        opacity: 0.82,
-        attribution: "Rail &copy; OpenRailwayMap"
-      }).addTo(map);
-      railTileLayers.push(railTile);
-    }
+  // 1. Tile Overlays (In rail_only mode, highway overlay is strictly suppressed to avoid highway clutter on satellite!)
+  if (mode === "lines_and_stations" && anyHighwaySelected) {
+    const roadsTile = L.tileLayer(GIS_TILES.gis_roads_overlay, {
+      maxZoom: 18,
+      opacity: 0.85,
+      attribution: "Roads &copy; Esri"
+    }).addTo(map);
+    railTileLayers.push(roadsTile);
+  }
+
+  if ((mode === "lines_and_stations" || mode === "rail_only") && anyRailSelected && state.showRawOpenRailwayTile) {
+    const railTile = L.tileLayer(GIS_TILES.gis_railway_overlay, {
+      subdomains: ["a", "b", "c"],
+      maxZoom: 18,
+      opacity: 0.85,
+      attribution: "Rail &copy; OpenRailwayMap"
+    });
+
+    railTile.on("tileload", () => {
+      if (!state.openRailLoaded) {
+        state.openRailLoaded = true;
+        if (state.hideMrtLinesOnOpenRail) {
+          updateRoadAndRailwayTileOverlays();
+        }
+      }
+    });
+
+    railTile.addTo(map);
+    railTileLayers.push(railTile);
   }
 
   const customGroup = L.layerGroup().addTo(map);
   railTileLayers.push(customGroup);
 
-  // 2. Draw 100% Pure Vector Railway / THSR / MRT / LRT Polylines on railCanvasRenderer (Anchored through every station!)
-  if (mode === "lines_and_stations") {
+  // 2. Draw Vector Railway / THSR / MRT / LRT Polylines
+  // Dynamic rules:
+  // - High-speed rail & TRA: If GIS base or OpenRail is active, do NOT draw duplicate custom vector lines; draw if neither is active!
+  // - MRT/LRT: Only hidden if OpenRail is active AND successfully loaded AND user enabled hideMrtLinesOnOpenRail!
+  if (mode === "lines_and_stations" || mode === "rail_only") {
     const activeLineSet = state.stationQuizEnabled && state.quizStationLines.size > 0
       ? state.quizStationLines
       : state.selectedTransportLines;
 
+    const isOpenRailActive = state.showRawOpenRailwayTile && (mode === "lines_and_stations" || mode === "rail_only");
+    const isOpenRailReady = isOpenRailActive && state.openRailLoaded;
+    const hasGisBase = state.mapLayer === "vector";
+
     TAIWAN_SELECTABLE_LINES.forEach((line) => {
       if (line.isHighway || !activeLineSet.has(line.id)) return;
+
+      if (line.stKind === "thsr" || line.stKind === "tra") {
+        if (isOpenRailActive || hasGisBase) return;
+      } else if (line.stKind === "mrt" || line.stKind === "lrt") {
+        if (isOpenRailReady && state.hideMrtLinesOnOpenRail) return;
+      } else if (line.drawCustomLine === false) {
+        return;
+      }
+
       const vectorPolylines = buildStationAnchoredVectorPolylines(line);
 
       vectorPolylines.forEach((pts) => {
         if (!pts || pts.length < 2) return;
-        // Crisp dark casing for contrast on satellite & vector maps
         L.polyline(pts, {
           renderer: railCanvasRenderer,
           pane: "roadRailVectorPane",
@@ -724,7 +787,7 @@ function updateRoadAndRailwayTileOverlays() {
         L.polyline(pts, {
           renderer: railCanvasRenderer,
           pane: "roadRailVectorPane",
-          color: line.color || "#38bdf8",
+          color: line.color || (line.stKind === "tra" ? "#003b73" : "#38bdf8"),
           weight: 2.6,
           opacity: 0.96,
           dashArray: line.dash || null,
@@ -742,7 +805,7 @@ function updateRoadAndRailwayTileOverlays() {
     const isTarget = state.targetStationKey === st.key;
 
     let radius = st.stKind === "thsr" ? 4.8 : 3.8;
-    let strokeColor = st.color || "#38bdf8";
+    let strokeColor = st.color || (st.stKind === "tra" ? "#003b73" : "#38bdf8");
     let fillColor = "#f8fafc";
     let strokeWeight = 2.0;
 

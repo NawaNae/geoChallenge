@@ -6,9 +6,11 @@ const state = {
   playMode: "free",            // 'free' | 'target_random' | 'target_click'
   mapLayer: "vector",          // 'vector' | 'terrain' | 'street' | 'satellite'
   showRailOverlay: false,      // Default OFF
-  transportMode: "off",        // 'off' | 'lines_and_stations' | 'stations_only'
+  transportMode: "off",        // 'off' | 'rail_only' | 'lines_and_stations' | 'stations_only'
   showDistrictBorders: true,   // Toggleable administrative boundaries (區界開關)
   showStationNames: false,     // Hidden by default so station names don't spoil answers
+  openRailLoaded: false,       // True when OpenRailwayMap tiles successfully load in browser
+  hideMrtLinesOnOpenRail: false, // User toggle: hide MRT lines on openrail loaded, keep colored dots
   p2pLayerRule: "free",        // 'free' | 'locked'
   p2pForcedLayer: "vector",
   p2pRailRule: "free",         // 'free' | 'ban_rail' | 'force_lines' | 'force_stations'

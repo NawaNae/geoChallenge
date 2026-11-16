@@ -132,9 +132,6 @@
             <button type="button" data-layer="terrain" class="layer-btn px-2 sm:px-2.5 py-1 rounded-xl text-[11px] sm:text-xs font-semibold transition text-slate-300 hover:text-white whitespace-nowrap">
               山地地形
             </button>
-            <button type="button" data-layer="street" class="hidden layer-btn px-2 sm:px-2.5 py-1 rounded-xl text-[11px] sm:text-xs font-semibold transition text-slate-300 hover:text-white whitespace-nowrap">
-              道路鐵路
-            </button>
             <button type="button" data-layer="satellite" class="layer-btn px-2 sm:px-2.5 py-1 rounded-xl text-[11px] sm:text-xs font-semibold transition text-slate-300 hover:text-white whitespace-nowrap">
               衛星影像
             </button>
@@ -758,7 +755,6 @@
             <select id="p2p-forced-layer-select" class="bg-slate-950 text-sky-300 text-xs font-semibold rounded-xl px-3 py-2 border border-slate-700">
               <option value="vector">指定底圖：純淨向量</option>
               <option value="terrain">指定底圖：無字山地地形</option>
-              <option value="street" class="hidden">指定圖層：GIS 道路與鐵道</option>
               <option value="satellite">指定底圖：無字衛星影像</option>
             </select>
           </div>
@@ -820,19 +816,23 @@
       </div>
 
       <div class="overflow-y-auto py-3 pr-1 space-y-4 flex-1 text-xs">
-        <!-- 1. Display Mode (關閉 / 路網+車站 / 單純開車站) & District Borders Toggle -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <button type="button" data-tmode="off" class="tmode-btn p-2.5 rounded-xl border border-slate-700 bg-slate-900/70 text-left transition">
-            <div class="font-bold text-slate-200">🚫 關閉路網與車站</div>
+        <!-- 1. Display Mode (關閉 / 純軌道路網 / 完整路網 / 單純開車站) & District Borders Toggle -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+          <button type="button" data-tmode="off" class="tmode-btn p-2 rounded-xl border border-slate-700 bg-slate-900/70 text-left transition">
+            <div class="font-bold text-slate-200">🚫 關閉路網</div>
             <div class="text-[11px] text-slate-400 mt-0.5">僅顯示底圖與行政區界線</div>
           </button>
-          <button type="button" data-tmode="lines_and_stations" class="tmode-btn p-2.5 rounded-xl border border-amber-400 bg-amber-500/20 text-left transition">
-            <div class="font-bold text-amber-300">🛤️ 路網＋車站＋梅花盾牌</div>
-            <div class="text-[11px] text-slate-300 mt-0.5">顯示所選路線軌跡、正統路標與車站符號</div>
+          <button type="button" data-tmode="rail_only" class="tmode-btn p-2 rounded-xl border border-sky-400 bg-sky-500/20 text-left transition">
+            <div class="font-bold text-sky-300">🚄 純軌道路網 (線路+點)</div>
+            <div class="text-[11px] text-slate-300 mt-0.5">僅高鐵/台鐵/捷運/輕軌，無公路雜訊</div>
           </button>
-          <button type="button" data-tmode="stations_only" class="tmode-btn p-2.5 rounded-xl border border-slate-700 bg-slate-900/70 text-left transition">
-            <div class="font-bold text-sky-300">📍 單純開車站模式 (無路線)</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">隱藏站名與路線，只看全台車站點位分佈</div>
+          <button type="button" data-tmode="lines_and_stations" class="tmode-btn p-2 rounded-xl border border-amber-400 bg-amber-500/20 text-left transition">
+            <div class="font-bold text-amber-300">🛤️ 完整路網 (含公路)</div>
+            <div class="text-[11px] text-slate-300 mt-0.5">軌道路網＋國道省道縣道路標</div>
+          </button>
+          <button type="button" data-tmode="stations_only" class="tmode-btn p-2 rounded-xl border border-slate-700 bg-slate-900/70 text-left transition">
+            <div class="font-bold text-emerald-300">📍 純車站模式 (無路線)</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">僅看全台車站圓點分佈</div>
           </button>
         </div>
 
@@ -850,6 +850,10 @@
             <input id="chk-raw-rail-tile" type="checkbox" checked class="w-4 h-4 rounded bg-slate-800 border-slate-600 text-sky-500" />
             <span>🗺️ 疊加 OpenRailwayMap 原生號誌軌道圖層 (100% 精準軌道＋橘色高鐵線，無站名防劇透)</span>
           </label>
+          <label class="flex items-center gap-2 text-cyan-300 font-semibold cursor-pointer" title="當 OpenRailwayMap 圖層成功載入後，捷運關閉向量連線，僅保留各線代表色車站點，避免雙重劃線">
+            <input id="chk-hide-mrt-lines-openrail" type="checkbox" class="w-4 h-4 rounded bg-slate-800 border-slate-600 text-cyan-500" />
+            <span>🚇 捷運於 OpenRailwayMap 載入後關閉連線（保留各線顏色點）</span>
+          </label>
           <span id="hw_express" class="hidden"></span><span id="hw_prov" class="hidden"></span><span id="hw_county" class="hidden"></span>
         </div>
 
@@ -857,11 +861,12 @@
         <div class="flex flex-wrap items-center gap-1.5">
           <span class="text-slate-400 font-semibold mr-1">快速組合：</span>
           <button id="btn-tpreset-all" type="button" class="px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 font-bold transition">✅ 全選所有系統</button>
+          <button id="btn-tpreset-pure-rail" type="button" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold transition">🚄 純軌道路網 (排除公路)</button>
           <button id="btn-tpreset-rail-all" type="button" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold transition">🚆 全台鐵道+捷運+輕軌+林糖纜</button>
-          <button id="btn-tpreset-tra" type="button" class="px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 font-bold transition">🚂 僅台鐵 (含平溪/內灣/集集/沙崙支線)</button>
+          <button id="btn-tpreset-tra" type="button" class="px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 font-bold transition">🚂 僅台鐵 (深藍色)</button>
           <button id="btn-tpreset-mrt-lrt" type="button" class="px-2.5 py-1 rounded-lg bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 font-bold transition">🚇 僅都會捷運+輕軌+纜車</button>
-          <button id="btn-tpreset-heritage" type="button" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold transition">🌲 僅林鐵+糖鐵+纜車</button>
-          <button id="btn-tpreset-highway" type="button" class="px-2.5 py-1 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 font-bold transition">🛣️ 僅國道/省道/縣道</button>
+          <button id="btn-tpreset-heritage" type="button" class="px-2.5 py-1 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 font-bold transition">🌲 僅林鐵+糖鐵+纜車</button>
+          <button id="btn-tpreset-highway" type="button" class="px-2.5 py-1 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-300 border border-slate-600 font-bold transition">🛣️ 僅國道/省道/縣道</button>
           <button id="btn-tpreset-none" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition">清除全不選</button>
         </div>
 

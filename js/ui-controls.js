@@ -260,9 +260,14 @@ function bindAllUIEvents() {
     document.querySelectorAll(".tmode-btn").forEach((btn) => {
       const isCur = btn.getAttribute("data-tmode") === state.transportMode;
       btn.className = isCur
-        ? "tmode-btn p-2.5 rounded-xl border border-amber-400 bg-amber-500/20 text-left transition"
-        : "tmode-btn p-2.5 rounded-xl border border-slate-700 bg-slate-900/70 hover:bg-slate-800 text-left transition";
+        ? "tmode-btn p-2 rounded-xl border border-amber-400 bg-amber-500/20 text-left transition"
+        : "tmode-btn p-2 rounded-xl border border-slate-700 bg-slate-900/70 hover:bg-slate-800 text-left transition";
     });
+
+    const chkHideMrt = document.getElementById("chk-hide-mrt-lines-openrail");
+    if (chkHideMrt) chkHideMrt.checked = !!state.hideMrtLinesOnOpenRail;
+    const chkRawRail = document.getElementById("chk-raw-rail-tile");
+    if (chkRawRail) chkRawRail.checked = !!state.showRawOpenRailwayTile;
 
     // Group lines by group name
     const groups = new Map();
@@ -326,15 +331,17 @@ function bindAllUIEvents() {
       setFeedback("🔒 本場對戰房主已鎖定或禁用路網與車站模式！", "warn");
       return;
     }
-    // Cycle: off -> lines_and_stations -> stations_only -> off
-    const order = ["off", "lines_and_stations", "stations_only"];
+    // Cycle: off -> rail_only -> lines_and_stations -> stations_only -> off
+    const order = ["off", "rail_only", "lines_and_stations", "stations_only"];
     const nextMode = order[(order.indexOf(state.transportMode) + 1) % order.length];
     state.transportMode = nextMode;
     updateRoadAndRailwayTileOverlays();
     refreshAllPolygonStyles();
     const modeDesc =
-      nextMode === "lines_and_stations"
-        ? "🛤️ 已開啟「路網＋車站＋梅花盾牌」模式（點右側 ⚙️ 選線 可自訂路線）"
+      nextMode === "rail_only"
+        ? "🚄 已開啟「純軌道路網」模式（線路+點，100% 排除公路雜訊，衛星底圖乾淨無道路）"
+        : nextMode === "lines_and_stations"
+        ? "🛤️ 已開啟「完整路網」模式（顯示軌道＋車站點位＋公路路標）"
         : nextMode === "stations_only"
         ? "📍 已切換為「單純開車站」模式（隱藏路線與站名，僅顯示車站點位）"
         : "🚫 已關閉路網與車站疊圖";
@@ -390,12 +397,31 @@ function bindAllUIEvents() {
     updateRoadAndRailwayTileOverlays();
   });
 
+  const chkHideMrt = document.getElementById("chk-hide-mrt-lines-openrail");
+  if (chkHideMrt) {
+    chkHideMrt.addEventListener("change", (e) => {
+      state.hideMrtLinesOnOpenRail = e.target.checked;
+      updateRoadAndRailwayTileOverlays();
+    });
+  }
+
   // Transport Preset Buttons
   document.getElementById("btn-tpreset-all").addEventListener("click", () => {
     state.selectedTransportLines = new Set(TAIWAN_SELECTABLE_LINES.map((l) => l.id));
     if (state.transportMode === "off") state.transportMode = "lines_and_stations";
     renderTransportModalChecklist();
   });
+  const btnPureRail = document.getElementById("btn-tpreset-pure-rail");
+  if (btnPureRail) {
+    btnPureRail.addEventListener("click", () => {
+      state.selectedTransportLines = new Set(TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway).map((l) => l.id));
+      state.transportMode = "rail_only";
+      renderTransportModalChecklist();
+      updateRoadAndRailwayTileOverlays();
+      refreshAllPolygonStyles();
+      setFeedback("🚄 已套用「純軌道路網」預設組合（100% 排除公路雜訊，線路+車站點）", "info");
+    });
+  }
   document.getElementById("btn-tpreset-rail-all").addEventListener("click", () => {
     state.selectedTransportLines = new Set(TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway).map((l) => l.id));
     if (state.transportMode === "off") state.transportMode = "lines_and_stations";
@@ -483,8 +509,8 @@ function bindAllUIEvents() {
   //  - Disabled when input has any characters so IME cursor & candidate selection never conflict!
   window.addEventListener("keydown", (e) => {
     if (e.isComposing || state.isImeComposing) return;
-    const tag = document.activeElement?.tagName;
-    const activeId = document.activeElement?.id;
+    const tag = document.activeElement ? document.activeElement.tagName : "";
+    const activeId = document.activeElement ? document.activeElement.id : "";
     if (tag === "INPUT" && activeId !== "answer-input") return;
 
     const inputEl = document.getElementById("answer-input");
@@ -521,7 +547,8 @@ function bindAllUIEvents() {
       const nextIdx = (curIdx + step + totalOpts) % totalOpts;
       prefixSelectEl.selectedIndex = nextIdx;
       updateLiveCombinedPreview();
-      const chosenText = prefixSelectEl.options[nextIdx]?.value || "無固定前綴";
+      const opt = prefixSelectEl.options[nextIdx];
+      const chosenText = (opt && opt.value) || "無固定前綴";
       setFeedback(`📍 上下鍵快速切換縣市前綴：「${chosenText}」`, "info");
       inputEl.focus();
     }

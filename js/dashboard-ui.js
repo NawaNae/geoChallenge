@@ -281,7 +281,7 @@ function renderCountyProgressSidebar() {
         const unlockedS = stArr.filter((s) => state.unlockedStations.has(s.key)).length;
         const pctS = totalS > 0 ? ((unlockedS / totalS) * 100).toFixed(1) : "0.0";
         const isDone = unlockedS === totalS && totalS > 0;
-        const barColor = stArr[0]?.color || "#ec4899";
+        const barColor = (stArr[0] && stArr[0].color) || "#ec4899";
 
         const sCard = document.createElement("div");
         sCard.className = "p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-pink-500/30 cursor-pointer transition flex flex-col gap-1";

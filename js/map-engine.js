@@ -253,14 +253,6 @@ function setMapBaseLayer(layerKey, forceBypassLock = false) {
     }).addTo(map);
     activeTileLayers.push(tBase, tRelief);
     mapEl.classList.add("basemap-no-spoiler");
-  } else if (layerKey === "street") {
-    const sBase = L.tileLayer(GIS_TILES.street_dark_base, {
-      maxZoom: 16,
-      opacity: 0.85,
-      attribution: "Canvas Base &copy; Esri"
-    }).addTo(map);
-    activeTileLayers.push(sBase);
-    mapEl.classList.add("basemap-dark-canvas");
   } else if (layerKey === "satellite") {
     const sat = L.tileLayer(GIS_TILES.satellite, {
       maxZoom: 18,
@@ -274,10 +266,11 @@ function setMapBaseLayer(layerKey, forceBypassLock = false) {
   updateRoadAndRailwayTileOverlays();
 
   document.querySelectorAll(".layer-btn").forEach((btn) => {
+    if (btn.classList.contains("hidden")) return;
     const isCurrent = btn.getAttribute("data-layer") === layerKey;
     btn.className = isCurrent
-      ? "layer-btn px-2.5 py-1 rounded-xl text-xs font-semibold transition bg-sky-500 text-white shadow"
-      : "layer-btn px-2.5 py-1 rounded-xl text-xs font-semibold transition text-slate-300 hover:text-white";
+      ? "layer-btn px-2 sm:px-2.5 py-1 rounded-xl text-[11px] sm:text-xs font-semibold transition bg-sky-500 text-white shadow whitespace-nowrap"
+      : "layer-btn px-2 sm:px-2.5 py-1 rounded-xl text-[11px] sm:text-xs font-semibold transition text-slate-300 hover:text-white whitespace-nowrap";
   });
 
   refreshAllPolygonStyles();
