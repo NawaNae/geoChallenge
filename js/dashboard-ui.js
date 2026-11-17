@@ -609,6 +609,124 @@ function getGradeFromStats(stats) {
   return { grade: "C", title: "起步級·啟程旅人", desc: "邁開步伐！踏上認識台灣的第一步" };
 }
 
+function getBattleOutcome(myStats, oppStats) {
+  if (!oppStats) return { outcome: "solo", isWin: false, isDraw: false, isLoss: false };
+
+  const myScore = Number(myStats?.grandScore ?? myStats?.score ?? 0);
+  const myTotal = Number(myStats?.grandTotal ?? myStats?.total ?? 0);
+  const myPct = myTotal > 0 ? (myScore / myTotal) * 100 : 0;
+  const myTime = typeof myStats?.elapsedSec === "number" && !isNaN(myStats.elapsedSec) ? myStats.elapsedSec : 999999;
+
+  const oppScore = Number(oppStats?.grandScore ?? oppStats?.score ?? 0);
+  const oppTotal = Number(oppStats?.grandTotal ?? oppStats?.total ?? myTotal);
+  const oppPct = oppTotal > 0 ? (oppScore / oppTotal) * 100 : 0;
+  const oppTime = typeof oppStats?.elapsedSec === "number" && !isNaN(oppStats.elapsedSec) ? oppStats.elapsedSec : 999999;
+
+  // 1. 雙方皆 0 題（或 0%）：一律為平手
+  if (myScore === 0 && oppScore === 0) {
+    return {
+      outcome: "draw",
+      isDraw: true,
+      isWin: false,
+      isLoss: false,
+      reason: "zero_scores",
+      myScore, oppScore, myTotal, oppTotal, myPct, oppPct, myTime, oppTime
+    };
+  }
+
+  // 2. 完成度或題數不同：分數高者勝
+  if (Math.abs(myPct - oppPct) > 0.0001) {
+    if (myPct > oppPct) {
+      return {
+        outcome: "win",
+        isWin: true,
+        isDraw: false,
+        isLoss: false,
+        reason: "score",
+        diffScore: myScore - oppScore,
+        myScore, oppScore, myTotal, oppTotal, myPct, oppPct, myTime, oppTime
+      };
+    } else {
+      return {
+        outcome: "loss",
+        isLoss: true,
+        isWin: false,
+        isDraw: false,
+        reason: "score",
+        diffScore: oppScore - myScore,
+        myScore, oppScore, myTotal, oppTotal, myPct, oppPct, myTime, oppTime
+      };
+    }
+  }
+
+  // 3. 同分且都大於 0：才以耗時決勝 (耗時少者勝)
+  if (myScore > 0 && oppScore > 0) {
+    if (myTime < oppTime) {
+      return {
+        outcome: "win",
+        isWin: true,
+        isDraw: false,
+        isLoss: false,
+        reason: "time",
+        diffTime: oppTime - myTime,
+        myScore, oppScore, myTotal, oppTotal, myPct, oppPct, myTime, oppTime
+      };
+    } else if (myTime > oppTime) {
+      return {
+        outcome: "loss",
+        isLoss: true,
+        isWin: false,
+        isDraw: false,
+        reason: "time",
+        diffTime: myTime - oppTime,
+        myScore, oppScore, myTotal, oppTotal, myPct, oppPct, myTime, oppTime
+      };
+    }
+  }
+
+  // 耗時也完全相同或無法分出：平手
+  return {
+    outcome: "draw",
+    isDraw: true,
+    isWin: false,
+    isLoss: false,
+    reason: "tie_time",
+    myScore, oppScore, myTotal, oppTotal, myPct, oppPct, myTime, oppTime
+  };
+}
+
+function sortBattlePlayers(players) {
+  return [...players].sort((a, b) => {
+    const aCur = (a.grandScore ?? ((a.score || 0) + (a.stationScore || 0))) || 0;
+    const aTot = (a.grandTotal ?? ((a.total || 0) + (a.stationTotal || 0))) || 0;
+    const bCur = (b.grandScore ?? ((b.score || 0) + (b.stationScore || 0))) || 0;
+    const bTot = (b.grandTotal ?? ((b.total || 0) + (b.stationTotal || 0))) || 0;
+    const aPct = aTot > 0 ? aCur / aTot : 0;
+    const bPct = bTot > 0 ? bCur / bTot : 0;
+
+    if (Math.abs(aPct - bPct) > 0.0001) {
+      return bPct - aPct;
+    }
+    if (bCur !== aCur) {
+      return bCur - aCur;
+    }
+
+    if (aCur > 0 && bCur > 0) {
+      const aTime = typeof a.finalStats?.elapsedSec === "number" && !isNaN(a.finalStats.elapsedSec)
+        ? a.finalStats.elapsedSec
+        : (typeof a.elapsedSec === "number" && !isNaN(a.elapsedSec) ? a.elapsedSec : 999999);
+      const bTime = typeof b.finalStats?.elapsedSec === "number" && !isNaN(b.finalStats.elapsedSec)
+        ? b.finalStats.elapsedSec
+        : (typeof b.elapsedSec === "number" && !isNaN(b.elapsedSec) ? b.elapsedSec : 999999);
+      if (aTime !== bTime) {
+        return aTime - bTime;
+      }
+    }
+
+    return (a.name || "").localeCompare(b.name || "");
+  });
+}
+
 function showSettlementModal() {
   const stats = state.finalStats;
   if (!stats) return;
@@ -616,7 +734,7 @@ function showSettlementModal() {
   const modal = document.getElementById("modal-settlement");
   if (!modal) return;
 
-  const isMultiplayer = Boolean(state.opponent.connected || state.aiRivalTimer || state.opponent.finished);
+  const isMultiplayer = Boolean(state.opponent.connected || state.aiRivalTimer || state.opponent.finished || state.roomCode);
   const oppStats = state.opponent.finalStats;
 
   const typeBadge = document.getElementById("settlement-type-badge");
@@ -627,6 +745,11 @@ function showSettlementModal() {
   const vsBanner = document.getElementById("settlement-vs-banner");
   const oppOngoingBanner = document.getElementById("settlement-opp-ongoing-banner");
   const rematchBtnText = document.getElementById("rematch-btn-text");
+  const returnLobbyBtn = document.getElementById("btn-return-lobby-settlement");
+
+  if (returnLobbyBtn) {
+    returnLobbyBtn.classList.toggle("hidden", !isMultiplayer);
+  }
 
   const diffNames = {
     casual: "休閒提示",
@@ -671,7 +794,93 @@ function showSettlementModal() {
     }
     if (gradeBox) gradeBox.classList.add("hidden");
 
-    if (oppStats) {
+    const activeList = typeof getActiveBattlePlayers === "function" ? getActiveBattlePlayers() : [];
+    const isThreePlus = activeList.length >= 3;
+    const vsColsEl = document.getElementById("settlement-vs-cols");
+    const multiBoard = document.getElementById("settlement-multiplayer-board");
+    const rankListEl = document.getElementById("settlement-rank-list");
+    const vsResultEl = document.getElementById("settlement-vs-result");
+    const vsReasonEl = document.getElementById("settlement-vs-reason");
+    const myCol = document.getElementById("settlement-my-col");
+    const oppCol = document.getElementById("settlement-opp-col");
+    const myCrown = document.getElementById("vs-my-crown");
+    const oppCrown = document.getElementById("vs-opp-crown");
+
+    if (isThreePlus) {
+      // 3人以上只顯示完整排行，隱藏2欄雙卡
+      if (vsColsEl) vsColsEl.classList.add("hidden");
+      if (multiBoard) multiBoard.classList.remove("hidden");
+      if (vsBanner) vsBanner.classList.remove("hidden");
+
+      const ranked = sortBattlePlayers(activeList);
+      const myRank = Math.max(1, ranked.findIndex((p) => p.id === state.localInstanceId) + 1);
+      const winner = ranked[0] || { name: "對手", score: 0, stationScore: 0, total: stats.grandTotal, stationTotal: 0 };
+      const winnerCur = (winner.score || 0) + (winner.stationScore || 0);
+      const winnerTot = (winner.total || 0) + (winner.stationTotal || 0) || stats.grandTotal;
+      const winnerPct = winnerTot > 0 ? ((winnerCur / winnerTot) * 100).toFixed(1) + "%" : "0.0%";
+
+      if (myRank === 1) {
+        if (titleEl) titleEl.textContent = "👑 榮登第 1 名 · 勇奪冠軍！";
+        if (iconBox) iconBox.textContent = "👑";
+        if (vsResultEl) {
+          vsResultEl.textContent = "👑 榮獲第 1 名 · 勇奪冠軍！";
+          vsResultEl.className = "text-2xl sm:text-3xl font-black text-amber-400 tracking-tight";
+        }
+        if (vsReasonEl) {
+          vsReasonEl.textContent = `在 ${activeList.length} 人對決中拔得頭籌！完成度 ${pctStr} (${stats.grandScore}/${stats.grandTotal} 題)，奪下全場第一！`;
+        }
+      } else {
+        const medal = myRank === 2 ? "🥈" : myRank === 3 ? "🥉" : "🎖️";
+        if (titleEl) titleEl.textContent = `挑戰完成！獲得第 ${myRank} 名`;
+        if (iconBox) iconBox.textContent = medal;
+        if (vsResultEl) {
+          vsResultEl.textContent = `${medal} 第 ${myRank} 名 / 共 ${activeList.length} 人`;
+          vsResultEl.className = "text-2xl sm:text-3xl font-black text-sky-400 tracking-tight";
+        }
+        if (vsReasonEl) {
+          vsReasonEl.textContent = `本局冠軍為【${winner.name}】(${winnerCur}/${winnerTot} 題，${winnerPct})；我方完成度 ${pctStr} (${stats.grandScore}/${stats.grandTotal} 題)！`;
+        }
+      }
+
+      // 檢查是否尚有選手作答中
+      const unfinished = activeList.filter((p) => !p.finished && p.id !== state.localInstanceId);
+      if (unfinished.length > 0) {
+        if (oppOngoingBanner) oppOngoingBanner.classList.remove("hidden");
+        const liveText = document.getElementById("settlement-opp-live-text");
+        if (liveText) liveText.textContent = `尚有 ${unfinished.length} 位選手作答中，全體完賽後將自動更新最終排行榜！`;
+      } else {
+        if (oppOngoingBanner) oppOngoingBanner.classList.add("hidden");
+      }
+
+      if (rankListEl) {
+        const medals = ["🥇", "🥈", "🥉"];
+        rankListEl.replaceChildren();
+        const tplRow = document.getElementById("tpl-settlement-rank-row");
+        ranked.forEach((p, idx) => {
+          const tot = (p.total || 0) + (p.stationTotal || 0);
+          const cur = (p.score || 0) + (p.stationScore || 0);
+          const pPct = tot > 0 ? ((cur / tot) * 100).toFixed(1) : "0.0";
+          const tStr = p.finalStats && typeof p.finalStats.elapsedSec === "number"
+            ? formatTime(p.finalStats.elapsedSec)
+            : (typeof p.elapsedSec === "number" ? formatTime(p.elapsedSec) : "作答中");
+          const stTag = p.finished ? (p.finishReason === "victory" ? "👑 通關" : "🏁 已結束") : "⏳ 作答中";
+          if (tplRow && tplRow.content) {
+            const row = tplRow.content.firstElementChild.cloneNode(true);
+            if (p.id === state.localInstanceId) {
+              row.className = "flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-950/70 border border-sky-500/60 text-xs";
+            }
+            const nameEl = row.querySelector(".rank-name");
+            const metaEl = row.querySelector(".rank-meta");
+            if (nameEl) nameEl.textContent = `${medals[idx] || `#${idx + 1}`} ${p.name}${p.id === state.localInstanceId ? " (你)" : ""}`;
+            if (metaEl) metaEl.textContent = `${cur}/${tot} (${pPct}%) · 耗時 ${tStr} · ${stTag}`;
+            rankListEl.appendChild(row);
+          }
+        });
+      }
+    } else if (oppStats) {
+      // 2 人時只保留 2 欄雙卡對比
+      if (vsColsEl) vsColsEl.classList.remove("hidden");
+      if (multiBoard) multiBoard.classList.add("hidden");
       if (oppOngoingBanner) oppOngoingBanner.classList.add("hidden");
       if (vsBanner) vsBanner.classList.remove("hidden");
 
@@ -680,49 +889,33 @@ function showSettlementModal() {
       const oppPctNum = oppGrandTotal > 0 ? (oppGrandScore / oppGrandTotal) * 100 : 0;
       const oppPctStr = oppPctNum.toFixed(1) + "%";
 
-      let isWin = false;
-      let isDraw = false;
-      if (pctNum > oppPctNum) {
-        isWin = true;
-      } else if (pctNum < oppPctNum) {
-        isWin = false;
-      } else {
-        if (stats.elapsedSec < (oppStats.elapsedSec || 999999)) {
-          isWin = true;
-        } else if (stats.elapsedSec > (oppStats.elapsedSec || 999999)) {
-          isWin = false;
-        } else {
-          isDraw = true;
-        }
-      }
+      const outcome = getBattleOutcome(stats, oppStats);
 
-      const vsResultEl = document.getElementById("settlement-vs-result");
-      const vsReasonEl = document.getElementById("settlement-vs-reason");
-      const myCol = document.getElementById("settlement-my-col");
-      const oppCol = document.getElementById("settlement-opp-col");
-      const myCrown = document.getElementById("vs-my-crown");
-      const oppCrown = document.getElementById("vs-opp-crown");
-
-      if (isDraw) {
+      if (outcome.isDraw) {
         if (titleEl) titleEl.textContent = "勢均力敵！雙方平手";
         if (vsResultEl) {
           vsResultEl.textContent = "⚖️ 勢均力敵 · 平手！";
           vsResultEl.className = "text-2xl sm:text-3xl font-black text-sky-400 tracking-tight";
         }
-        if (vsReasonEl) vsReasonEl.textContent = `雙方完成度皆為 ${pctStr}，耗時速度不分軒輊！`;
+        if (vsReasonEl) {
+          vsReasonEl.textContent = outcome.reason === "zero_scores"
+            ? "雙方皆為 0 題，勢均力敵平手！"
+            : `雙方完成度皆為 ${pctStr}，耗時速度不分軒輊！`;
+        }
         if (myCrown) myCrown.textContent = "⚖️ TIE";
         if (oppCrown) oppCrown.textContent = "⚖️ TIE";
         if (iconBox) iconBox.textContent = "⚖️";
-      } else if (isWin) {
+        if (myCol) myCol.className = "p-2.5 sm:p-3 rounded-xl bg-slate-900/90 border border-slate-700/80 space-y-1";
+        if (oppCol) oppCol.className = "p-2.5 sm:p-3 rounded-xl bg-slate-900/90 border border-slate-700/80 space-y-1";
+      } else if (outcome.isWin) {
         if (titleEl) titleEl.textContent = "👑 恭喜獲得勝利！";
         if (vsResultEl) {
           vsResultEl.textContent = "👑 獲得勝利！VICTORY";
           vsResultEl.className = "text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight";
         }
-        const diffScore = stats.grandScore - oppGrandScore;
         if (vsReasonEl) {
-          vsReasonEl.textContent = diffScore > 0
-            ? `我方完成度 ${pctStr}，以 ${diffScore} 題領先優勢奪得勝利！`
+          vsReasonEl.textContent = outcome.reason === "score"
+            ? `我方完成度 ${pctStr}，以 ${outcome.diffScore} 題領先優勢擊敗對手【${oppStats.name || "對手"}】！`
             : `雙方完成度相同 (${pctStr})，我方以更快的耗時 (${formatTime(stats.elapsedSec)}) 險勝！`;
         }
         if (myCrown) myCrown.textContent = "👑 WIN";
@@ -736,11 +929,10 @@ function showSettlementModal() {
           vsResultEl.textContent = "💔 遺憾惜敗 · DEFEAT";
           vsResultEl.className = "text-2xl sm:text-3xl font-black text-rose-400 tracking-tight";
         }
-        const diffScore = oppGrandScore - stats.grandScore;
         if (vsReasonEl) {
-          vsReasonEl.textContent = diffScore > 0
-            ? `對手以 ${diffScore} 題領先優勢贏得本局，下次討回來！`
-            : `雙方完成度相同，對手以更快的耗時速度獲勝！`;
+          vsReasonEl.textContent = outcome.reason === "score"
+            ? `對手【${oppStats.name || "對手"}】以 ${outcome.diffScore} 題領先優勢獲勝，下次討回來！`
+            : `雙方完成度相同 (${pctStr})，對手以更快的耗時速度獲勝！`;
         }
         if (myCrown) myCrown.textContent = "💔 LOSS";
         if (oppCrown) oppCrown.textContent = "👑 WIN";
@@ -758,50 +950,9 @@ function showSettlementModal() {
       document.getElementById("vs-opp-score").textContent = `${oppGrandScore} / ${oppGrandTotal} (${oppPctStr})`;
       document.getElementById("vs-opp-time").textContent = formatTime(oppStats.elapsedSec || 0);
       document.getElementById("vs-opp-acc").textContent = `${oppStats.accuracy || 90}%`;
-
-      // Render multi-player ranked leaderboard when 2+ players
-      const activeList = typeof getActiveBattlePlayers === "function" ? getActiveBattlePlayers() : [];
-      const multiBoard = document.getElementById("settlement-multiplayer-board");
-      const rankListEl = document.getElementById("settlement-rank-list");
-      if (activeList.length >= 2 && multiBoard && rankListEl) {
-        const ranked = [...activeList].sort((a, b) => {
-          const aTot = (a.total || 0) + (a.stationTotal || 0);
-          const bTot = (b.total || 0) + (b.stationTotal || 0);
-          const aCur = (a.score || 0) + (a.stationScore || 0);
-          const bCur = (b.score || 0) + (b.stationScore || 0);
-          const aPct = aTot > 0 ? aCur / aTot : 0;
-          const bPct = bTot > 0 ? bCur / bTot : 0;
-          if (bPct !== aPct) return bPct - aPct;
-          const aTime = a.finalStats?.elapsedSec ?? 999999;
-          const bTime = b.finalStats?.elapsedSec ?? 999999;
-          return aTime - bTime;
-        });
-        const medals = ["🥇", "🥈", "🥉"];
-        rankListEl.replaceChildren();
-        const tplRow = document.getElementById("tpl-settlement-rank-row");
-        ranked.forEach((p, idx) => {
-          const tot = (p.total || 0) + (p.stationTotal || 0);
-          const cur = (p.score || 0) + (p.stationScore || 0);
-          const pPct = tot > 0 ? ((cur / tot) * 100).toFixed(1) : "0.0";
-          const tStr = p.finalStats ? formatTime(p.finalStats.elapsedSec) : "作答中";
-          const stTag = p.finished ? (p.finishReason === "victory" ? "👑 通關" : "🏁 已結束") : "⏳ 作答中";
-          if (tplRow && tplRow.content) {
-            const row = tplRow.content.firstElementChild.cloneNode(true);
-            if (p.id === state.localInstanceId) {
-              row.className = "flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-950/70 border border-sky-500/60 text-xs";
-            }
-            const nameEl = row.querySelector(".rank-name");
-            const metaEl = row.querySelector(".rank-meta");
-            if (nameEl) nameEl.textContent = `${medals[idx] || `#${idx + 1}`} ${p.name}${p.id === state.localInstanceId ? " (你)" : ""}`;
-            if (metaEl) metaEl.textContent = `${cur}/${tot} (${pPct}%) · ${tStr} · ${stTag}`;
-            rankListEl.appendChild(row);
-          }
-        });
-        multiBoard.classList.remove("hidden");
-      } else if (multiBoard) {
-        multiBoard.classList.add("hidden");
-      }
     } else {
+      if (vsColsEl) vsColsEl.classList.remove("hidden");
+      if (multiBoard) multiBoard.classList.add("hidden");
       if (vsBanner) vsBanner.classList.add("hidden");
       if (oppOngoingBanner) {
         oppOngoingBanner.classList.remove("hidden");
@@ -920,32 +1071,63 @@ function downloadSettlementCard() {
   ctx.stroke();
 
   // 3. Banner (Single Player Grade or Multiplayer Win/Loss)
-  const isMultiplayer = Boolean(state.opponent.connected || state.aiRivalTimer || state.opponent.finished);
+  const isMultiplayer = Boolean(state.opponent.connected || state.aiRivalTimer || state.opponent.finished || state.roomCode);
   const oppStats = state.opponent.finalStats;
   const pctNum = stats.grandTotal > 0 ? ((stats.grandScore / stats.grandTotal) * 100) : 0;
   const pctStr = pctNum.toFixed(1) + "%";
 
-  if (isMultiplayer && oppStats) {
-    const oppScore = oppStats.grandScore || oppStats.score || 0;
-    const oppTotal = oppStats.grandTotal || oppStats.total || stats.grandTotal;
-    const oppPct = oppTotal > 0 ? ((oppScore / oppTotal) * 100).toFixed(1) + "%" : "0%";
-    const isWin = stats.grandScore > oppScore || (stats.grandScore === oppScore && stats.elapsedSec <= (oppStats.elapsedSec || 999999));
-    const isDraw = stats.grandScore === oppScore && stats.elapsedSec === (oppStats.elapsedSec || 999999);
+  const activeList = typeof getActiveBattlePlayers === "function" ? getActiveBattlePlayers() : [];
+  const isThreePlus = activeList.length >= 3;
 
-    const bannerBg = isDraw ? "rgba(56, 189, 248, 0.15)" : isWin ? "rgba(16, 185, 129, 0.16)" : "rgba(244, 63, 94, 0.16)";
-    const bannerBorder = isDraw ? "#38bdf8" : isWin ? "#10b981" : "#f43f5e";
-    drawRoundedRect(ctx, 64, 156, 1072, 72, 16, bannerBg, bannerBorder);
+  if (isMultiplayer && (isThreePlus || oppStats)) {
+    if (isThreePlus) {
+      const ranked = sortBattlePlayers(activeList);
+      const myRank = Math.max(1, ranked.findIndex((p) => p.id === state.localInstanceId) + 1);
+      const winner = ranked[0] || { name: "對手", score: 0, stationScore: 0, total: stats.grandTotal, stationTotal: 0 };
+      const winnerCur = (winner.score || 0) + (winner.stationScore || 0);
+      const winnerTot = (winner.total || 0) + (winner.stationTotal || 0) || stats.grandTotal;
+      const winnerPct = winnerTot > 0 ? ((winnerCur / winnerTot) * 100).toFixed(1) + "%" : "0.0%";
 
-    ctx.fillStyle = isDraw ? "#38bdf8" : isWin ? "#34d399" : "#fb7185";
-    ctx.font = "bold 26px 'Noto Sans TC', sans-serif";
-    const titleText = isDraw ? "⚖️ 勢均力敵 · 平手 (DRAW)" : isWin ? "👑 獲得勝利 · VICTORY" : "💔 遺憾惜敗 · DEFEAT";
-    ctx.fillText(titleText, 88, 198);
+      const isFirst = myRank === 1;
+      const bannerBg = isFirst ? "rgba(245, 158, 11, 0.16)" : "rgba(56, 189, 248, 0.15)";
+      const bannerBorder = isFirst ? "#f59e0b" : "#38bdf8";
+      drawRoundedRect(ctx, 64, 156, 1072, 72, 16, bannerBg, bannerBorder);
 
-    ctx.fillStyle = "#cbd5e1";
-    ctx.font = "14px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(`我方: ${stats.grandScore}/${stats.grandTotal} (${pctStr})  vs  對手【${oppStats.name || "對手"}】: ${oppScore}/${oppTotal} (${oppPct})`, 1112, 198);
-    ctx.textAlign = "left";
+      ctx.fillStyle = isFirst ? "#fbbf24" : "#38bdf8";
+      ctx.font = "bold 26px 'Noto Sans TC', sans-serif";
+      const titleText = isFirst
+        ? `👑 榮獲第 1 名 · 勇奪冠軍 (共 ${activeList.length} 人)`
+        : `🎖️ 第 ${myRank} 名 / 共 ${activeList.length} 人`;
+      ctx.fillText(titleText, 88, 198);
+
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "14px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(`我方: ${stats.grandScore}/${stats.grandTotal} (${pctStr})  ·  冠軍【${winner.name}】: ${winnerCur}/${winnerTot} (${winnerPct})`, 1112, 198);
+      ctx.textAlign = "left";
+    } else {
+      const outcome = getBattleOutcome(stats, oppStats);
+      const isWin = outcome.isWin;
+      const isDraw = outcome.isDraw;
+
+      const bannerBg = isDraw ? "rgba(56, 189, 248, 0.15)" : isWin ? "rgba(16, 185, 129, 0.16)" : "rgba(244, 63, 94, 0.16)";
+      const bannerBorder = isDraw ? "#38bdf8" : isWin ? "#10b981" : "#f43f5e";
+      drawRoundedRect(ctx, 64, 156, 1072, 72, 16, bannerBg, bannerBorder);
+
+      ctx.fillStyle = isDraw ? "#38bdf8" : isWin ? "#34d399" : "#fb7185";
+      ctx.font = "bold 26px 'Noto Sans TC', sans-serif";
+      const titleText = isDraw ? "⚖️ 勢均力敵 · 平手 (DRAW)" : isWin ? "👑 獲得勝利 · VICTORY" : "💔 遺憾惜敗 · DEFEAT";
+      ctx.fillText(titleText, 88, 198);
+
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "14px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "right";
+      const oppScore = oppStats.grandScore || oppStats.score || 0;
+      const oppTotal = oppStats.grandTotal || oppStats.total || stats.grandTotal;
+      const oppPct = oppTotal > 0 ? ((oppScore / oppTotal) * 100).toFixed(1) + "%" : "0%";
+      ctx.fillText(`我方: ${stats.grandScore}/${stats.grandTotal} (${pctStr})  vs  對手【${oppStats.name || "對手"}】: ${oppScore}/${oppTotal} (${oppPct})`, 1112, 198);
+      ctx.textAlign = "left";
+    }
   } else {
     const gradeInfo = getGradeFromStats(stats);
     drawRoundedRect(ctx, 64, 156, 1072, 72, 16, "rgba(245, 158, 11, 0.14)", "#f59e0b");
@@ -1047,9 +1229,27 @@ function formatSettlementShareText(stats, isMultiplayer, oppStats) {
   const pctStr = stats.grandTotal > 0 ? ((stats.grandScore / stats.grandTotal) * 100).toFixed(1) + "%" : "0%";
 
   let resultLine = "";
-  if (isMultiplayer && oppStats) {
-    const isWin = stats.grandScore > oppStats.grandScore || (stats.grandScore === oppStats.grandScore && stats.elapsedSec <= oppStats.elapsedSec);
-    resultLine = isWin ? `🏆 對戰結果：👑 獲得勝利！(vs ${oppStats.name})` : `🏆 對戰結果：💔 遺憾惜敗 (vs ${oppStats.name})`;
+  const activeList = typeof getActiveBattlePlayers === "function" ? getActiveBattlePlayers() : [];
+  const isThreePlus = activeList.length >= 3;
+
+  if (isMultiplayer && (isThreePlus || oppStats)) {
+    if (isThreePlus) {
+      const ranked = sortBattlePlayers(activeList);
+      const myRank = Math.max(1, ranked.findIndex((p) => p.id === state.localInstanceId) + 1);
+      const winner = ranked[0] || { name: "對手" };
+      resultLine = myRank === 1
+        ? `🏆 對戰結果：👑 榮獲第 1 名冠軍！(共 ${activeList.length} 人)`
+        : `🏆 對戰結果：第 ${myRank} 名 / 共 ${activeList.length} 人 (冠軍：${winner.name})`;
+    } else {
+      const outcome = getBattleOutcome(stats, oppStats);
+      if (outcome.isDraw) {
+        resultLine = `🏆 對戰結果：⚖️ 勢均力敵 · 平手 (vs ${oppStats.name || "對手"})`;
+      } else if (outcome.isWin) {
+        resultLine = `🏆 對戰結果：👑 獲得勝利！(vs ${oppStats.name || "對手"})`;
+      } else {
+        resultLine = `🏆 對戰結果：💔 遺憾惜敗 (vs ${oppStats.name || "對手"})`;
+      }
+    }
   } else {
     const grade = getGradeFromStats(stats);
     resultLine = `🏆 評級稱號：【${grade.grade}】· ${grade.title}`;
@@ -1150,6 +1350,8 @@ function resetGame() {
   const rematchText = document.getElementById("rematch-btn-text");
   if (rematchBtn) rematchBtn.disabled = false;
   if (rematchText) rematchText.textContent = state.opponent.connected ? "發起重開對戰" : "再玩一局";
+  const returnLobbyBtn = document.getElementById("btn-return-lobby-settlement");
+  if (returnLobbyBtn) returnLobbyBtn.disabled = false;
 
   updateRoadAndRailwayTileOverlays();
 

@@ -359,7 +359,7 @@
           </span>
         </div>
 
-        <div class="grid grid-cols-2 gap-2 my-1.5">
+        <div id="p2p-dual-cards" class="grid grid-cols-2 gap-2 my-1.5">
           <div class="p-2.5 rounded-xl bg-slate-900/80 border border-sky-500/30">
             <div class="flex items-center justify-between text-xs text-slate-400">
               <span id="local-player-name" class="font-semibold text-sky-300 truncate">我方</span>
@@ -1258,7 +1258,7 @@
           </div>
 
           <!-- Side-by-Side Comparison -->
-          <div class="grid grid-cols-2 gap-2 sm:gap-3 pt-1 text-left">
+          <div id="settlement-vs-cols" class="grid grid-cols-2 gap-2 sm:gap-3 pt-1 text-left">
             <div id="settlement-my-col" class="p-2.5 sm:p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40 space-y-1">
               <div class="flex items-center justify-between text-xs">
                 <span class="font-extrabold text-white flex items-center gap-1 truncate">
@@ -1366,6 +1366,10 @@
           </button>
         </div>
         <div class="flex items-center gap-1.5 sm:gap-2">
+          <button id="btn-return-lobby-settlement" type="button" class="hidden px-3.5 sm:px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-lg shadow-indigo-600/20">
+            <i data-lucide="settings-2" class="w-4 h-4"></i>
+            <span id="return-lobby-btn-text">回到房間重新設定</span>
+          </button>
           <button id="btn-rematch-settlement" type="button" class="px-3.5 sm:px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition shadow-lg shadow-emerald-500/20">
             <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
             <span id="rematch-btn-text">再玩一局</span>

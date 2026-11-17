@@ -112,6 +112,9 @@ function ensureLocalPlayerInRoster() {
 
 function getSortedActiveBattlePlayers() {
   const active = getActiveBattlePlayers();
+  if (typeof sortBattlePlayers === "function") {
+    return sortBattlePlayers(active);
+  }
   return [...active].sort((a, b) => {
     const aTot = (a.total || 0) + (a.stationTotal || 0);
     const bTot = (b.total || 0) + (b.stationTotal || 0);
@@ -1196,6 +1199,13 @@ function dispatchP2PMessage(msg, sourceConn = null) {
     handleRematchAccepted(msg.senderId);
   } else if (msg.type === "REMATCH_DECLINE") {
     handleRematchDeclined(msg.payload);
+  } else if (msg.type === "RETURN_TO_LOBBY_REQUEST") {
+    if (state.isHost) {
+      setFeedback(`玩家【${msg.payload?.sender || "對手"}】請求回到大廳重新設定`, "info");
+      executeReturnToLobby();
+    }
+  } else if (msg.type === "RETURN_TO_LOBBY") {
+    executeReturnToLobby();
   }
 }
 
@@ -1758,6 +1768,91 @@ function handleRematchDeclined(payload) {
   setFeedback(`玩家【${payload?.sender || "對手"}】婉拒了重新開局邀請`, "warn");
 }
 
+function requestReturnToLobby() {
+  const isMultiplayer = Boolean(state.roomCode || state.aiRivalTimer || state.aiRivalActive || getActiveBattlePlayers().length > 1);
+
+  if (!isMultiplayer) {
+    resetGame();
+    document.getElementById("modal-settlement")?.classList.add("hidden");
+    if (typeof openGameHubModal === "function") openGameHubModal();
+    return;
+  }
+
+  const returnBtn = document.getElementById("btn-return-lobby-settlement");
+  const returnText = document.getElementById("return-lobby-btn-text");
+  if (returnBtn) returnBtn.disabled = true;
+  if (returnText) returnText.textContent = "⏳ 返回大廳中...";
+
+  if (state.aiRivalTimer || state.aiRivalActive) {
+    executeReturnToLobby();
+    return;
+  }
+
+  if (state.isHost) {
+    executeReturnToLobby();
+  } else {
+    sendP2PMessage("RETURN_TO_LOBBY_REQUEST", { sender: state.nickname });
+    setFeedback("⏳ 已向房主發送回到大廳重新設定請求...", "info");
+  }
+}
+
+function executeReturnToLobby() {
+  state.matchInProgress = false;
+  state.finished = false;
+  state.isGameOver = false;
+
+  resetGame();
+
+  getParticipantList().forEach((p) => {
+    p.finished = false;
+    p.finishReason = null;
+    p.finalStats = null;
+    p.score = 0;
+    p.stationScore = 0;
+    p.unlockedTowns = [];
+    p.unlockedCounties = [];
+    p.unlockedProvinces = [];
+    p.missedTowns = [];
+    p.unlockedStations = [];
+    p.missedStations = [];
+    p._viewSets = null;
+    p.isReady = false;
+  });
+
+  state.isReady = false;
+  if (state.opponent) {
+    state.opponent.isReady = false;
+    state.opponent.finished = false;
+    state.opponent.finalStats = null;
+    state.opponent.score = 0;
+    state.opponent.stationScore = 0;
+  }
+
+  if (state.isHost) {
+    sendP2PMessage("RETURN_TO_LOBBY", { sender: state.nickname });
+    broadcastRosterFromHost();
+  }
+
+  document.getElementById("modal-settlement")?.classList.add("hidden");
+  document.getElementById("modal-opponent-finished")?.classList.add("hidden");
+  document.getElementById("modal-rematch-confirm")?.classList.add("hidden");
+  document.getElementById("btn-reopen-settlement")?.classList.add("hidden");
+
+  const returnBtn = document.getElementById("btn-return-lobby-settlement");
+  const returnText = document.getElementById("return-lobby-btn-text");
+  if (returnBtn) returnBtn.disabled = false;
+  if (returnText) returnText.textContent = "回到房間重新設定";
+
+  updateP2PLobbyUI();
+  updateOpponentUI();
+  if (typeof openGameHubModal === "function") {
+    openGameHubModal();
+  }
+
+  setFeedback("🔄 全體回到大廳，準備狀態已歸零，可重新調整比賽設定！", "tier");
+  playTone("tier");
+}
+
 // ============================================================================
 // P2P INITIALIZATION, ROOM HOSTING & ROOM JOINING
 // ============================================================================
@@ -2175,11 +2270,18 @@ function updateOpponentUI() {
   const rankTitle = document.getElementById("p2p-live-rank-title");
   const specCountEl = document.getElementById("p2p-live-spectator-count");
   const rowsContainer = document.getElementById("p2p-live-rank-rows");
+  const dualCards = document.getElementById("p2p-dual-cards");
+
+  const sorted = getSortedActiveBattlePlayers();
+  const spectators = getSpectators();
+  const isThreePlus = sorted.length >= 3;
+
+  if (dualCards) {
+    dualCards.classList.toggle("hidden", isThreePlus);
+  }
 
   if (multiList && rowsContainer) {
-    const sorted = getSortedActiveBattlePlayers();
-    const spectators = getSpectators();
-    if (sorted.length >= 1) {
+    if (isThreePlus) {
       multiList.classList.remove("hidden");
       const canClickToSpectate = state.role === "spectator" || state.finished;
       if (rankTitle) {
@@ -2255,7 +2357,7 @@ function updateOpponentUI() {
   if (compWrap && barsEl) {
     const mp = state.opponent.macroProgress || {};
     const macroKeys = Object.keys(mp);
-    if (macroKeys.length > 0) {
+    if (!isThreePlus && macroKeys.length > 0) {
       compWrap.classList.remove("hidden");
       const macroLabels = {
         "地區": "🗺️ 行政區",

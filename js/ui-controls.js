@@ -1334,6 +1334,11 @@ function bindAllUIEvents() {
   // Settlement & Report Card Modal Events
   document.getElementById("btn-download-settlement")?.addEventListener("click", () => downloadSettlementCard());
   document.getElementById("btn-share-settlement")?.addEventListener("click", () => shareSettlementCard());
+  document.getElementById("btn-return-lobby-settlement")?.addEventListener("click", () => {
+    if (typeof requestReturnToLobby === "function") {
+      requestReturnToLobby();
+    }
+  });
   document.getElementById("btn-rematch-settlement")?.addEventListener("click", () => requestP2PRematch());
   document.getElementById("btn-close-settlement")?.addEventListener("click", () => {
     document.getElementById("modal-settlement")?.classList.add("hidden");
