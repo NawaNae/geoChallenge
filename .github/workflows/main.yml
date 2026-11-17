@@ -3,7 +3,7 @@ name: Sync to Google Drive
 on:
   push:
     branches:
-      - main # 或是 master，請依你的預設分支名稱修改
+      - main
 
 jobs:
   sync-gdrive:
@@ -13,20 +13,21 @@ jobs:
       - name: 檢出完整 Git 歷史
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 關鍵：0 代表拉取完整的 git 歷史與所有 commit，而不是淺層克隆
+          fetch-depth: 0
 
       - name: 壓縮 .git 內部碎片檔案 (提升 Google Drive 同步速度)
         run: |
-          # 將 loose objects 打包成 packfile，避免 Google Drive 遇到大量小檔案卡住
           git gc --prune=now
 
       - name: 安裝 rclone
         run: sudo apt-get install -y rclone
 
       - name: 配置 Google Drive 連線
+        env:
+          GDRIVE_CRED: ${{ secrets.GDRIVE_CREDENTIALS }}
         run: |
-          # 將 Secret 中的 JSON 憑證寫入臨時設定檔
-          echo "${{ secrets.GDRIVE_CREDENTIALS }}" > /tmp/sa.json
+          # 透過環境變數寫入檔案，完整保留 JSON 原始雙引號格式
+          echo "$GDRIVE_CRED" > /tmp/sa.json
           
           # 建立名為 gdrive 的 rclone 遠端配置
           rclone config create gdrive drive \
@@ -36,9 +37,8 @@ jobs:
 
       - name: 增量同步檔案到 Google Drive
         run: |
-          # rclone sync 會比對差異，只更新有變動的檔案（diff）
-          # --fast-list 可以減少 Google Drive API 呼叫次數，加快目錄比對速度
-          # --drive-use-trash=false 當遠端有舊檔案需刪除時直接清除，不塞滿垃圾桶
+          # rclone sync 會增量比對，只更新有變動的檔案（diff）
+          # 同步包含完整 .git 歷史，排除 .github workflow 本身
           rclone sync . gdrive: \
             --fast-list \
             --drive-use-trash=false \
