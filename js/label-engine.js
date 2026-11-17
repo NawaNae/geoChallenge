@@ -21,8 +21,8 @@ function renderSmartLabelsAndLeaderLines() {
   lastRenderCenter = map.getCenter();
   lastRenderZoom = map.getZoom();
 
-  svgEl.innerHTML = "";
-  domEl.innerHTML = "";
+  svgEl.replaceChildren();
+  domEl.replaceChildren();
 
   const mapSize = map.getSize();
   const zoom = lastRenderZoom;
@@ -32,11 +32,12 @@ function renderSmartLabelsAndLeaderLines() {
   const padY = 48;
 
   const itemsToLabel = [];
+  const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
 
   if (state.difficulty === "county_only") {
     TAIWAN_ADMIN_DATA.forEach((c) => {
       if (!state.selectedCounties.has(c.name)) return;
-      if (!state.unlockedCounties.has(c.name) && !state.isGameOver) return;
+      if (!vState.unlockedCounties.has(c.name) && !vState.isGameOver) return;
       const pt = map.latLngToContainerPoint([c.lat, c.lng]);
       // Strict Viewport Culling (地圖外不顯示)
       if (pt.x < padX || pt.y < padY || pt.x > mapSize.x - padX || pt.y > mapSize.y - padY) return;
@@ -47,7 +48,7 @@ function renderSmartLabelsAndLeaderLines() {
         pt,
         pxWidth: zoom >= 8 ? 68 : 38,
         pxHeight: zoom >= 8 ? 30 : 18,
-        isMissed: !state.unlockedCounties.has(c.name),
+        isMissed: !vState.unlockedCounties.has(c.name),
         lat: c.lat,
         lng: c.lng
       });
@@ -55,8 +56,8 @@ function renderSmartLabelsAndLeaderLines() {
   } else {
     ALL_TOWNS.forEach((t) => {
       if (!isTownInScope(t)) return;
-      const unlocked = state.unlockedTowns.has(t.id);
-      const missed = state.missedTowns.has(t.id);
+      const unlocked = vState.unlockedTowns.has(t.id);
+      const missed = vState.missedTowns.has(t.id);
       if (!unlocked && !missed) return;
 
       const pt = map.latLngToContainerPoint([t.lat, t.lng]);

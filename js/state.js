@@ -1,12 +1,83 @@
 // ================================================================
-// 2. APPLICATION STATE (With Performance & IME Composition Flags)
+// 2. APPLICATION STATE (With Device ID Session, Spectator View & IME Flags)
 // ================================================================
+function computeHardwareFingerprint() {
+  const parts = [
+    navigator.userAgent || "",
+    navigator.language || "",
+    `${screen.width || 0}x${screen.height || 0}x${screen.colorDepth || 0}`,
+    String(navigator.hardwareConcurrency || ""),
+    String(navigator.deviceMemory || ""),
+    (Intl && Intl.DateTimeFormat ? Intl.DateTimeFormat().resolvedOptions().timeZone : "") || ""
+  ];
+  try {
+    const cvs = document.createElement("canvas");
+    cvs.width = 120;
+    cvs.height = 32;
+    const gl = cvs.getContext("webgl") || cvs.getContext("experimental-webgl");
+    if (gl) {
+      const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+      if (dbg) {
+        parts.push(gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) || "");
+        parts.push(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "");
+      }
+    } else {
+      const ctx = cvs.getContext("2d");
+      if (ctx) {
+        ctx.textBaseline = "top";
+        ctx.font = "13px sans-serif";
+        ctx.fillStyle = "#0ea5e9";
+        ctx.fillRect(4, 2, 54, 18);
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillText("TW-GeoMaster", 6, 8);
+        parts.push(cvs.toDataURL().slice(-48));
+      }
+    }
+  } catch (_) {}
+
+  let h = 0x811c9dc5;
+  const raw = parts.join("|");
+  for (let i = 0; i < raw.length; i++) {
+    h ^= raw.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+function getOrCreateStableDeviceId() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const devOverride = params.get("dev_id") || params.get("device");
+    if (devOverride && devOverride.trim()) {
+      return "dev_" + devOverride.trim().replace(/[^a-zA-Z0-9_-]/g, "");
+    }
+  } catch (_) {}
+
+  const fp = computeHardwareFingerprint();
+  let uuid = "";
+  try {
+    uuid = localStorage.getItem("tw_geomaster_device_uuid") || "";
+    if (!uuid) {
+      uuid =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID().replace(/-/g, "").slice(0, 10)
+          : Math.random().toString(36).slice(2, 10);
+      localStorage.setItem("tw_geomaster_device_uuid", uuid);
+    }
+  } catch (_) {
+    uuid = fp;
+  }
+  return `dev_${fp}_${uuid}`;
+}
+
+const STABLE_DEVICE_ID = getOrCreateStableDeviceId();
+
 const state = {
-  difficulty: "casual",       // 'casual' | 'county_only' | 'hard_full' | 'master_hierarchy'
+  difficulty: "casual",       // 'casual' | 'county_only' | 'hard_suffix' | 'hard_full' | 'master_hierarchy'
   playMode: "free",           // 'free' | 'target_random' | 'target_click'
   mapLayer: "vector",         // 'vector' | 'terrain' | 'street' | 'satellite'
   showRailOverlay: false,     // Default OFF
-  transportMode: "off",       // 'off' | 'rail_only' | 'lines_and_stations'
+  transportMode: "off",       // 'off' | 'rail_only' | 'lines_and_stations' | 'stations_only'
   showDistrictBorders: true,  // Toggleable administrative boundaries (區界開關)
   showStationNames: false,    // Hidden by default so station names don't spoil answers
   openRailLoaded: false,      // True when OpenRailwayMap tiles successfully load in browser
@@ -21,7 +92,7 @@ const state = {
   minPolygonPixelSize: 22,    // Hide labels for polygons smaller than this when zoomed out
   perfLiteMode: true,         // Disable heavy CSS blurs by default for 60FPS
   isImeComposing: false,      // Tracks Windows Bopomofo / IME dotted-underline state!
-  selectedCounties: new Set(TAIWAN_ADMIN_DATA.map(c => c.name)),
+  selectedCounties: new Set(TAIWAN_ADMIN_DATA.map((c) => c.name)),
   unlockedTowns: new Set(),
   unlockedCounties: new Set(),
   unlockedProvinces: new Set(),
@@ -47,17 +118,29 @@ const state = {
   timerInterval: null,
   soundEnabled: false,
   enableLegacyStationOnlyMode: false,
-  localInstanceId: "inst_" + Math.random().toString(36).slice(2, 9),
-  nickname: "GeoMasterTW",
+  deviceId: STABLE_DEVICE_ID,
+  localInstanceId: STABLE_DEVICE_ID,
+  nickname: (function () {
+    try {
+      return localStorage.getItem("tw_geomaster_nickname") || "GeoMasterTW";
+    } catch (_) {
+      return "GeoMasterTW";
+    }
+  })(),
+  hubEntryTab: "solo",        // 'solo' | 'host' | 'join'
+  p2pPanelExpanded: false,    // Whether the Multiplayer Room accordion is expanded in #modal-scope
   roomCode: "",
   roomPassword: "",
   peer: null,
   conn: null,
   peers: new Map(),           // Host-side: senderId -> DataConnection (prevents multi-player overwrite)
-  players: {},                // Roster: senderId -> { id, name, role, isReady, finished, finishReason, score, total, stationScore, stationTotal, macroProgress, finalStats }
+  players: {},                // Roster: senderId -> { id, name, role, isReady, finished, finishReason, score, total, stationScore, stationTotal, macroProgress, finalStats, unlockedTowns, unlockedCounties, unlockedProvinces, missedTowns, unlockedStations, missedStations, targetId, targetStationKey, stats }
   bcChannel: null,
   isHost: false,
   role: "solo",               // 'solo' | 'host' | 'player' | 'spectator'
+  spectatingPlayerId: null,   // Player ID currently being watched on map & sidebar
+  spectatorLayerInitialized: false,
+  pendingConfigProposal: null,// Consensus vote proposal object for Host difficulty/rule changes
   matchInProgress: false,
   promptedLastPlayer: false,
   isReady: false,
@@ -83,11 +166,59 @@ const state = {
     finished: false,
     finalStats: null
   },
+  aiRivalActive: false,
   aiRivalTimer: null
 };
 
 // Initialize default selected transport lines from data/transport-data.js
 state.selectedTransportLines = new Set(TAIWAN_SELECTABLE_LINES.map((l) => l.id));
+
+// Returns whether local user is allowed to change game difficulty/scope/rules
+function canLocalModifyGameConfig() {
+  if (!state.roomCode && !state.aiRivalActive) return true;
+  return Boolean(state.isHost);
+}
+
+// Returns the active view state for map polygons, stations, labels, and sidebar progress.
+// When in Spectator mode (or finished & watching another player), returns that player's live map state.
+function getActiveViewState() {
+  const canSpectateOther =
+    Boolean(state.roomCode || state.aiRivalActive) &&
+    (state.role === "spectator" || state.finished) &&
+    state.spectatingPlayerId &&
+    state.spectatingPlayerId !== state.localInstanceId &&
+    state.players &&
+    state.players[state.spectatingPlayerId];
+
+  if (!canSpectateOther) {
+    return state;
+  }
+
+  const p = state.players[state.spectatingPlayerId];
+  if (!p._viewSets) {
+    p._viewSets = {
+      unlockedTowns: new Set(Array.isArray(p.unlockedTowns) ? p.unlockedTowns : []),
+      unlockedCounties: new Set(Array.isArray(p.unlockedCounties) ? p.unlockedCounties : []),
+      unlockedProvinces: new Set(Array.isArray(p.unlockedProvinces) ? p.unlockedProvinces : []),
+      missedTowns: new Set(Array.isArray(p.missedTowns) ? p.missedTowns : []),
+      unlockedStations: new Set(Array.isArray(p.unlockedStations) ? p.unlockedStations : []),
+      missedStations: new Set(Array.isArray(p.missedStations) ? p.missedStations : [])
+    };
+  }
+
+  return {
+    unlockedTowns: p._viewSets.unlockedTowns,
+    unlockedCounties: p._viewSets.unlockedCounties,
+    unlockedProvinces: p._viewSets.unlockedProvinces,
+    missedTowns: p._viewSets.missedTowns,
+    unlockedStations: p._viewSets.unlockedStations,
+    missedStations: p._viewSets.missedStations,
+    targetId: p.targetId || null,
+    targetStationKey: p.targetStationKey || null,
+    isGameOver: Boolean(p.finished),
+    spectatingPlayer: p
+  };
+}
 
 // ================================================================
 // 3. WEB AUDIO SYNTHESIZER

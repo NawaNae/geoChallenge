@@ -2,16 +2,26 @@
 // 8. SPOILER-FREE PROGRESS DASHBOARD & QUICK COUNTY ZOOM CHIPS
 // ============================================================================
 function updateScoreAndProgressUI() {
+  const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
   const scopeCounties = getScopeCounties();
   const scopeTowns = getScopeTowns();
   const hasRegionScope = scopeTowns.length > 0 || (state.difficulty === "county_only" && scopeCounties.length > 0);
 
+  const titleEl = document.getElementById("progress-card-title");
+  if (titleEl) {
+    if (vState.spectatingPlayer) {
+      titleEl.textContent = `👁️ 觀戰視角：【${vState.spectatingPlayer.name}】的總進度`;
+    } else {
+      titleEl.textContent = "挑戰總進度與快速定位";
+    }
+  }
+
   const unlockedCountyCount = scopeCounties.filter((c) => {
     if (state.difficulty === "county_only" || state.difficulty === "master_hierarchy") {
-      return state.unlockedCounties.has(c.name);
+      return vState.unlockedCounties.has(c.name);
     }
-    const uTowns = ALL_TOWNS.filter((t) => t.countyName === c.name && state.unlockedTowns.has(t.id)).length;
-    return state.unlockedCounties.has(c.name) || uTowns > 0;
+    const uTowns = ALL_TOWNS.filter((t) => t.countyName === c.name && vState.unlockedTowns.has(t.id)).length;
+    return vState.unlockedCounties.has(c.name) || uTowns > 0;
   }).length;
 
   const countyPct =
@@ -19,14 +29,14 @@ function updateScoreAndProgressUI() {
       ? ((unlockedCountyCount / scopeCounties.length) * 100).toFixed(1)
       : "0.0";
 
-  const unlockedTownCount = scopeTowns.filter((t) => state.unlockedTowns.has(t.id)).length;
+  const unlockedTownCount = scopeTowns.filter((t) => vState.unlockedTowns.has(t.id)).length;
   const townPct =
     scopeTowns.length > 0
       ? ((unlockedTownCount / scopeTowns.length) * 100).toFixed(1)
       : "0.0";
 
   const activeSt = getActiveQuizStations();
-  const unlockedStCount = activeSt.filter((s) => state.unlockedStations.has(s.key)).length;
+  const unlockedStCount = activeSt.filter((s) => vState.unlockedStations.has(s.key)).length;
   const stPct =
     activeSt.length > 0
       ? ((unlockedStCount / activeSt.length) * 100).toFixed(1)
@@ -138,7 +148,7 @@ function updateScoreAndProgressUI() {
     macroOrder.forEach((m) => {
       const mStations = activeSt.filter((s) => s.macro === m.key);
       if (mStations.length > 0) {
-        const mUnlocked = mStations.filter((s) => state.unlockedStations.has(s.key)).length;
+        const mUnlocked = mStations.filter((s) => vState.unlockedStations.has(s.key)).length;
         bars.push({
           label: m.label,
           cur: mUnlocked,
@@ -149,22 +159,28 @@ function updateScoreAndProgressUI() {
       }
     });
 
-    multiBarsEl.innerHTML = bars
-      .map((b) => {
-        const pct = b.tot > 0 ? ((b.cur / b.tot) * 100).toFixed(1) : "0.0";
-        return `
-          <div class="space-y-0.5">
-            <div class="flex items-center justify-between text-[11px]">
-              <span class="font-bold text-slate-200">${b.label}</span>
-              <span class="font-mono-num text-slate-300"><strong class="text-white">${b.cur}</strong> / ${b.tot} ${b.unit} · <span class="text-sky-300 font-bold">${pct}%</span></span>
-            </div>
-            <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div class="h-full transition-all duration-300" style="width:${Math.min(100, parseFloat(pct))}%; background:${b.color}"></div>
-            </div>
-          </div>
-        `;
-      })
-      .join("");
+    multiBarsEl.replaceChildren();
+    const tpl = document.getElementById("tpl-progress-bar-row");
+    bars.forEach((b) => {
+      const pct = b.tot > 0 ? ((b.cur / b.tot) * 100).toFixed(1) : "0.0";
+      if (tpl && tpl.content) {
+        const frag = tpl.content.cloneNode(true);
+        const lbl = frag.querySelector(".bar-label");
+        const curEl = frag.querySelector(".bar-cur");
+        const totEl = frag.querySelector(".bar-tot");
+        const pctEl = frag.querySelector(".bar-pct");
+        const fillEl = frag.querySelector(".bar-fill");
+        if (lbl) lbl.textContent = b.label;
+        if (curEl) curEl.textContent = b.cur;
+        if (totEl) totEl.textContent = ` / ${b.tot} ${b.unit} · `;
+        if (pctEl) pctEl.textContent = `${pct}%`;
+        if (fillEl) {
+          fillEl.style.width = `${Math.min(100, parseFloat(pct))}%`;
+          fillEl.style.background = b.color;
+        }
+        multiBarsEl.appendChild(frag);
+      }
+    });
   }
 
   renderQuickZoomCountyChips();
@@ -194,54 +210,108 @@ function selectAndZoomToCounty(c, autoCloseJumpMenu = false) {
   setFeedback(`📍 已快速放大至「${c.name}」中心！`, "info");
 }
 
+function createCountyChipElement(c, compact = false) {
+  const color = COUNTY_COLORS[c.name] || "#38bdf8";
+  const tpl = document.getElementById("tpl-county-jump-chip");
+  let btn;
+  if (tpl && tpl.content) {
+    btn = tpl.content.firstElementChild.cloneNode(true);
+    const dot = btn.querySelector(".chip-dot");
+    const lbl = btn.querySelector(".chip-label");
+    if (dot) dot.style.background = color;
+    if (lbl) lbl.textContent = c.name;
+  } else {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = c.name;
+  }
+  if (compact) {
+    btn.className = "px-1.5 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-700 text-[11px] font-semibold text-slate-200 border border-slate-800 transition flex items-center gap-1 truncate";
+  }
+  btn.title = `跳轉至「${c.name}」並套用前綴`;
+  btn.addEventListener("click", () => selectAndZoomToCounty(c, compact));
+  return btn;
+}
+
 function renderQuickZoomCountyChips() {
   const bar = document.getElementById("quick-zoom-counties-bar");
   const mapJumpBar = document.getElementById("map-jump-counties-bar");
-  if (bar) bar.innerHTML = "";
-  if (mapJumpBar) mapJumpBar.innerHTML = "";
+  if (bar) bar.replaceChildren();
+  if (mapJumpBar) mapJumpBar.replaceChildren();
 
   const visibleCounties = getScopeCounties().filter((c) => isCountyRevealed(c.name));
 
   if (visibleCounties.length === 0) {
-    const emptyMsg = `<span class="col-span-3 text-[10px] text-slate-500 italic px-1">目前為純車站模式或尚未解鎖縣市</span>`;
-    if (bar) bar.innerHTML = `<span class="text-[11px] text-slate-500 italic">目前為純車站模式或尚未解鎖縣市 (可點下方各路線卡片快速放大至該路線！)</span>`;
-    if (mapJumpBar) mapJumpBar.innerHTML = emptyMsg;
+    if (bar) {
+      const sp = document.createElement("span");
+      sp.className = "text-[11px] text-slate-500 italic";
+      sp.textContent = "目前為純車站模式或尚未解鎖縣市 (可點下方各路線卡片快速放大至該路線！)";
+      bar.appendChild(sp);
+    }
+    if (mapJumpBar) {
+      const sp2 = document.createElement("span");
+      sp2.className = "col-span-3 text-[10px] text-slate-500 italic px-1";
+      sp2.textContent = "目前為純車站模式或尚未解鎖縣市";
+      mapJumpBar.appendChild(sp2);
+    }
     return;
   }
 
   visibleCounties.forEach((c) => {
-    const color = COUNTY_COLORS[c.name] || "#38bdf8";
-
-    if (bar) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className =
-        "px-2 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] font-semibold text-slate-200 border border-slate-700 transition flex items-center gap-1";
-      btn.innerHTML = `<span class="w-2 h-2 rounded-full" style="background:${color}"></span><span>${c.name}</span>`;
-      btn.title = `點擊快速放大至「${c.name}」中心並套用前綴`;
-      btn.addEventListener("click", () => selectAndZoomToCounty(c, false));
-      bar.appendChild(btn);
-    }
-
-    if (mapJumpBar) {
-      const jBtn = document.createElement("button");
-      jBtn.type = "button";
-      jBtn.className =
-        "px-1.5 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-700 text-[11px] font-semibold text-slate-200 border border-slate-800 transition flex items-center gap-1 truncate";
-      jBtn.innerHTML = `<span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${color}"></span><span class="truncate">${c.name}</span>`;
-      jBtn.title = `跳轉至「${c.name}」並套用前綴`;
-      jBtn.addEventListener("click", () => selectAndZoomToCounty(c, true));
-      mapJumpBar.appendChild(jBtn);
-    }
+    if (bar) bar.appendChild(createCountyChipElement(c, false));
+    if (mapJumpBar) mapJumpBar.appendChild(createCountyChipElement(c, true));
   });
 }
 
+function createSidebarProgressCard({ title, subTitle, badgeText, badgeClass, statText, isDone, pct, color, borderClass, onClick }) {
+  const tpl = document.getElementById("tpl-sidebar-progress-card");
+  let card;
+  if (tpl && tpl.content) {
+    card = tpl.content.firstElementChild.cloneNode(true);
+    if (borderClass) card.className = borderClass;
+    const dot = card.querySelector(".card-dot");
+    const titleEl = card.querySelector(".card-title");
+    const subEl = card.querySelector(".card-sub");
+    const badgeEl = card.querySelector(".card-badge");
+    const statEl = card.querySelector(".card-stat");
+    const fillEl = card.querySelector(".card-fill");
+    if (dot) dot.style.background = color;
+    if (titleEl) titleEl.textContent = title;
+    if (subEl) {
+      if (subTitle) {
+        subEl.textContent = subTitle;
+        subEl.classList.remove("hidden");
+      } else {
+        subEl.classList.add("hidden");
+      }
+    }
+    if (badgeEl) {
+      badgeEl.textContent = badgeText || "📍點擊放大";
+      if (badgeClass) badgeEl.className = badgeClass;
+    }
+    if (statEl) {
+      statEl.textContent = statText;
+      statEl.className = `card-stat font-mono-num text-xs shrink-0 ${isDone ? "text-emerald-400 font-bold" : "text-slate-300"}`;
+    }
+    if (fillEl) {
+      fillEl.style.width = `${Math.min(100, parseFloat(pct))}%`;
+      fillEl.style.background = color;
+    }
+  } else {
+    card = document.createElement("div");
+    card.textContent = `${title}: ${statText}`;
+  }
+  if (onClick) card.addEventListener("click", onClick);
+  return card;
+}
+
 function renderCountyProgressSidebar() {
+  const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
   const container = document.getElementById("county-progress-list");
   const spoilerBadge = document.getElementById("hidden-counties-badge");
   const titleEl = document.getElementById("breakdown-list-title");
   if (!container) return;
-  container.innerHTML = "";
+  container.replaceChildren();
 
   const activeSt = getActiveQuizStations();
   const scopeCounties = getScopeCounties();
@@ -256,13 +326,11 @@ function renderCountyProgressSidebar() {
     }
   }
 
-  // PART A: IF STATIONS ARE ENABLED, RENDER SYSTEM TOTALS (e.g. 台北捷運 總計, 台鐵 總計) + INDIVIDUAL LINES (e.g. 台鐵.縱貫線北段, 台北捷運.紅線)
   if (activeSt.length > 0) {
     const activeLinesSet = state.stationQuizEnabled && state.quizStationLines.size > 0
       ? state.quizStationLines
       : state.selectedTransportLines;
 
-    // 1. System Totals (台北捷運 總計 / 台鐵 總計 / 高鐵 總計 / 輕軌 總計 ...)
     const sysGroups = new Map();
     activeSt.forEach((st) => {
       const sName = st.sysTotal || "軌道系統";
@@ -278,39 +346,33 @@ function renderCountyProgressSidebar() {
 
       sysGroups.forEach((stArr, sysName) => {
         const totalS = stArr.length;
-        const unlockedS = stArr.filter((s) => state.unlockedStations.has(s.key)).length;
+        const unlockedS = stArr.filter((s) => vState.unlockedStations.has(s.key)).length;
         const pctS = totalS > 0 ? ((unlockedS / totalS) * 100).toFixed(1) : "0.0";
         const isDone = unlockedS === totalS && totalS > 0;
         const barColor = (stArr[0] && stArr[0].color) || "#ec4899";
 
-        const sCard = document.createElement("div");
-        sCard.className = "p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-pink-500/30 cursor-pointer transition flex flex-col gap-1";
-        sCard.innerHTML = `
-          <div class="flex items-center justify-between text-xs">
-            <div class="flex items-center gap-1.5 font-extrabold text-white">
-              <span class="w-2.5 h-2.5 rounded-full" style="background:${barColor}"></span>
-              <span>${sysName} 總計</span>
-              <span class="text-[10px] px-1.5 py-0.2 rounded bg-pink-500/15 text-pink-300">📍點擊放大</span>
-            </div>
-            <div class="font-mono-num text-xs ${isDone ? "text-emerald-400 font-bold" : "text-pink-200 font-semibold"}">
-              ${unlockedS} / ${totalS} 站 · ${pctS}%
-            </div>
-          </div>
-          <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-            <div class="h-full" style="width:${Math.min(100, parseFloat(pctS))}%; background:${barColor}"></div>
-          </div>
-        `;
-        sCard.addEventListener("click", () => {
-          if (!map || stArr.length === 0) return;
-          const b = L.latLngBounds(stArr.map((x) => [x.lat, x.lng]));
-          if (b.isValid()) map.flyToBounds(b.pad(0.18), { duration: 0.55, maxZoom: 13 });
-          setFeedback(`📍 已放大至「${sysName}」全線範圍 (已完成 ${unlockedS}/${totalS} 站 · ${pctS}%)`, "info");
-        });
-        container.appendChild(sCard);
+        container.appendChild(
+          createSidebarProgressCard({
+            title: `${sysName} 總計`,
+            subTitle: "",
+            badgeText: "📍點擊放大",
+            badgeClass: "card-badge text-[10px] px-1.5 py-0.2 rounded bg-pink-500/15 text-pink-300 shrink-0",
+            statText: `${unlockedS} / ${totalS} 站 · ${pctS}%`,
+            isDone,
+            pct: pctS,
+            color: barColor,
+            borderClass: "p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-pink-500/30 cursor-pointer transition flex flex-col gap-1",
+            onClick: () => {
+              if (!map || stArr.length === 0) return;
+              const b = L.latLngBounds(stArr.map((x) => [x.lat, x.lng]));
+              if (b.isValid()) map.flyToBounds(b.pad(0.18), { duration: 0.55, maxZoom: 13 });
+              setFeedback(`📍 已放大至「${sysName}」全線範圍 (已完成 ${unlockedS}/${totalS} 站 · ${pctS}%)`, "info");
+            }
+          })
+        );
       });
     }
 
-    // 2. Individual Line Breakdown (台鐵.縱貫線北段 / 台北捷運.紅線 ...)
     const lineHeader = document.createElement("div");
     lineHeader.className = "text-[11px] font-extrabold text-amber-300 uppercase tracking-wider px-1 pt-2";
     lineHeader.textContent = "🛤️ 各路線車站完成度 (系統.路線)";
@@ -323,39 +385,33 @@ function renderCountyProgressSidebar() {
       if (lineStations.length === 0) return;
 
       const totalL = lineStations.length;
-      const unlockedL = lineStations.filter((s) => state.unlockedStations.has(s.key)).length;
+      const unlockedL = lineStations.filter((s) => vState.unlockedStations.has(s.key)).length;
       const pctL = totalL > 0 ? ((unlockedL / totalL) * 100).toFixed(1) : "0.0";
       const isLineDone = unlockedL === totalL && totalL > 0;
       const lineTitle = typeof getLineDisplayName === "function" ? getLineDisplayName(meta.dotName || line.name) : (meta.dotName || line.name);
 
-      const lRow = document.createElement("div");
-      lRow.className = "p-2.5 rounded-xl bg-slate-900/75 hover:bg-slate-800/85 border border-slate-800 cursor-pointer transition flex flex-col gap-1";
-      lRow.innerHTML = `
-        <div class="flex items-center justify-between text-xs">
-          <div class="flex items-center gap-1.5 font-bold text-slate-100 truncate">
-            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${line.color}"></span>
-            <span class="truncate">${lineTitle}</span>
-            <span class="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 shrink-0">📍放大路線</span>
-          </div>
-          <div class="font-mono-num text-xs shrink-0 ${isLineDone ? "text-emerald-400 font-bold" : "text-slate-300"}">
-            ${unlockedL} / ${totalL} 站 · ${pctL}%
-          </div>
-        </div>
-        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-          <div class="h-full" style="width:${Math.min(100, parseFloat(pctL))}%; background:${line.color}"></div>
-        </div>
-      `;
-      lRow.addEventListener("click", () => {
-        if (!map || lineStations.length === 0) return;
-        const b = L.latLngBounds(lineStations.map((x) => [x.lat, x.lng]));
-        if (b.isValid()) map.flyToBounds(b.pad(0.2), { duration: 0.55, maxZoom: 13 });
-        setFeedback(`📍 已放大至「${lineTitle}」(已完成 ${unlockedL}/${totalL} 站 · ${pctL}%)`, "info");
-      });
-      container.appendChild(lRow);
+      container.appendChild(
+        createSidebarProgressCard({
+          title: lineTitle,
+          subTitle: "",
+          badgeText: "📍放大路線",
+          badgeClass: "card-badge text-[10px] px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 shrink-0",
+          statText: `${unlockedL} / ${totalL} 站 · ${pctL}%`,
+          isDone: isLineDone,
+          pct: pctL,
+          color: line.color,
+          borderClass: "p-2.5 rounded-xl bg-slate-900/75 hover:bg-slate-800/85 border border-slate-800 cursor-pointer transition flex flex-col gap-1",
+          onClick: () => {
+            if (!map || lineStations.length === 0) return;
+            const b = L.latLngBounds(lineStations.map((x) => [x.lat, x.lng]));
+            if (b.isValid()) map.flyToBounds(b.pad(0.2), { duration: 0.55, maxZoom: 13 });
+            setFeedback(`📍 已放大至「${lineTitle}」(已完成 ${unlockedL}/${totalL} 站 · ${pctL}%)`, "info");
+          }
+        })
+      );
     });
   }
 
-  // PART B: IF REGIONS ARE ENABLED, RENDER COUNTY PROGRESS LIST
   let hiddenCount = 0;
   if (scopeCounties.length > 0 && activeSt.length > 0) {
     const regHeader = document.createElement("div");
@@ -373,70 +429,61 @@ function renderCountyProgressSidebar() {
 
     const totalInCounty = c.towns.length;
     const unlockedInCounty = ALL_TOWNS.filter(
-      (t) => t.countyName === c.name && state.unlockedTowns.has(t.id)
+      (t) => t.countyName === c.name && vState.unlockedTowns.has(t.id)
     ).length;
     const isCountyDone =
       state.difficulty === "county_only"
-        ? state.unlockedCounties.has(c.name)
+        ? vState.unlockedCounties.has(c.name)
         : unlockedInCounty === totalInCounty;
     const pct =
       state.difficulty === "county_only"
         ? isCountyDone ? 100 : 0
         : Math.round((unlockedInCounty / totalInCounty) * 100);
 
-    const row = document.createElement("div");
-    row.className =
-      "p-2.5 rounded-xl bg-slate-900/75 hover:bg-slate-800/80 border border-slate-800 cursor-pointer transition flex flex-col gap-1";
-
     const color = COUNTY_COLORS[c.name] || "#38bdf8";
 
-    row.innerHTML = `
-      <div class="flex items-center justify-between text-xs">
-        <div class="flex items-center gap-1.5 font-bold text-slate-100">
-          <span class="w-2.5 h-2.5 rounded-full" style="background:${color}"></span>
-          <span>${c.name}</span>
-          <span class="text-[10px] text-slate-400 font-normal">(${c.province})</span>
-          <span class="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300">📍點擊放大</span>
-        </div>
-        <div class="font-mono-num text-xs ${isCountyDone ? "text-emerald-400 font-bold" : "text-slate-300"}">
-          ${state.difficulty === "county_only" ? (isCountyDone ? "✓ 已解鎖 · 100%" : "0%") : `${unlockedInCounty} / ${totalInCounty} · ${pct}%`}
-        </div>
-      </div>
-      <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-        <div class="h-full" style="width:${pct}%; background:${color}"></div>
-      </div>
-    `;
-
-    row.addEventListener("click", () => {
-      zoomToCountyCenter(c.name);
-      if (state.difficulty !== "county_only") {
-        const prefixSelect = document.getElementById("prefix-select");
-        const targetVal =
-          state.difficulty === "master_hierarchy"
-            ? c.isSpecial ? c.name : `${c.province}${c.name}`
-            : c.name;
-        if (prefixSelect) {
-          prefixSelect.value = targetVal;
-          updateLiveCombinedPreview();
-          setFeedback(`📍 已放大至「${c.name}」中心並套用前綴`, "info");
+    container.appendChild(
+      createSidebarProgressCard({
+        title: c.name,
+        subTitle: `(${c.province})`,
+        badgeText: "📍點擊放大",
+        badgeClass: "card-badge text-[10px] px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 shrink-0",
+        statText: state.difficulty === "county_only" ? (isCountyDone ? "✓ 已解鎖 · 100%" : "0%") : `${unlockedInCounty} / ${totalInCounty} · ${pct}%`,
+        isDone: isCountyDone,
+        pct,
+        color,
+        borderClass: "p-2.5 rounded-xl bg-slate-900/75 hover:bg-slate-800/80 border border-slate-800 cursor-pointer transition flex flex-col gap-1",
+        onClick: () => {
+          zoomToCountyCenter(c.name);
+          if (state.difficulty !== "county_only" && state.role !== "spectator") {
+            const prefixSelect = document.getElementById("prefix-select");
+            const targetVal =
+              state.difficulty === "master_hierarchy"
+                ? c.isSpecial ? c.name : `${c.province}${c.name}`
+                : c.name;
+            if (prefixSelect) {
+              prefixSelect.value = targetVal;
+              updateLiveCombinedPreview();
+              setFeedback(`📍 已放大至「${c.name}」中心並套用前綴`, "info");
+            }
+          }
         }
-      }
-    });
-
-    container.appendChild(row);
+      })
+    );
   });
 
   if (hiddenCount > 0) {
     spoilerBadge.classList.remove("hidden");
-    const lockedCard = document.createElement("div");
-    lockedCard.className = "p-3.5 rounded-2xl bg-slate-900/50 border border-dashed border-slate-700 text-center space-y-1";
-    lockedCard.innerHTML = `
-      <div class="text-xs font-bold text-amber-300">🔒 尚有 ${hiddenCount} 個未解鎖縣市已隱藏名稱 (防止劇透)</div>
-      <p class="text-[11px] text-slate-400">
-        在「${state.difficulty === "county_only" ? "縣市挑戰" : state.difficulty === "master_hierarchy" ? "最難三階解鎖" : "困難全名"}」模式下，未解鎖的縣市不會提前顯示於列表；當你猜出該縣市後，即會自動顯示進度並開放點擊放大定位！
-      </p>
-    `;
-    container.appendChild(lockedCard);
+    const tplLock = document.getElementById("tpl-spoiler-locked-card");
+    if (tplLock && tplLock.content) {
+      const frag = tplLock.content.cloneNode(true);
+      const tEl = frag.querySelector(".locked-title");
+      const dEl = frag.querySelector(".locked-desc");
+      const modeName = state.difficulty === "county_only" ? "縣市挑戰" : state.difficulty === "master_hierarchy" ? "最難三階解鎖" : "困難全名";
+      if (tEl) tEl.textContent = `🔒 尚有 ${hiddenCount} 個未解鎖縣市已隱藏名稱 (防止劇透)`;
+      if (dEl) dEl.textContent = `在「${modeName}」模式下，未解鎖的縣市不會提前顯示於列表；當猜出該縣市後，即會自動顯示進度並開放點擊放大定位！`;
+      container.appendChild(frag);
+    }
   } else {
     spoilerBadge.classList.add("hidden");
   }
@@ -616,7 +663,7 @@ function showSettlementModal() {
     if (titleEl) {
       titleEl.textContent = pctNum >= 100 ? "🎉 恭喜通關！台灣全島制霸" : "挑戰結算完成！";
     }
-    if (iconBox) iconBox.innerHTML = pctNum >= 100 ? "👑" : "🏆";
+    if (iconBox) iconBox.textContent = pctNum >= 100 ? "👑" : "🏆";
   } else {
     if (typeBadge) {
       typeBadge.textContent = "⚔️ MULTIPLAYER 即時連線對戰";
@@ -665,7 +712,7 @@ function showSettlementModal() {
         if (vsReasonEl) vsReasonEl.textContent = `雙方完成度皆為 ${pctStr}，耗時速度不分軒輊！`;
         if (myCrown) myCrown.textContent = "⚖️ TIE";
         if (oppCrown) oppCrown.textContent = "⚖️ TIE";
-        if (iconBox) iconBox.innerHTML = "⚖️";
+        if (iconBox) iconBox.textContent = "⚖️";
       } else if (isWin) {
         if (titleEl) titleEl.textContent = "👑 恭喜獲得勝利！";
         if (vsResultEl) {
@@ -682,7 +729,7 @@ function showSettlementModal() {
         if (oppCrown) oppCrown.textContent = "💔 LOSS";
         if (myCol) myCol.className = "p-2.5 sm:p-3 rounded-xl bg-slate-900/90 border-2 border-emerald-500/80 shadow-lg shadow-emerald-500/20 space-y-1";
         if (oppCol) oppCol.className = "p-2.5 sm:p-3 rounded-xl bg-slate-900/90 border border-slate-700/80 space-y-1 opacity-80";
-        if (iconBox) iconBox.innerHTML = "👑";
+        if (iconBox) iconBox.textContent = "👑";
       } else {
         if (titleEl) titleEl.textContent = "💔 惜敗！再接再厲";
         if (vsResultEl) {
@@ -699,7 +746,7 @@ function showSettlementModal() {
         if (oppCrown) oppCrown.textContent = "👑 WIN";
         if (myCol) myCol.className = "p-2.5 sm:p-3 rounded-xl bg-slate-900/90 border border-slate-700/80 space-y-1 opacity-80";
         if (oppCol) oppCol.className = "p-2.5 sm:p-3 rounded-xl bg-slate-900/90 border-2 border-indigo-500/80 shadow-lg shadow-indigo-500/20 space-y-1";
-        if (iconBox) iconBox.innerHTML = "⚔️";
+        if (iconBox) iconBox.textContent = "⚔️";
       }
 
       document.getElementById("vs-my-name").textContent = stats.name;
@@ -712,16 +759,11 @@ function showSettlementModal() {
       document.getElementById("vs-opp-time").textContent = formatTime(oppStats.elapsedSec || 0);
       document.getElementById("vs-opp-acc").textContent = `${oppStats.accuracy || 90}%`;
 
-      // Render multi-player ranked leaderboard when 3+ players
+      // Render multi-player ranked leaderboard when 2+ players
       const activeList = typeof getActiveBattlePlayers === "function" ? getActiveBattlePlayers() : [];
-      let multiBoard = document.getElementById("settlement-multiplayer-board");
-      if (activeList.length > 2 && vsBanner) {
-        if (!multiBoard) {
-          multiBoard = document.createElement("div");
-          multiBoard.id = "settlement-multiplayer-board";
-          multiBoard.className = "mt-3 pt-3 border-t border-slate-700/80 space-y-1.5 text-left";
-          vsBanner.appendChild(multiBoard);
-        }
+      const multiBoard = document.getElementById("settlement-multiplayer-board");
+      const rankListEl = document.getElementById("settlement-rank-list");
+      if (activeList.length >= 2 && multiBoard && rankListEl) {
         const ranked = [...activeList].sort((a, b) => {
           const aTot = (a.total || 0) + (a.stationTotal || 0);
           const bTot = (b.total || 0) + (b.stationTotal || 0);
@@ -735,22 +777,26 @@ function showSettlementModal() {
           return aTime - bTime;
         });
         const medals = ["🥇", "🥈", "🥉"];
-        multiBoard.innerHTML = `
-          <div class="text-[11px] font-bold text-sky-300 uppercase tracking-wider">🏆 多人對戰即時排行榜</div>
-          ${ranked.map((p, idx) => {
-            const tot = (p.total || 0) + (p.stationTotal || 0);
-            const cur = (p.score || 0) + (p.stationScore || 0);
-            const pPct = tot > 0 ? ((cur / tot) * 100).toFixed(1) : "0.0";
-            const tStr = p.finalStats ? formatTime(p.finalStats.elapsedSec) : "作答中";
-            const stTag = p.finished ? (p.finishReason === "victory" ? "👑 通關" : "🏁 已結束") : "⏳ 作答中";
-            return `
-              <div class="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-950/70 border ${p.id === state.localInstanceId ? "border-sky-500/60" : "border-slate-800"} text-xs">
-                <span class="font-bold text-white">${medals[idx] || `#${idx + 1}`} ${p.name}${p.id === state.localInstanceId ? " (你)" : ""}</span>
-                <span class="font-mono-num text-slate-300">${cur}/${tot} (${pPct}%) · ${tStr} · ${stTag}</span>
-              </div>
-            `;
-          }).join("")}
-        `;
+        rankListEl.replaceChildren();
+        const tplRow = document.getElementById("tpl-settlement-rank-row");
+        ranked.forEach((p, idx) => {
+          const tot = (p.total || 0) + (p.stationTotal || 0);
+          const cur = (p.score || 0) + (p.stationScore || 0);
+          const pPct = tot > 0 ? ((cur / tot) * 100).toFixed(1) : "0.0";
+          const tStr = p.finalStats ? formatTime(p.finalStats.elapsedSec) : "作答中";
+          const stTag = p.finished ? (p.finishReason === "victory" ? "👑 通關" : "🏁 已結束") : "⏳ 作答中";
+          if (tplRow && tplRow.content) {
+            const row = tplRow.content.firstElementChild.cloneNode(true);
+            if (p.id === state.localInstanceId) {
+              row.className = "flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-950/70 border border-sky-500/60 text-xs";
+            }
+            const nameEl = row.querySelector(".rank-name");
+            const metaEl = row.querySelector(".rank-meta");
+            if (nameEl) nameEl.textContent = `${medals[idx] || `#${idx + 1}`} ${p.name}${p.id === state.localInstanceId ? " (你)" : ""}`;
+            if (metaEl) metaEl.textContent = `${cur}/${tot} (${pPct}%) · ${tStr} · ${stTag}`;
+            rankListEl.appendChild(row);
+          }
+        });
         multiBoard.classList.remove("hidden");
       } else if (multiBoard) {
         multiBoard.classList.add("hidden");
@@ -767,7 +813,7 @@ function showSettlementModal() {
         }
       }
       if (titleEl) titleEl.textContent = "我方已完成！等待對手作答";
-      if (iconBox) iconBox.innerHTML = "⏳";
+      if (iconBox) iconBox.textContent = "⏳";
     }
   }
 
@@ -1119,7 +1165,7 @@ function resetGame() {
     refreshAllPolygonStyles();
   }
   setFeedback("新的一局已準備就緒，輸入第一個行政區即開始計時！", "info");
-  broadcastP2PState("重新開局");
+  if (state.roomCode || state.aiRivalActive) broadcastP2PState("重新開局");
 }
 
 // ============================================================================

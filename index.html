@@ -61,24 +61,21 @@
         </button>
       </div>
 
-      <!-- Right Action Buttons (Removed public GitHub deploy button) -->
+      <!-- Right Action Buttons (Unified Challenge & Battle Settings Button) -->
       <div class="flex items-center gap-1 sm:gap-1.5">
-        <button id="btn-open-scope" type="button" class="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-[11px] sm:text-xs font-bold text-sky-200 border border-sky-500/40 flex items-center gap-1 transition" title="更改難度、出題模式與挑戰區域範圍">
-          <i data-lucide="sliders-horizontal" class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-400"></i>
-          <span id="scope-summary-label">全台 368 區</span>
-          <span class="text-slate-400">·</span>
-          <span id="current-mode-pill" class="text-amber-300">休閒難度</span>
+        <button id="btn-open-scope" type="button" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-[11px] sm:text-xs font-bold text-sky-200 border border-sky-500/40 flex items-center gap-1.5 transition shadow-sm" title="開啟挑戰設定（難度、範圍、計時與多人連線對戰房間）">
+          <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-sky-400 shrink-0"></i>
+          <span class="text-white font-extrabold">挑戰設定</span>
+          <span class="text-slate-500 hidden md:inline">|</span>
+          <span id="scope-summary-label" class="hidden md:inline text-sky-200">全台 368 區</span>
+          <span class="text-slate-400 hidden sm:inline">·</span>
+          <span id="current-mode-pill" class="text-amber-300 hidden sm:inline">自由默寫 · 休閒難度</span>
+          <span id="p2p-status-dot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0" title="多人連線狀態燈號"></span>
         </button>
 
         <button id="btn-open-perf" type="button" class="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 text-xs font-semibold text-amber-200 border border-amber-500/35 flex items-center gap-1 transition" title="顯示優化、標籤數量與移動跟隨設定">
           <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
           <span class="hidden sm:inline">顯示優化</span>
-        </button>
-
-        <button id="btn-open-p2p" type="button" class="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl bg-indigo-600/25 hover:bg-indigo-600/40 text-xs font-semibold text-indigo-200 border border-indigo-500/40 flex items-center gap-1 transition">
-          <i data-lucide="swords" class="w-3.5 h-3.5 text-indigo-400"></i>
-          <span class="hidden sm:inline">P2P 對戰</span>
-          <span id="p2p-status-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
         </button>
 
         <button id="btn-audio-toggle" type="button" class="p-1 sm:p-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-400 border border-slate-700 transition" title="切換音效 (預設靜音)">
@@ -257,8 +254,26 @@
                 </div>
               </div>
               <div id="unlocked-prefix-pills" class="flex items-center gap-1 overflow-x-auto pt-1.5 no-scrollbar">
-                <span class="text-[11px] text-slate-400 shrink-0">已解鎖前綴快捷：</span>
-                <span class="text-[11px] text-slate-500 italic">尚未解鎖任何省市（試著輸入「臺北市」或「臺灣省」）</span>
+                <span id="prefix-pills-label" class="text-[11px] text-slate-400 shrink-0">已解鎖前綴快捷：</span>
+                <span id="prefix-pills-empty" class="text-[11px] text-slate-500 italic">尚未解鎖任何省市（試著輸入「臺北市」或「臺灣省」）</span>
+                <div id="prefix-pills-list" class="flex items-center gap-1"></div>
+              </div>
+            </div>
+
+            <!-- Spectator Mode Banner & Player View Switcher (Static MVC View) -->
+            <div id="spectator-mode-banner" class="hidden mb-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-bold flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <span id="spectator-banner-text">👁️ 觀戰模式中：可點擊排行或下拉選單切換觀看任意選手地圖與進度，並自由切換個人圖層</span>
+                <div class="flex items-center gap-1 bg-slate-950/85 px-2 py-1 rounded-lg border border-amber-500/40">
+                  <span class="text-[11px] text-amber-300">觀看選手：</span>
+                  <select id="spectator-player-select" class="bg-slate-950 text-white font-extrabold text-xs focus:outline-none cursor-pointer rounded px-1">
+                    <option value="">自動跟隨領先選手</option>
+                  </select>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button id="btn-spectator-open-hub" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-600 text-[11px] font-bold transition">⚙️ 房間與名單</button>
+                <button id="btn-spectator-join-next" type="button" class="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 text-[11px] font-black hover:bg-amber-300 transition shrink-0">🎮 切換參賽</button>
               </div>
             </div>
 
@@ -308,8 +323,8 @@
             <!-- Status Toast & Quick Actions Bar (Occludable buffer zone when mobile virtual keyboard pops up) -->
             <div id="input-occludable-footer" class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
               <div id="feedback-message" class="text-slate-300 font-medium flex items-center gap-1.5 truncate">
-                <span class="w-2 h-2 rounded-full bg-sky-400"></span>
-                <span>提示：已修正 Windows 注音虛線組字相容性，並啟用 Canvas 硬體加速渲染！</span>
+                <span id="feedback-dot" class="w-2 h-2 rounded-full shrink-0 bg-sky-400"></span>
+                <span id="feedback-text" class="truncate">提示：已修正 Windows 注音虛線組字相容性，並啟用 Canvas 硬體加速渲染！</span>
               </div>
               <div class="flex items-center gap-2.5 shrink-0">
                 <label class="flex items-center gap-1 text-slate-300 cursor-pointer select-none" title="開啟時，注音按下Enter確認組字後即自動比對答案">
@@ -381,24 +396,27 @@
           </div>
           <div id="p2p-macro-bars" class="space-y-1.5"></div>
         </div>
+        <!-- Multi-player Live Leaderboard & Click-to-Spectate Switcher -->
+        <div id="p2p-multiplayer-live-list" class="hidden mt-2.5 pt-2 border-t border-indigo-500/20 space-y-1.5">
+          <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold px-0.5">
+            <span id="p2p-live-rank-title">⚔️ 即時戰況排行 (點擊選手可切換觀看地圖)</span>
+            <span id="p2p-live-spectator-count" class="text-amber-300"></span>
+          </div>
+          <div id="p2p-live-rank-rows" class="space-y-1 max-h-48 overflow-y-auto pr-0.5"></div>
+        </div>
         <span id="p2p-feed-text" class="hidden"></span>
       </div>
 
       <!-- OVERALL PROGRESS DASHBOARD CARD -->
-      <div class="apple-glass rounded-2xl p-4 border border-slate-800">
-        <div class="flex items-center justify-between mb-2">
-          <div>
-            <h2 class="text-sm font-bold text-white flex items-center gap-1.5">
-              <i data-lucide="award" class="w-4 h-4 text-emerald-400"></i>
-              <span id="progress-card-title">挑戰總進度與快速定位</span>
-            </h2>
-            <p id="progress-card-subtitle" class="text-[11px] text-slate-400 mt-0.5">
-              高難度下自動隱藏未解鎖縣市防劇透；解鎖後可點擊一鍵放大至該縣市中心
-            </p>
-          </div>
-          <button id="btn-open-scope-inline" type="button" class="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-semibold border border-slate-700 shrink-0 transition">
-            ⚙️ 切換難度/範圍
-          </button>
+      <div class="apple-glass rounded-2xl p-3.5 border border-slate-800">
+        <div class="mb-1.5">
+          <h2 class="text-sm font-bold text-white flex items-center gap-1.5">
+            <i data-lucide="award" class="w-4 h-4 text-emerald-400"></i>
+            <span id="progress-card-title">挑戰總進度與快速定位</span>
+          </h2>
+          <p id="progress-card-subtitle" class="text-[11px] text-slate-400 mt-0.5">
+            高難度下自動隱藏未解鎖縣市防劇透；解鎖後可點擊一鍵放大至該縣市中心
+          </p>
         </div>
 
         <!-- Dual Metric Bars -->
@@ -437,7 +455,7 @@
               🔄 縮回全台灣
             </button>
           </div>
-          <div id="quick-zoom-counties-bar" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1"></div>
+          <div id="quick-zoom-counties-bar" class="flex flex-wrap gap-1.5"></div>
         </div>
       </div>
 
@@ -475,8 +493,8 @@
             <p class="text-xs text-slate-400">針對不同裝置效能調整標籤數量、縮放隱藏閾值與拖曳同步方式</p>
           </div>
         </div>
-        <button id="btn-close-perf" type="button" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
-          <i data-lucide="x" class="w-5 h-5"></i>
+        <button id="btn-close-perf" type="button" aria-label="關閉" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm">
+          <i data-lucide="x" class="w-4 h-4">✕</i>
         </button>
       </div>
 
@@ -528,525 +546,474 @@
     </div>
   </div>
 
-  <!-- MODAL 1: UNIFIED GAME SETUP (難度、出題模式、北中南東快速範圍選擇) -->
-  <div id="modal-scope" class="hidden fixed inset-0 z-[600] bg-slate-950/75 flex items-center justify-center p-4">
-    <div class="apple-glass rounded-3xl max-w-3xl w-full p-6 border border-slate-700 shadow-2xl max-h-[92vh] flex flex-col">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-        <div>
-          <h3 class="text-lg font-extrabold text-white">⚙️ 挑戰難度、出題方式與台灣北中南東範圍設定</h3>
-          <p class="text-xs text-slate-400 mt-0.5">設定完成後面板會自動收合，讓右側空間 100% 專注顯示你的答題進度與快速定位</p>
-        </div>
-        <button id="btn-close-scope" type="button" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-
-      <div class="overflow-y-auto py-3 pr-1 space-y-4 flex-1">
-        <!-- Step 0: Top-Level Mode Switcher (地區模式 / 車站模式 / 混合模式) -->
-        <div class="p-3 rounded-2xl bg-slate-900/90 border border-sky-500/30">
-          <label class="text-xs font-extrabold text-white uppercase tracking-wider block mb-2">
-            ★ 選擇挑戰主模式（一鍵切換「純猜地區」、「純猜車站」或「地區＋車站混合模式」）
-          </label>
-          <div class="grid grid-cols-3 gap-2">
-            <button type="button" data-qmode="region" class="qmode-btn p-2.5 rounded-xl border transition bg-sky-500/25 border-sky-400 text-white text-left">
-              <div class="text-xs sm:text-sm font-extrabold">🗺️ 地區模式</div>
-              <div class="text-[11px] text-slate-300 mt-0.5">專注猜台灣縣市與鄉鎮市區</div>
-            </button>
-            <button type="button" data-qmode="station" class="qmode-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left">
-              <div class="text-xs sm:text-sm font-extrabold text-pink-300">🚉 車站模式</div>
-              <div class="text-[11px] text-slate-400 mt-0.5">專注猜北捷/台鐵/高鐵/輕軌各線車站</div>
-            </button>
-            <button type="button" data-qmode="mixed" class="qmode-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left">
-              <div class="text-xs sm:text-sm font-extrabold text-amber-300">🔀 混合模式</div>
-              <div class="text-[11px] text-slate-400 mt-0.5">同時猜行政區＋自選軌道車站並分項統計</div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 1: Difficulty -->
-        <div>
-          <label class="text-xs font-bold text-sky-300 uppercase tracking-wider block mb-2">
-            1. 選擇挑戰難度（高難度下未解鎖縣市將自動隱藏名稱防劇透）
-          </label>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-            <button type="button" data-diff="casual" class="diff-btn text-left p-2.5 rounded-xl border transition bg-sky-500/20 border-sky-400 text-white">
-              <div class="text-xs font-bold">🟢 一般/休閒難度</div>
-              <p class="text-[11px] text-slate-300 mt-1 leading-tight">免打鄉鎮市區後綴，同名一次解鎖，顯示各縣市導覽</p>
-            </button>
-
-            <button type="button" data-diff="county_only" class="diff-btn text-left p-2.5 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800/70 text-slate-300 transition">
-              <div class="text-xs font-bold">🔵 縣市模式 (22縣市)</div>
-              <p class="text-[11px] text-slate-400 mt-1 leading-tight">只記縣市與直轄市並作為百分比，未解鎖縣市完全隱藏</p>
-            </button>
-
-            <button type="button" data-diff="hard_suffix" class="diff-btn text-left p-2.5 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800/70 text-slate-300 transition">
-              <div class="text-xs font-bold text-yellow-300">🟡 進階後綴模式</div>
-              <p class="text-[11px] text-slate-400 mt-1 leading-tight">免縣市前綴，僅需輸入正確「鄉鎮市區+後綴」（如：信義區）</p>
-            </button>
-
-            <button type="button" data-diff="hard_full" class="diff-btn text-left p-2.5 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800/70 text-slate-300 transition">
-              <div class="text-xs font-bold text-orange-300">🟠 困難全名模式</div>
-              <p class="text-[11px] text-slate-400 mt-1 leading-tight">須含完整縣市+鄉鎮市區後綴，未解鎖縣市隱藏防劇透</p>
-            </button>
-
-            <button type="button" data-diff="master_hierarchy" class="diff-btn text-left p-2.5 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800/70 text-slate-300 transition">
-              <div class="text-xs font-bold text-amber-300">🔥 最難：三階解鎖</div>
-              <p class="text-[11px] text-slate-400 mt-1 leading-tight">先猜省/直轄市➔再猜縣市➔再猜鄉鎮全名（未解鎖全隱藏）</p>
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 2: Play Mode -->
-        <div>
-          <label class="text-xs font-bold text-emerald-300 uppercase tracking-wider block mb-2">
-            2. 選擇出題方式（自由默寫 vs 指定區塊）
-          </label>
-          <div class="grid grid-cols-3 gap-2">
-            <button type="button" data-playmode="free" class="playmode-btn py-2.5 px-3 rounded-xl text-xs font-bold border transition bg-emerald-500/20 border-emerald-400 text-emerald-200 text-center">
-              ✍️ 自由默寫模式
-            </button>
-            <button type="button" data-playmode="target_random" class="playmode-btn py-2.5 px-3 rounded-xl text-xs font-bold border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800 text-slate-300 text-center transition">
-              🎯 隨機指定區塊
-            </button>
-            <button type="button" data-playmode="target_click" class="playmode-btn py-2.5 px-3 rounded-xl text-xs font-bold border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800 text-slate-300 text-center transition">
-              👆 點選指定區塊
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 3: Regional Scope Presets -->
-        <div id="scope-region-section">
-          <label class="text-xs font-bold text-amber-300 uppercase tracking-wider block mb-2">
-            3. 選擇要猜的「行政區範圍」（可選全台/北中南東，或點「🚫 不猜行政區」單純猜車站！）
-          </label>
-          <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
-            <button id="btn-scope-all" type="button" class="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition">
-              🇹🇼 全台 (22縣市·368區)
-            </button>
-            <button id="btn-scope-six" type="button" class="px-3 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition">
-              🏙️ 六都直轄市 (158區)
-            </button>
-            <button id="btn-scope-north" type="button" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition">
-              ⬆️ 北部地區 (北北基桃竹宜·89區)
-            </button>
-            <button id="btn-scope-central" type="button" class="px-3 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold transition">
-              ⛰️ 中部地區 (苗中彰投雲·105區)
-            </button>
-            <button id="btn-scope-south" type="button" class="px-3 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-xs font-bold transition">
-              ☀️ 南部地區 (嘉南高屏澎·132區)
-            </button>
-            <button id="btn-scope-east" type="button" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition">
-              🌊 東部地區 (花東·29區)
-            </button>
-            <button id="btn-scope-islands" type="button" class="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition">
-              🏝️ 離島澎金馬 (16鄉鎮)
-            </button>
-            <button id="btn-scope-random-one" type="button" class="px-3 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 text-xs font-bold transition">
-              🎲 隨機單一縣市
-            </button>
-            <button id="btn-scope-clear" type="button" class="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition" title="清除所有行政區（純猜車站）">
-              清除
-            </button>
-          </div>
-
-          <div id="scope-counties-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-44 overflow-y-auto p-1"></div>
-        </div>
-
-        <!-- Step 4: Station & Transit Lines Quiz Scope Selector -->
-        <div id="scope-station-section" class="pt-2 border-t border-slate-800/90">
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-            <label class="text-xs font-bold text-pink-300 uppercase tracking-wider">
-              4. 🚉 選擇要猜的「車站與軌道系統」（可選「不猜車站」、或任選台北捷運、台鐵各線、輕軌、高鐵等）
-            </label>
-            <div class="flex items-center gap-2">
-              <label class="flex items-center gap-1.5 text-slate-300 cursor-pointer text-xs" title="勾選後於路線清單與題目提示中顯示起訖端點站（如淡水—象山）；預設關閉以防洩題劇透">
-                <input id="chk-station-terminus-hints" type="checkbox" class="w-3.5 h-3.5 rounded bg-slate-800 border-slate-600 text-pink-500" />
-                <span class="text-[11px] text-pink-300 font-semibold">🏷️ 顯示頭尾端點站提示</span>
-              </label>
-              <span id="scope-station-status-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300">
-                預設：不猜車站
-              </span>
-            </div>
-          </div>
-          <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
-            <button id="btn-qst-none" type="button" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold transition">
-              🚫 不猜車站 (關閉車站題庫)
-            </button>
-            <button id="btn-qst-tpemrt" type="button" class="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition">
-              🚇 台北捷運全線 (北捷5線+環狀線)
-            </button>
-            <button id="btn-qst-allmrt" type="button" class="px-2.5 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 text-xs font-bold transition">
-              🚇 全台都會捷運 (北/新北/桃/中/高捷)
-            </button>
-            <button id="btn-qst-lrt" type="button" class="px-2.5 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold transition">
-              🚋 全台輕軌 (淡海/安坑/高雄)
-            </button>
-            <button id="btn-qst-tra-all" type="button" class="px-2.5 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition">
-              🚆 台鐵全線 (西部/東部/南迴+4支線)
-            </button>
-            <button id="btn-qst-tra-east" type="button" class="px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition">
-              🚆 台鐵東部 (宜蘭+北迴+花東)
-            </button>
-            <button id="btn-qst-tra-branch" type="button" class="px-2.5 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition">
-              🚆 台鐵四大支線 (平溪/內灣/集集/沙崙)
-            </button>
-            <button id="btn-qst-thsr" type="button" class="px-2.5 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-xs font-bold transition">
-              🚄 台灣高鐵 (12站)
-            </button>
-            <button id="btn-qst-heritage" type="button" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition">
-              🌲 林鐵+糖鐵+纜車
-            </button>
-            <button id="btn-qst-all" type="button" class="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition">
-              ✅ 全選所有車站
-            </button>
-          </div>
-
-          <div id="scope-stations-grid" class="space-y-2 max-h-60 overflow-y-auto p-1"></div>
-        </div>
-      </div>
-
-      <div class="pt-3 mt-2 border-t border-slate-800 flex items-center justify-between">
-        <div id="scope-modal-counter" class="text-sm font-bold text-emerald-400">
-          已選擇 22 縣市 · 共 368 鄉鎮市區
-        </div>
-        <button id="btn-apply-scope" type="button" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-sm shadow-lg transition">
-          確認套用並開始挑戰
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL 2: P2P MULTIPLAYER LOBBY (雙欄對戰中心：左側連線與公平規則 / 右側完整題庫與鐵道細項設定) -->
-  <div id="modal-p2p" class="hidden fixed inset-0 z-[600] bg-slate-950/75 flex items-center justify-center p-2 sm:p-4">
-    <div class="apple-glass rounded-3xl max-w-6xl w-full p-4 sm:p-6 border border-slate-700 shadow-2xl max-h-[94vh] flex flex-col">
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300">
-            <i data-lucide="swords" class="w-5 h-5"></i>
+  <!-- MODAL 1 & 2 UNIFIED: CHALLENGE SETTINGS & EXPANDABLE MULTIPLAYER ROOM HUB (Single Scrollbar, Zero Nested Scroll) -->
+  <div id="modal-scope" class="fixed inset-0 z-[600] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overscroll-contain">
+    <div id="modal-p2p" class="apple-glass rounded-3xl max-w-6xl w-full p-3.5 sm:p-6 border border-slate-700 shadow-2xl max-h-[92dvh] flex flex-col overflow-hidden">
+      <!-- Top Header & Close Button (Sticky Top) -->
+      <div class="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-800 shrink-0">
+        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 border border-white/20 flex items-center justify-center text-white shadow-lg shrink-0">
+            <i data-lucide="compass" class="w-4 h-4 sm:w-5 sm:h-5"></i>
           </div>
           <div>
-            <div class="flex items-center gap-2">
-              <h3 class="text-base sm:text-lg font-extrabold text-white">P2P 連線對戰中心</h3>
-              <span id="p2p-role-indicator" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">👑 房主主控台</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 id="hub-modal-title" class="text-sm sm:text-lg font-extrabold text-white">GeoMaster TW 挑戰設定與多人房間中心</h3>
+              <span id="p2p-role-indicator" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">👤 單人挑戰模式</span>
+              <span id="device-id-badge" class="font-mono-num text-[10px] px-2 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-700" title="穩定裝置識別碼，重整或重開網頁可自動恢復同一個房間 Session">ID: 載入中</span>
             </div>
-            <p class="text-[11px] sm:text-xs text-slate-400">零延遲 WebRTC 端對端直連 · 即時同步雙方題庫與公平競技圖層規則</p>
+            <p class="text-[11px] text-slate-400 mt-0.5 hidden sm:block">單人與多人共用下方題庫與難度設定；展開「多人連線房間」即可開房、輸入房號觀戰/參賽或設定圖層限制</p>
           </div>
         </div>
-        <button id="btn-close-p2p" type="button" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
-          <i data-lucide="x" class="w-5 h-5"></i>
+        <button id="btn-close-scope" type="button" aria-label="關閉" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition shrink-0" title="關閉設定視窗">
+          <i data-lucide="x" class="w-4 h-4">✕</i>
         </button>
       </div>
 
-      <!-- Main Body: Two-Column Responsive Layout -->
-      <div class="flex flex-col lg:flex-row gap-4 sm:gap-5 flex-1 min-h-0 overflow-hidden my-2">
-        <!-- LEFT COLUMN: Lobby Connection, Player Cards, Ready/Start Action, Fair Rules -->
-        <div class="w-full lg:w-[380px] shrink-0 flex flex-col gap-3 overflow-y-auto pr-1">
-          <!-- 1. Nickname & Room Controls -->
-          <div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
-            <div>
-              <label class="text-[11px] text-slate-400 font-semibold block mb-1">你的玩家暱稱</label>
-              <input id="p2p-nickname-input" type="text" value="GeoMasterTw" class="w-full bg-slate-950 text-white text-xs font-semibold rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-indigo-400" />
+      <!-- Session Auto-Restore Banner (Shown when localStorage has a recent session for this Device ID) -->
+      <div id="session-restore-banner" class="hidden mt-2 p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+        <div class="flex items-center gap-2 text-emerald-200">
+          <span>🔄</span>
+          <span id="session-restore-text">偵測到您在此裝置有未結束的房間連線紀錄，是否回到原房間繼續？</span>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="btn-restore-session" type="button" class="px-3 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition">🔄 回到原房間 Session</button>
+          <button id="btn-dismiss-session" type="button" class="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-700 transition">忽略</button>
+        </div>
+      </div>
+
+      <!-- SINGLE UNIFIED SCROLL BODY: Scrolls Multiplayer Room + Layer Rules + Challenge Settings smoothly with 1 scrollbar -->
+      <div id="hub-scroll-body" class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 space-y-3.5 my-2.5">
+
+        <!-- SECTION A: EXPANDABLE MULTIPLAYER ROOM, SPECTATOR & FAIR LAYER RULES PANEL -->
+        <div id="p2p-room-accordion" class="rounded-2xl bg-slate-900/90 border border-indigo-500/35 p-2.5 sm:p-3 transition">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <span class="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-base shrink-0">⚔️</span>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-xs sm:text-sm font-extrabold text-white">多人連線對戰 (&gt;2人) / 觀戰房間設定</span>
+                  <span id="p2p-accordion-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">單人未開房</span>
+                </div>
+                <p id="p2p-accordion-subtitle" class="text-[11px] text-slate-400 truncate mt-0.5">
+                  單人練習免開房；點擊右側展開即可建立房間、輸入房號連線觀戰/參賽，或設定公平底圖與路網限制
+                </p>
+              </div>
             </div>
-            <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
-              <button id="btn-p2p-host" type="button" class="w-full px-2.5 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs transition">
-                🎲 產生新房間代碼
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button id="btn-toggle-p2p-panel" type="button" class="px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/45 text-indigo-200 border border-indigo-400/50 text-xs font-extrabold transition flex items-center gap-1.5 shadow-sm">
+                <span id="p2p-toggle-btn-text">⚔️ 開啟多人 / 展開房間設定 ▾</span>
               </button>
-              <div class="flex gap-1">
-                <input id="p2p-room-code-input" type="text" placeholder="輸入6碼房號" class="w-full font-mono-num uppercase bg-slate-950 text-amber-300 text-xs font-bold rounded-xl px-2 py-1.5 border border-slate-700 focus:outline-none focus:border-amber-400" />
-                <button id="btn-p2p-join" type="button" class="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shrink-0 transition">
-                  加入
+            </div>
+          </div>
+
+          <!-- Expandable Multiplayer Room Container (Zero nested overflow-y-auto; flows directly in #hub-scroll-body) -->
+          <div id="p2p-lobby-sidebar" class="hidden pt-3 mt-3 border-t border-slate-800/90">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+
+              <!-- 1. Nickname, Password, Create/Join Room & Dual Invite Links (lg:col-span-5) -->
+              <div class="lg:col-span-5 p-3 rounded-2xl bg-slate-950/75 border border-slate-800 space-y-2.5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label class="text-[11px] text-slate-400 font-semibold block mb-1">👤 你的玩家暱稱</label>
+                    <input id="p2p-nickname-input" type="text" value="GeoMasterTW" class="w-full bg-slate-950 text-white text-xs font-semibold rounded-xl px-3 py-1.5 border border-slate-700 focus:outline-none focus:border-indigo-400" />
+                  </div>
+                  <div>
+                    <label class="text-[11px] text-slate-400 font-semibold block mb-1">🔒 房間密碼 (房主可設/選填)</label>
+                    <input id="p2p-password-input" type="password" autocomplete="off" placeholder="留空代表無密碼公開房" class="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400" />
+                  </div>
+                </div>
+
+                <!-- Host Room Box & Join Room Box -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5 border-t border-slate-800/80">
+                  <button id="btn-p2p-host" type="button" class="w-full px-2.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs transition shadow-md flex items-center justify-center gap-1">
+                    <span>👑</span>
+                    <span>建立新房間 (Host)</span>
+                  </button>
+                  <div class="flex gap-1">
+                    <input id="p2p-room-code-input" type="text" placeholder="輸入6碼房號" class="w-full font-mono-num uppercase bg-slate-950 text-amber-300 text-xs font-bold rounded-xl px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-amber-400" />
+                    <button id="btn-p2p-join" type="button" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shrink-0 transition">
+                      連線入房
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Join Mode Preference & Active Role Switcher -->
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <label class="inline-flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer select-none" title="勾選後加入房間時預設先進入觀戰模式，確認題庫後可隨時點右側按鈕切換參賽">
+                    <input id="chk-p2p-join-spectate" type="checkbox" checked class="rounded bg-slate-950 border-slate-600 text-amber-500" />
+                    <span>👁️ 入房預設先觀戰（防誤開局，可隨時切換參賽）</span>
+                  </label>
+                  <button id="btn-p2p-leave" type="button" class="hidden px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-[11px] font-bold transition">
+                    🚪 離開房間
+                  </button>
+                </div>
+
+                <!-- Active Room Spectator <-> Player Switch Bar -->
+                <div id="p2p-role-switch-bar" class="hidden flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-900 border border-amber-500/40 text-xs">
+                  <span id="p2p-spectator-status-text" class="text-amber-300 font-bold">👁️ 目前為觀戰模式</span>
+                  <button id="btn-p2p-switch-role" type="button" class="px-3 py-1 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-black transition cursor-pointer">
+                    🎮 切換為參賽選手
+                  </button>
+                </div>
+
+                <!-- Dual Invite Links (1. 觀戰連結 / 2. 參賽連結) -->
+                <div id="p2p-share-links-box" class="pt-1.5 border-t border-slate-800/80 space-y-1.5">
+                  <div class="text-[10px] font-bold text-slate-400 flex items-center justify-between">
+                    <span>🔗 房間邀請連結（觀戰連結 / 參賽連結）</span>
+                    <span id="p2p-password-lock-hint" class="text-amber-300 hidden">🔒 已設密碼</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-bold text-amber-300 w-12 shrink-0">👁️ 觀戰：</span>
+                    <input id="p2p-share-url-spectate" type="text" readonly class="flex-1 min-w-0 bg-slate-950 text-slate-300 font-mono-num text-[11px] rounded-xl px-2 py-1 border border-slate-800" value="尚未建立或加入房間" />
+                    <button id="btn-copy-p2p-url-spectate" type="button" class="px-2 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-[11px] font-bold text-amber-300 border border-amber-500/40 shrink-0 transition">
+                      複製觀戰
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-bold text-sky-300 w-12 shrink-0">🎮 參賽：</span>
+                    <input id="p2p-share-url-play" type="text" readonly class="flex-1 min-w-0 bg-slate-950 text-slate-300 font-mono-num text-[11px] rounded-xl px-2 py-1 border border-slate-800" value="尚未建立或加入房間" />
+                    <button id="btn-copy-p2p-url-play" type="button" class="px-2 py-1 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-[11px] font-bold text-sky-300 border border-sky-500/40 shrink-0 transition">
+                      複製參賽
+                    </button>
+                  </div>
+                  <input id="p2p-share-url" type="hidden" value="尚未建立房間" />
+                  <button id="btn-copy-p2p-url" type="button" class="hidden"></button>
+                </div>
+              </div>
+
+              <!-- 2. Room Roster, Ready Status & Start Action (lg:col-span-4) -->
+              <div class="lg:col-span-4 p-3 rounded-2xl bg-slate-950/75 border border-indigo-500/30 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                    <span>👥</span>
+                    <span>房間成員與準備狀態</span>
+                  </span>
+                  <span id="p2p-lobby-count" class="text-[11px] font-mono-num px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-200 border border-indigo-500/30">
+                    尚未建立或加入房間
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2">
+                  <!-- Local Player Slot -->
+                  <div id="p2p-slot-local" class="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <div id="p2p-my-avatar" class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-300 flex items-center justify-center font-bold text-xs shrink-0">
+                        👤
+                      </div>
+                      <div class="min-w-0">
+                        <div id="p2p-my-name-display" class="font-extrabold text-white text-xs truncate">我方玩家</div>
+                        <span id="p2p-my-role-badge" class="text-[10px] font-bold text-slate-400 block truncate">⚪ 尚未入房</span>
+                      </div>
+                    </div>
+                    <span id="p2p-my-ready-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
+                      待機中
+                    </span>
+                  </div>
+
+                  <!-- Remote / Summary Slot -->
+                  <div id="p2p-slot-remote" class="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <div id="p2p-opp-avatar" class="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs shrink-0">
+                        ⏳
+                      </div>
+                      <div class="min-w-0">
+                        <div id="p2p-opp-name-display" class="font-extrabold text-slate-400 text-xs truncate">尚無其他成員</div>
+                        <span id="p2p-opp-role-badge" class="text-[10px] font-bold text-slate-500 block truncate">⚪ 未連線</span>
+                      </div>
+                    </div>
+                    <span id="p2p-opp-ready-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-500 border border-slate-700 shrink-0">
+                      ⏳ 等待中
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Full Multiplayer Roster List (Fully expanded, no nested scrollbar) -->
+                <div id="p2p-multiplayer-roster" class="hidden pt-1.5 border-t border-slate-800/80 space-y-1.5">
+                  <div id="p2p-roster-title" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">房間完整名單</div>
+                  <div id="p2p-roster-list" class="space-y-1"></div>
+                </div>
+
+                <!-- Primary Multiplayer Action Area (Ready Button for Guest / Start Button for Host) -->
+                <div class="space-y-1.5 pt-1">
+                  <div id="p2p-re-ready-warning" class="hidden p-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs font-semibold animate-pulse flex items-center gap-1.5">
+                    <span>⚠️</span>
+                    <span>房間設定已更新，請重新確認下方題庫並點擊準備！</span>
+                  </div>
+
+                  <button id="btn-p2p-toggle-ready" type="button" class="hidden w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 transition cursor-pointer flex items-center justify-center gap-1.5">
+                    <span id="p2p-ready-btn-icon">⚡</span>
+                    <span id="p2p-ready-btn-text">我已確認設定，點擊準備 (Ready)</span>
+                  </button>
+
+                  <button id="btn-p2p-sync-start" type="button" disabled class="hidden w-full py-2 px-3 rounded-xl bg-slate-800 text-slate-500 font-black text-xs sm:text-sm transition cursor-not-allowed border border-slate-700 flex items-center justify-center gap-1.5">
+                    <span id="p2p-start-btn-icon">⏳</span>
+                    <span id="p2p-start-btn-text">等待參賽玩家加入並準備...</span>
+                  </button>
+                </div>
+
+                <!-- AI Rival Helper Button -->
+                <button id="btn-quick-sim-rival" type="button" class="w-full py-1.5 px-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition truncate flex items-center justify-center gap-1.5">
+                  <span>🤖</span>
+                  <span>開啟 AI 虛擬對手陪練</span>
                 </button>
               </div>
-            </div>
-            <!-- Share URL Bar -->
-            <div class="flex items-center gap-1.5 pt-1">
-              <input id="p2p-share-url" type="text" readonly class="flex-1 bg-slate-950 text-slate-300 font-mono-num text-[11px] rounded-xl px-2.5 py-1.5 border border-slate-800" value="尚未建立房間" />
-              <button id="btn-copy-p2p-url" type="button" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-white border border-slate-600 shrink-0 transition flex items-center gap-1">
-                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                <span>複製</span>
-              </button>
-            </div>
-          </div>
 
-          <!-- 2. Roster & Ready Status -->
-          <div class="p-3 rounded-2xl bg-slate-900/90 border border-indigo-500/30 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                <span>👥</span>
-                <span>雙方連線狀態</span>
-              </span>
-              <span id="p2p-lobby-count" class="text-[11px] font-mono-num px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-200 border border-indigo-500/30">
-                等待對手加入
-              </span>
-            </div>
+              <!-- 3. Fair Rules & Layer Restriction Controls (lg:col-span-3 — Always reachable & visible!) -->
+              <div class="lg:col-span-3 p-3 rounded-2xl bg-slate-950/75 border border-sky-500/30 space-y-2.5 text-xs">
+                <div class="flex items-center justify-between gap-1">
+                  <label class="text-[11px] font-bold text-sky-300 flex items-center gap-1">
+                    <span>🛡️</span>
+                    <span>公平競技底圖與路網限制</span>
+                  </label>
+                  <span id="p2p-guest-settings-note" class="hidden text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold shrink-0">
+                    🔒 僅房主可調
+                  </span>
+                </div>
+                <p class="text-[10px] text-slate-400 leading-relaxed">
+                  房主可統一限制參賽選手的底圖與路網開關（👁️ 觀戰者不受此限制，可自由切換個人畫面圖層）。
+                </p>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
-              <!-- Local Player Slot -->
-              <div id="p2p-slot-local" class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <div id="p2p-my-avatar" class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-300 flex items-center justify-center font-bold text-xs shrink-0">
-                    👑
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
+                  <div>
+                    <label class="text-[10px] text-slate-400 font-semibold block mb-1">🗺️ 底圖切換限制</label>
+                    <select id="p2p-layer-rule-select" class="w-full bg-slate-900 text-white text-[11px] font-semibold rounded-xl px-2.5 py-1.5 border border-slate-700">
+                      <option value="free">🔓 自由切換底圖</option>
+                      <option value="locked">🔒 強制鎖定底圖</option>
+                    </select>
                   </div>
                   <div>
-                    <div id="p2p-my-name-display" class="font-extrabold text-white text-xs truncate max-w-[130px]">我方玩家</div>
-                    <span id="p2p-my-role-badge" class="text-[10px] font-bold text-sky-400">👑 房主 (Host)</span>
+                    <label class="text-[10px] text-slate-400 font-semibold block mb-1">🗺️ 預設 / 指定底圖</label>
+                    <select id="p2p-forced-layer-select" class="w-full bg-slate-900 text-sky-300 text-[11px] font-semibold rounded-xl px-2.5 py-1.5 border border-slate-700">
+                      <option value="vector">純淨向量底圖</option>
+                      <option value="terrain">無字山地地形</option>
+                      <option value="satellite">無字衛星影像</option>
+                    </select>
                   </div>
                 </div>
-                <span id="p2p-my-ready-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 shrink-0">
-                  👑 主持開局 (免準備)
-                </span>
-              </div>
 
-              <!-- Remote Player Slot -->
-              <div id="p2p-slot-remote" class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <div id="p2p-opp-avatar" class="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs shrink-0">
-                    ⏳
-                  </div>
-                  <div>
-                    <div id="p2p-opp-name-display" class="font-extrabold text-slate-400 text-xs truncate max-w-[130px]">等待對手加入...</div>
-                    <span id="p2p-opp-role-badge" class="text-[10px] font-bold text-slate-500">⚪ 未連線</span>
-                  </div>
+                <div>
+                  <label class="text-[10px] text-amber-300 font-semibold block mb-1">🚆 多人對戰路網與車站規則</label>
+                  <select id="p2p-rail-rule-select" class="w-full bg-slate-900 text-amber-200 text-[11px] font-semibold rounded-xl px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-amber-400">
+                    <option value="free">🔓 自由（不限制路網與車站開關）</option>
+                    <option value="ban_roads_only">🛑 僅 Ban 公路網（保留軌道路線＋車站點）</option>
+                    <option value="ban_rail">🚫 Ban 路網（禁用軌道/公路線路；有車站題庫時可開關僅車站）</option>
+                    <option value="force_lines">🛤️ 強制完整路網＋車站（含公路盾牌）</option>
+                    <option value="force_rail_only">🚄 強制純軌道線＋車站（無公路雜訊）</option>
+                  </select>
                 </div>
-                <span id="p2p-opp-ready-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-500 border border-slate-700 shrink-0">
-                  ⏳ 等待中
-                </span>
+
+                <div class="pt-1 border-t border-slate-800/80">
+                  <span id="p2p-modal-status" class="text-[11px] text-emerald-400 font-medium block break-words">狀態：單人挑戰或等待建立/加入房間</span>
+                </div>
               </div>
+
             </div>
-
-            <!-- AI Rival Helper Button -->
-            <button id="btn-quick-sim-rival" type="button" class="w-full py-1.5 px-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition truncate flex items-center justify-center gap-1.5">
-              <span>🤖</span>
-              <span>開啟 AI 虛擬對手陪練</span>
-            </button>
-          </div>
-
-          <!-- 3. Primary Action Area (Ready Button for Guest / Start Button for Host) -->
-          <div class="space-y-1.5">
-            <!-- Warning Banner for Guest when Host Changes Settings -->
-            <div id="p2p-re-ready-warning" class="hidden p-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs font-semibold animate-pulse flex items-center gap-1.5">
-              <span>⚠️</span>
-              <span>房主已更新題庫或規則設定，請重新確認並點擊準備！</span>
-            </div>
-
-            <!-- GUEST ACTION: Big Ready Button -->
-            <button id="btn-p2p-toggle-ready" type="button" class="hidden w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 transition cursor-pointer flex items-center justify-center gap-2">
-              <i data-lucide="zap" class="w-4 h-4"></i>
-              <span>⚡ 我已確認右側設定，點擊準備 (Ready)</span>
-            </button>
-
-            <!-- HOST ACTION: Start Game Button -->
-            <button id="btn-p2p-sync-start" type="button" disabled class="w-full py-2.5 px-4 rounded-2xl bg-slate-800 text-slate-500 font-black text-sm transition cursor-not-allowed border border-slate-700 flex items-center justify-center gap-2">
-              <span>⏳ 等待對手加入並確認準備...</span>
-            </button>
-          </div>
-
-          <!-- 4. Fair Rules & Layer Restriction Controls -->
-          <div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5 text-xs">
-            <div class="flex items-center justify-between">
-              <label class="text-[11px] font-bold text-sky-300 flex items-center gap-1.5">
-                <span>🛡️</span>
-                <span>公平競技底圖與路網限制</span>
-              </label>
-              <span id="p2p-guest-settings-note" class="hidden text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold">
-                🔒 房主掌控 · 即時同步
-              </span>
-            </div>
-
-            <!-- Base Layer Lock Rule -->
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="text-[10px] text-slate-400 font-semibold block mb-1">🗺️ 底圖切換限制</label>
-                <select id="p2p-layer-rule-select" class="w-full bg-slate-950 text-white text-[11px] font-semibold rounded-xl px-2 py-1.5 border border-slate-700">
-                  <option value="free">🔓 自由切換底圖</option>
-                  <option value="locked">🔒 強制鎖定底圖</option>
-                </select>
-              </div>
-              <div>
-                <label class="text-[10px] text-slate-400 font-semibold block mb-1">🗺️ 指定鎖定底圖</label>
-                <select id="p2p-forced-layer-select" class="w-full bg-slate-950 text-sky-300 text-[11px] font-semibold rounded-xl px-2 py-1.5 border border-slate-700">
-                  <option value="vector">純淨向量底圖</option>
-                  <option value="terrain">無字山地地形</option>
-                  <option value="satellite">無字衛星影像</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Road & Rail Ban/Force Rule (Supports "Ban Road Only, Keep Station Lines + Stations") -->
-            <div>
-              <label class="text-[10px] text-amber-300 font-semibold block mb-1">🚆 多人對戰路網與車站模式規則</label>
-              <select id="p2p-rail-rule-select" class="w-full bg-slate-950 text-amber-200 text-[11px] font-semibold rounded-xl px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-amber-400">
-                <option value="free">🔓 自由（不限制路網與車站開關）</option>
-                <option value="ban_roads_only">🛑 僅 Ban 公路網（保留軌道路線＋車站點）</option>
-                <option value="ban_rail">🚫 Ban 路網（禁用軌道/公路線路；有車站題庫時可開關僅車站）</option>
-                <option value="force_lines">🛤️ 強制完整路網＋車站（含公路盾牌）</option>
-                <option value="force_rail_only">🚄 強制純軌道線＋車站（無公路雜訊）</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- 5. Status Notice -->
-          <div class="pt-1">
-            <span id="p2p-modal-status" class="text-[11px] text-emerald-400 font-medium block truncate">狀態：待機中</span>
           </div>
         </div>
 
-        <!-- RIGHT COLUMN: Host Settings Panel OR Guest Settings Preview -->
-        <div class="flex-1 min-h-0 flex flex-col overflow-y-auto pl-1 border-t lg:border-t-0 lg:border-l border-slate-800">
-          <!-- A. HOST SETTINGS PANEL (房主自訂題庫與細項設定，即時同步對手) -->
-          <div id="p2p-host-settings" class="space-y-4">
-            <div class="flex items-center justify-between pb-1 border-b border-slate-800">
-              <span class="text-xs font-extrabold text-sky-300 uppercase tracking-wider flex items-center gap-1.5">
-                <span>⚙️</span>
-                <span>對戰題庫、難度與鐵道細項設定（即時同步對手）</span>
-              </span>
-              <span class="text-[11px] text-slate-400">房主更動即時廣播</span>
+        <!-- SECTION B: SINGLE SHARED GAME SETTINGS PANEL (Always visible below Multiplayer Room accordion, Zero nested scrollbars!) -->
+        <div id="unified-settings-panel" class="space-y-3.5">
+          <!-- Guest / Spectator Read-Only Notice Banner -->
+          <div id="guest-readonly-banner" class="hidden p-3 rounded-2xl bg-indigo-500/15 border border-indigo-500/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2 text-indigo-200 font-bold">
+              <span>🔒</span>
+              <span id="guest-readonly-text">目前為房間唯讀檢視：為防止作弊，參賽者與觀戰者無法自行調低難度或修改題庫（僅房主可發起變更，且須全體參賽者同意）</span>
             </div>
+            <span id="guest-readonly-summary" class="font-mono-num text-[11px] px-2 py-0.5 rounded-lg bg-slate-900 text-amber-300 border border-slate-700"></span>
+          </div>
 
-            <!-- Step 0: Quiz Target Mode Switcher -->
-            <div class="p-2.5 rounded-2xl bg-slate-900/90 border border-sky-500/30">
-              <label class="text-[11px] font-extrabold text-white block mb-1.5">
-                ★ 選擇挑戰主模式（地區模式 / 車站模式 / 混合模式）
+          <fieldset id="unified-settings-fieldset" class="space-y-4">
+            <!-- Step 0: Top-Level Mode Switcher (地區模式 / 車站模式 / 混合模式) -->
+            <div class="p-3 rounded-2xl bg-slate-900/90 border border-sky-500/30">
+              <label class="text-xs font-extrabold text-white uppercase tracking-wider block mb-2">
+                ★ 選擇挑戰主模式（一鍵切換「純猜地區」、「純猜車站」或「地區＋車站混合模式」）
               </label>
-              <div class="grid grid-cols-3 gap-2">
-                <button type="button" data-p2pqmode="region" class="p2p-qmode-btn p-2 rounded-xl border transition bg-sky-500/25 border-sky-400 text-white text-left">
-                  <div class="text-xs font-extrabold">🗺️ 地區模式</div>
-                  <div class="text-[10px] text-slate-300 mt-0.5">專注猜行政區</div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button type="button" data-qmode="region" class="qmode-btn p-2.5 rounded-xl border transition bg-sky-500/25 border-sky-400 text-white text-left">
+                  <div class="text-xs sm:text-sm font-extrabold">🗺️ 地區模式</div>
+                  <div class="text-[11px] text-slate-300 mt-0.5">專注猜台灣縣市與鄉鎮市區</div>
                 </button>
-                <button type="button" data-p2pqmode="station" class="p2p-qmode-btn p-2 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left">
-                  <div class="text-xs font-extrabold text-pink-300">🚉 車站模式</div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">專注猜軌道車站</div>
+                <button type="button" data-qmode="station" class="qmode-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left">
+                  <div class="text-xs sm:text-sm font-extrabold text-pink-300">🚉 車站模式</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5">專注猜北捷/台鐵/高鐵/輕軌各線車站</div>
                 </button>
-                <button type="button" data-p2pqmode="mixed" class="p2p-qmode-btn p-2 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left">
-                  <div class="text-xs font-extrabold text-amber-300">🔀 混合模式</div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">行政區＋車站共賽</div>
+                <button type="button" data-qmode="mixed" class="qmode-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left">
+                  <div class="text-xs sm:text-sm font-extrabold text-amber-300">🔀 混合模式</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5">同時猜行政區＋自選軌道車站並分項統計</div>
                 </button>
               </div>
             </div>
 
-            <!-- Step 1: Difficulty Selector -->
+            <!-- Step 1: Difficulty -->
             <div>
-              <label class="text-[11px] font-bold text-sky-300 block mb-1.5">
-                1. 選擇對戰難度（高難度下未解鎖縣市自動隱藏防劇透）
-              </label>
-              <div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
-                <button type="button" data-p2pdiff="casual" class="p2p-diff-btn text-left p-2 rounded-xl border transition bg-sky-500/20 border-sky-400 text-white">
-                  <div class="text-[11px] font-bold">🟢 休閒難度</div>
-                  <p class="text-[10px] text-slate-300 mt-0.5 leading-tight">免打後綴，同名一次解鎖</p>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-xs font-bold text-sky-300 uppercase tracking-wider">
+                  1. 選擇挑戰難度（多人房內由房主發起調整，須經全體參賽玩家同意才可變換）
+                </label>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                <button type="button" data-diff="casual" class="diff-btn text-left p-2.5 rounded-xl border transition bg-sky-500/20 border-sky-400 text-white">
+                  <div class="text-xs font-bold">🟢 一般/休閒難度</div>
+                  <p class="text-[11px] text-slate-300 mt-1 leading-tight">免打鄉鎮市區後綴，同名一次解鎖，顯示各縣市導覽</p>
                 </button>
-                <button type="button" data-p2pdiff="county_only" class="p2p-diff-btn text-left p-2 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800 text-slate-300 transition">
-                  <div class="text-[11px] font-bold">🔵 縣市模式</div>
-                  <p class="text-[10px] text-slate-400 mt-0.5 leading-tight">僅猜 22 縣市與直轄市</p>
+
+                <button type="button" data-diff="county_only" class="diff-btn text-left p-2.5 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800/70 text-slate-300 transition">
+                  <div class="text-xs font-bold">🔵 縣市模式 (22縣市)</div>
+                  <p class="text-[11px] text-slate-400 mt-1 leading-tight">只記縣市與直轄市並作為百分比，未解鎖縣市完全隱藏</p>
                 </button>
-                <button type="button" data-p2pdiff="hard_suffix" class="p2p-diff-btn text-left p-2 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800 text-slate-300 transition">
-                  <div class="text-[11px] font-bold text-yellow-300">🟡 後綴模式</div>
-                  <p class="text-[10px] text-slate-400 mt-0.5 leading-tight">須含正確後綴（如信義區）</p>
+
+                <button type="button" data-diff="hard_suffix" class="diff-btn text-left p-2.5 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800/70 text-slate-300 transition">
+                  <div class="text-xs font-bold text-yellow-300">🟡 進階後綴模式</div>
+                  <p class="text-[11px] text-slate-400 mt-1 leading-tight">免縣市前綴，僅需輸入正確「鄉鎮市區+後綴」（如：信義區）</p>
                 </button>
-                <button type="button" data-p2pdiff="hard_full" class="p2p-diff-btn text-left p-2 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800 text-slate-300 transition">
-                  <div class="text-[11px] font-bold text-orange-300">🟠 困難全名</div>
-                  <p class="text-[10px] text-slate-400 mt-0.5 leading-tight">縣市+鄉鎮全名盲猜</p>
+
+                <button type="button" data-diff="hard_full" class="diff-btn text-left p-2.5 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800/70 text-slate-300 transition">
+                  <div class="text-xs font-bold text-orange-300">🟠 困難全名模式</div>
+                  <p class="text-[11px] text-slate-400 mt-1 leading-tight">須含完整縣市+鄉鎮市區後綴，未解鎖縣市隱藏防劇透</p>
                 </button>
-                <button type="button" data-p2pdiff="master_hierarchy" class="p2p-diff-btn text-left p-2 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800 text-slate-300 transition">
-                  <div class="text-[11px] font-bold text-amber-300">🔥 三階宗師</div>
-                  <p class="text-[10px] text-slate-400 mt-0.5 leading-tight">省➔縣市➔鄉鎮市區</p>
+
+                <button type="button" data-diff="master_hierarchy" class="diff-btn text-left p-2.5 rounded-xl border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800/70 text-slate-300 transition">
+                  <div class="text-xs font-bold text-amber-300">🔥 最難：三階解鎖</div>
+                  <p class="text-[11px] text-slate-400 mt-1 leading-tight">先猜省/直轄市➔再猜縣市➔再猜鄉鎮全名（未解鎖全隱藏）</p>
                 </button>
               </div>
             </div>
 
-            <!-- Step 2: Play Mode (自由默寫 vs 指定區塊) -->
-            <div>
-              <label class="text-[11px] font-bold text-emerald-300 block mb-1.5">
-                2. 選擇出題方式（自由默寫 vs 指定區塊）
-              </label>
-              <div class="grid grid-cols-3 gap-2">
-                <button type="button" data-p2pplaymode="free" class="p2p-playmode-btn py-1.5 px-2 rounded-xl text-xs font-bold border transition bg-emerald-500/20 border-emerald-400 text-emerald-200 text-center">
-                  ✍️ 自由默寫
-                </button>
-                <button type="button" data-p2pplaymode="target_random" class="p2p-playmode-btn py-1.5 px-2 rounded-xl text-xs font-bold border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800 text-slate-300 text-center transition">
-                  🎯 隨機指定區塊
-                </button>
-                <button type="button" data-p2pplaymode="target_click" class="p2p-playmode-btn py-1.5 px-2 rounded-xl text-xs font-bold border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800 text-slate-300 text-center transition">
-                  👆 點選指定區塊
-                </button>
+            <!-- Step 2: Play Mode & Timer -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-bold text-emerald-300 uppercase tracking-wider block mb-2">
+                  2A. 選擇出題方式（自由默寫 vs 指定區塊）
+                </label>
+                <div class="grid grid-cols-3 gap-2">
+                  <button type="button" data-playmode="free" class="playmode-btn py-2 px-2.5 rounded-xl text-xs font-bold border transition bg-emerald-500/20 border-emerald-400 text-emerald-200 text-center">
+                    ✍️ 自由默寫
+                  </button>
+                  <button type="button" data-playmode="target_random" class="playmode-btn py-2 px-2.5 rounded-xl text-xs font-bold border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800 text-slate-300 text-center transition">
+                    🎯 隨機指定
+                  </button>
+                  <button type="button" data-playmode="target_click" class="playmode-btn py-2 px-2.5 rounded-xl text-xs font-bold border border-slate-700/80 bg-slate-900/60 hover:bg-slate-800 text-slate-300 text-center transition">
+                    👆 點選指定
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label class="text-xs font-bold text-sky-300 uppercase tracking-wider block mb-2">
+                  2B. 計時模式（正計時 / 限時倒數）
+                </label>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <button type="button" data-timermode="up" data-sec="0" class="hub-timer-btn px-2.5 py-2 rounded-xl text-xs font-bold border border-sky-400 bg-sky-500/20 text-white transition">⏱️ 正計時</button>
+                  <button type="button" data-timermode="down" data-sec="180" class="hub-timer-btn px-2.5 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800 transition">⚡ 3分</button>
+                  <button type="button" data-timermode="down" data-sec="300" class="hub-timer-btn px-2.5 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800 transition">🔥 5分</button>
+                  <button type="button" data-timermode="down" data-sec="600" class="hub-timer-btn px-2.5 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800 transition">🏆 10分</button>
+                  <button type="button" data-timermode="down" data-sec="1200" class="hub-timer-btn px-2.5 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800 transition">👑 20分</button>
+                </div>
               </div>
             </div>
 
-            <!-- Step 3: Administrative Scope -->
-            <div id="p2p-scope-region-section" class="pt-1 border-t border-slate-800/80">
-              <label class="text-[11px] font-bold text-amber-300 block mb-1.5">
-                3. 🗺️ 行政區出題範圍（可選全台/北中南東，或勾選個別縣市）
+            <!-- Step 3: Regional Scope Presets (Fully expanded 22 counties grid without inner scrollbar) -->
+            <div id="scope-region-section" class="pt-2 border-t border-slate-800/90">
+              <label class="text-xs font-bold text-amber-300 uppercase tracking-wider block mb-2">
+                3. 選擇要猜的「行政區範圍」（可選全台/北中南東，或點「清除」單純猜車站）
               </label>
-              <div class="flex flex-wrap items-center gap-1.5 mb-2">
-                <button id="btn-p2p-scope-all" type="button" class="px-2 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全台 22縣市</button>
-                <button id="btn-p2p-scope-six" type="button" class="px-2 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[11px] font-bold transition">六都直轄市</button>
-                <button id="btn-p2p-scope-north" type="button" class="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold transition">北部地區</button>
-                <button id="btn-p2p-scope-central" type="button" class="px-2 py-1 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-[11px] font-bold transition">中部地區</button>
-                <button id="btn-p2p-scope-south" type="button" class="px-2 py-1 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-[11px] font-bold transition">南部地區</button>
-                <button id="btn-p2p-scope-east" type="button" class="px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[11px] font-bold transition">東部地區</button>
-                <button id="btn-p2p-scope-islands" type="button" class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold transition">離島澎金馬</button>
-                <button id="btn-p2p-scope-clear" type="button" class="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清空行政區</button>
+              <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
+                <button id="btn-scope-all" type="button" class="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition">
+                  🇹🇼 全台 (22縣市·368區)
+                </button>
+                <button id="btn-scope-six" type="button" class="px-3 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition">
+                  🏙️ 六都直轄市 (158區)
+                </button>
+                <button id="btn-scope-north" type="button" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition">
+                  ⬆️ 北部地區 (北北基桃竹宜·89區)
+                </button>
+                <button id="btn-scope-central" type="button" class="px-3 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold transition">
+                  ⛰️ 中部地區 (苗中彰投雲·105區)
+                </button>
+                <button id="btn-scope-south" type="button" class="px-3 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-xs font-bold transition">
+                  ☀️ 南部地區 (嘉南高屏澎·132區)
+                </button>
+                <button id="btn-scope-east" type="button" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition">
+                  🌊 東部地區 (花東·29區)
+                </button>
+                <button id="btn-scope-islands" type="button" class="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition">
+                  離島澎金馬 (16鄉鎮)
+                </button>
+                <button id="btn-scope-random-one" type="button" class="px-3 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 text-xs font-bold transition">
+                  🎲 隨機單一縣市
+                </button>
+                <button id="btn-scope-clear" type="button" class="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition" title="清除所有行政區（純猜車站）">
+                  清除
+                </button>
               </div>
-              <div id="p2p-scope-counties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-h-36 overflow-y-auto p-1 bg-slate-950/40 rounded-xl border border-slate-800/80"></div>
+
+              <div id="scope-counties-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 p-0.5"></div>
             </div>
 
-            <!-- Step 4: Railway & Stations Scope (鐵道細項設定！) -->
-            <div id="p2p-scope-station-section" class="pt-2 border-t border-slate-800/90">
-              <div class="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
-                <label class="text-[11px] font-bold text-pink-300 uppercase tracking-wider">
-                  4. 🚉 軌道與車站細項選擇（高鐵/台鐵/北捷/桃捷/中捷/高捷/輕軌/林糖纜各線細選）
+            <!-- Step 4: Station & Transit Lines Quiz Scope Selector (Fully expanded without inner scrollbar) -->
+            <div id="scope-station-section" class="pt-2 border-t border-slate-800/90">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <label class="text-xs font-bold text-pink-300 uppercase tracking-wider">
+                  4. 🚉 選擇要猜的「車站與軌道系統」（可選「不猜車站」、或任選台北捷運、台鐵各線、輕軌、高鐵等）
                 </label>
                 <div class="flex items-center gap-2">
-                  <label class="flex items-center gap-1.5 text-slate-300 cursor-pointer text-[11px]" title="勾選後於路線清單與題目提示中顯示起訖端點站（如淡水—象山）；預設關閉防劇透">
-                    <input id="chk-p2p-terminus-hints" type="checkbox" class="w-3.5 h-3.5 rounded bg-slate-800 border-slate-600 text-pink-500" />
-                    <span class="text-pink-300 font-semibold">🏷️ 顯示頭尾端點站提示</span>
+                  <label class="flex items-center gap-1.5 text-slate-300 cursor-pointer text-xs" title="勾選後於路線清單與題目提示中顯示起訖端點站（如淡水—象山）；預設關閉以防洩題劇透">
+                    <input id="chk-station-terminus-hints" type="checkbox" class="w-3.5 h-3.5 rounded bg-slate-800 border-slate-600 text-pink-500" />
+                    <span class="text-[11px] text-pink-300 font-semibold">🏷️ 顯示頭尾端點站提示</span>
                   </label>
-                  <span id="p2p-scope-station-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300">
+                  <span id="scope-station-status-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300">
                     預設：不猜車站
                   </span>
                 </div>
               </div>
-              <!-- Station Presets -->
-              <div class="flex flex-wrap items-center gap-1.5 mb-2">
-                <button id="btn-p2p-qst-none" type="button" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 text-[11px] font-bold transition">🚫 不猜車站</button>
-                <button id="btn-p2p-qst-tpemrt" type="button" class="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">🚇 台北捷運全線</button>
-                <button id="btn-p2p-qst-allmrt" type="button" class="px-2 py-1 rounded-lg bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 text-[11px] font-bold transition">🚇 全台都會捷運</button>
-                <button id="btn-p2p-qst-lrt" type="button" class="px-2 py-1 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-[11px] font-bold transition">🚋 全台輕軌</button>
-                <button id="btn-p2p-qst-tra-all" type="button" class="px-2 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">🚆 台鐵全線</button>
-                <button id="btn-p2p-qst-tra-branch" type="button" class="px-2 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[11px] font-bold transition">🚆 四大支線</button>
-                <button id="btn-p2p-qst-thsr" type="button" class="px-2 py-1 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-[11px] font-bold transition">🚄 台灣高鐵</button>
-                <button id="btn-p2p-qst-heritage" type="button" class="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold transition">🌲 林鐵+糖鐵+纜車</button>
-                <button id="btn-p2p-qst-all" type="button" class="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold transition">✅ 全選所有車站</button>
+              <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
+                <button id="btn-qst-none" type="button" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold transition">
+                  🚫 不猜車站 (關閉車站題庫)
+                </button>
+                <button id="btn-qst-tpemrt" type="button" class="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition">
+                  🚇 台北捷運全線 (北捷5線+環狀線)
+                </button>
+                <button id="btn-qst-allmrt" type="button" class="px-2.5 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 text-xs font-bold transition">
+                  🚇 全台都會捷運 (北/新北/桃/中/高捷)
+                </button>
+                <button id="btn-qst-lrt" type="button" class="px-2.5 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold transition">
+                  🚋 全台輕軌 (淡海/安坑/高雄)
+                </button>
+                <button id="btn-qst-tra-all" type="button" class="px-2.5 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition">
+                  🚆 台鐵全線 (西部/東部/南迴+4支線)
+                </button>
+                <button id="btn-qst-tra-east" type="button" class="px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition">
+                  🚆 台鐵東部 (宜蘭+北迴+花東)
+                </button>
+                <button id="btn-qst-tra-branch" type="button" class="px-2.5 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition">
+                  🚆 台鐵四大支線 (平溪/內灣/集集/沙崙)
+                </button>
+                <button id="btn-qst-thsr" type="button" class="px-2.5 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-xs font-bold transition">
+                  🚄 台灣高鐵 (12站)
+                </button>
+                <button id="btn-qst-heritage" type="button" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition">
+                  🌲 林鐵+糖鐵+纜車
+                </button>
+                <button id="btn-qst-all" type="button" class="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition">
+                  ✅ 全選所有車站
+                </button>
               </div>
-              <!-- Station Line Checklist Grid (38 Selectable Lines!) -->
-              <div id="p2p-scope-stations-grid" class="space-y-2 max-h-52 overflow-y-auto p-1 bg-slate-950/40 rounded-xl border border-slate-800/80"></div>
-            </div>
 
-            <!-- Host Scope Footer Summary -->
-            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
-              <div id="p2p-host-scope-counter" class="text-xs font-extrabold text-emerald-400">
-                已選題庫：22 縣市 (368 區) ＋ 不猜車站 (0站)
-              </div>
-              <span class="text-[10px] text-slate-400">所有設定將自動廣播同步至對手</span>
+              <div id="scope-stations-grid" class="space-y-2 p-0.5"></div>
             </div>
-          </div>
+          </fieldset>
+        </div>
+      </div>
 
-          <!-- B. GUEST SETTINGS PREVIEW (挑戰者唯讀預覽面板，清晰呈現房主所選的所有規則與題庫) -->
-          <div id="p2p-guest-settings" class="space-y-3 hidden">
-            <div class="flex items-center justify-between pb-1 border-b border-slate-800">
-              <span class="text-xs font-extrabold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
-                <span>📋</span>
-                <span>房主對戰設定總覽（即時同步中）</span>
-              </span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                🔒 唯讀預覽 · 準備前請確認
-              </span>
-            </div>
-
-            <div id="p2p-guest-preview-body" class="space-y-2.5 text-xs">
-              <!-- Dynamically rendered via renderP2PGuestSettingsPreview() -->
-            </div>
-          </div>
+      <!-- Bottom Action Footer (Sticky Bottom) -->
+      <div class="pt-2.5 mt-1 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div id="scope-modal-counter" class="text-xs sm:text-sm font-bold text-emerald-400">
+          已選擇 22 縣市 · 共 368 鄉鎮市區
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-apply-scope" type="button" class="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-lg transition">
+            🚀 確認套用並進入遊戲
+          </button>
         </div>
       </div>
     </div>
@@ -1064,12 +1031,12 @@
             支援「路網＋車站」或「單純開車站（隱藏站名防劇透）」，可個別勾選台鐵支線、高鐵、捷運、輕軌、纜車、林鐵、糖鐵與公路梅花/盾牌路標
           </p>
         </div>
-        <button id="btn-close-transport" type="button" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
-          <i data-lucide="x" class="w-5 h-5"></i>
+        <button id="btn-close-transport" type="button" aria-label="關閉" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm">
+          <i data-lucide="x" class="w-4 h-4">✕</i>
         </button>
       </div>
 
-      <div class="overflow-y-auto py-3 pr-1 space-y-4 flex-1 text-xs">
+      <div class="overflow-y-auto overscroll-contain py-3 pr-1 space-y-4 flex-1 text-xs">
         <!-- 1. Display Mode (關閉 / 純軌道路網 / 完整路網 / 舊版純車站[選用]) & District Borders Toggle -->
         <div id="transport-mode-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <button type="button" data-tmode="off" class="tmode-btn p-2 rounded-xl border border-amber-400 bg-amber-500/20 text-left transition">
@@ -1155,8 +1122,8 @@
           <i data-lucide="clock" class="w-5 h-5 text-sky-400"></i>
           <span>計時與倒數計時設定</span>
         </h3>
-        <button id="btn-close-timer" type="button" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
-          <i data-lucide="x" class="w-5 h-5"></i>
+        <button id="btn-close-timer" type="button" aria-label="關閉" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm">
+          <i data-lucide="x" class="w-4 h-4">✕</i>
         </button>
       </div>
 
@@ -1207,11 +1174,38 @@
     <div class="apple-glass rounded-3xl max-w-2xl w-full p-6 border border-slate-700 shadow-2xl max-h-[88vh] flex flex-col">
       <div class="flex items-center justify-between pb-3 border-b border-slate-800">
         <h3 id="modal-info-title" class="text-lg font-extrabold text-white">遊戲說明與已解鎖清單</h3>
-        <button id="btn-close-info" type="button" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
-          <i data-lucide="x" class="w-5 h-5"></i>
+        <button id="btn-close-info" type="button" aria-label="關閉" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm">
+          <i data-lucide="x" class="w-4 h-4">✕</i>
         </button>
       </div>
-      <div id="modal-info-body" class="overflow-y-auto py-4 space-y-4 text-xs sm:text-sm text-slate-300 flex-1"></div>
+      <div id="modal-info-body" class="overflow-y-auto overscroll-contain py-4 space-y-4 text-xs sm:text-sm text-slate-300 flex-1">
+        <!-- Pane A: Unlocked & Remaining List -->
+        <div id="info-pane-list" class="hidden space-y-3">
+          <div class="p-3 rounded-2xl bg-emerald-950/30 border border-emerald-500/30">
+            <div id="unlocked-list-title" class="font-bold text-emerald-300 mb-1.5">✅ 已答對 (0)</div>
+            <div id="unlocked-list-chips" class="flex flex-wrap gap-1.5"></div>
+          </div>
+          <div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800">
+            <div id="remaining-list-title" class="font-bold text-slate-300 mb-1">🔒 尚未解鎖剩餘數量：368 區</div>
+            <div id="remaining-list-chips" class="text-xs text-slate-400"></div>
+          </div>
+        </div>
+        <!-- Pane B: Help & Sources (Static HTML View) -->
+        <div id="info-pane-help" class="space-y-3 leading-relaxed">
+          <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <h4 class="font-bold text-sky-300 mb-1">⌨️ Windows 注音輸入法虛線組字修正</h4>
+            <p>系統已監聽瀏覽器 <code>compositionstart</code> / <code>compositionend</code> 與 <code>e.isComposing</code> 狀態：當你在打注音還在虛線選字階段（尚未按 Enter 確認組字）時，系統<strong>絕不會中途攔截或清空輸入框</strong>，必須等你按下 Enter 完成組字後才會觸發自動判定並乾淨清除。</p>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <h4 class="font-bold text-emerald-300 mb-1">👁️ 多人連線對戰 (&gt;2人)、觀戰模式與防作弊機制</h4>
+            <p>進入房間時預設為<strong>觀戰模式</strong>，可隨時點擊排行榜任意選手即時觀看其地圖解鎖狀態、目標區塊與分項進度，並可自由切換自己的地圖圖層（不影響他人且不受禁用限制）。房間難度與規則僅能由房主發起變更，且房內有參賽選手時<strong>須經全體參賽選手投票同意</strong>才會生效。</p>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <h4 class="font-bold text-amber-300 mb-1">📚 資料與圖資來源</h4>
+            <p>靈感致敬 <a href="https://cchsu.tw/projects/taipei-cities/" target="_blank" rel="noopener" class="text-sky-400 underline">台灣行政區大挑戰 (cchsu.tw)</a>，真實鄉鎮市區多邊形界線採用內政部開放資料 1:10,000 TopoJSON (<a href="https://github.com/dkaoster/taiwan-atlas" target="_blank" rel="noopener" class="text-sky-400 underline">taiwan-atlas</a> / <a href="https://taiwan.md/taiwan-shape/" target="_blank" rel="noopener" class="text-sky-400 underline">Taiwan.md</a>)。</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1238,13 +1232,13 @@
             </h3>
           </div>
         </div>
-        <button id="btn-close-settlement" type="button" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="查看地圖">
-          <i data-lucide="x" class="w-5 h-5"></i>
+        <button id="btn-close-settlement" type="button" aria-label="關閉" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition" title="查看地圖">
+          <i data-lucide="x" class="w-4 h-4">✕</i>
         </button>
       </div>
 
       <!-- Settlement Body -->
-      <div class="overflow-y-auto py-3.5 space-y-3.5 flex-1 pr-1 text-xs sm:text-sm">
+      <div class="overflow-y-auto overscroll-contain py-3.5 space-y-3.5 flex-1 pr-1 text-xs sm:text-sm">
         <!-- Multiplayer Opponent Ongoing Alert -->
         <div id="settlement-opp-ongoing-banner" class="hidden p-3 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center gap-2.5">
           <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping shrink-0"></span>
@@ -1298,6 +1292,11 @@
                 <div>正確率：<span id="vs-opp-acc" class="text-slate-200 font-semibold">91%</span></div>
               </div>
             </div>
+          </div>
+          <!-- Static Multi-player Leaderboard inside Settlement Modal -->
+          <div id="settlement-multiplayer-board" class="hidden mt-3 pt-3 border-t border-slate-700/80 space-y-1.5 text-left">
+            <div class="text-[11px] font-bold text-sky-300 uppercase tracking-wider">🏆 多人對戰即時排行榜</div>
+            <div id="settlement-rank-list" class="space-y-1"></div>
           </div>
         </div>
 
@@ -1434,6 +1433,187 @@
   <button id="btn-reopen-settlement" type="button" class="hidden fixed bottom-20 right-4 z-[400] apple-glass-pill px-3.5 py-2 rounded-full border border-amber-500/40 bg-amber-950/80 text-amber-300 font-bold text-xs shadow-xl flex items-center gap-1.5 hover:scale-105 transition">
     <span>🏆 查看結算成績單</span>
   </button>
+
+  <!-- MODAL 9: UNANIMOUS CONSENT VOTE FOR HOST DIFFICULTY / CONFIG CHANGE (房主變更難度/規則 全體參賽同意投票視窗) -->
+  <div id="modal-config-vote" class="hidden fixed inset-0 z-[680] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="apple-glass rounded-3xl max-w-md w-full p-6 border border-amber-500/50 shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 text-2xl shrink-0">
+          🗳️
+        </div>
+        <div>
+          <h3 id="config-vote-title" class="text-base sm:text-lg font-black text-white">房主申請變更難度與比賽設定</h3>
+          <p id="config-vote-desc" class="text-xs text-slate-300 mt-0.5">須經房內全體參賽玩家同意後才會套用生效</p>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-1.5 text-xs">
+        <div class="text-[11px] font-bold text-amber-300 uppercase tracking-wider">📋 申請變更項目明細：</div>
+        <div id="config-vote-diff-list" class="space-y-1 text-slate-200 font-semibold"></div>
+      </div>
+
+      <div id="config-vote-progress-box" class="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-sky-300">👥 參賽玩家同意進度</span>
+          <span id="config-vote-tally-text" class="font-mono-num text-[11px] font-bold text-emerald-400">0 / 1 已同意</span>
+        </div>
+        <div id="config-vote-players-list" class="space-y-1"></div>
+      </div>
+
+      <!-- Contesting Player Vote Buttons -->
+      <div id="config-vote-player-actions" class="grid grid-cols-2 gap-2 pt-1">
+        <button id="btn-vote-reject" type="button" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-rose-950/80 text-rose-300 font-bold text-xs border border-rose-500/40 transition">
+          ❌ 不同意 (維持原設定)
+        </button>
+        <button id="btn-vote-approve" type="button" class="py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition shadow-lg shadow-emerald-500/20">
+          ✅ 同意變更設定
+        </button>
+      </div>
+
+      <!-- Host Cancel Proposal Button -->
+      <div id="config-vote-host-actions" class="hidden pt-1">
+        <button id="btn-vote-cancel" type="button" class="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition">
+          🚫 撤回變更申請
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATIC P2P 3-2-1 COUNTDOWN OVERLAY -->
+  <div id="p2p-countdown-overlay" class="hidden fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-slate-950/85 backdrop-blur-md select-none">
+    <div class="text-center space-y-4">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-xs font-bold uppercase tracking-widest animate-pulse">
+        <span id="p2p-cd-badge">⚔️ MULTIPLAYER BATTLE · 即時連線對戰</span>
+      </div>
+      <div id="p2p-cd-number" class="text-9xl font-black text-white tracking-tighter" style="text-shadow: 0 0 60px rgba(56, 189, 248, 0.85); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);">
+        3
+      </div>
+      <div id="p2p-cd-status" class="text-sm font-semibold text-slate-300 tracking-wider">
+        全員已就緒，準備開局！
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MVC VIEW TEMPLATES (Zero HTML String Concatenation in JS Modules)     -->
+  <!-- ===================================================================== -->
+  <template id="tpl-scope-county-btn">
+    <button type="button" class="p-2 rounded-2xl border border-sky-400 bg-sky-500/20 text-left transition flex items-center justify-between">
+      <div>
+        <div class="county-name text-xs font-bold text-white"></div>
+        <div class="county-meta text-[10px] text-slate-400"></div>
+      </div>
+      <span class="county-check w-4 h-4 rounded-md flex items-center justify-center text-xs bg-sky-500 text-white">✓</span>
+    </button>
+  </template>
+
+  <template id="tpl-line-group-card">
+    <div class="p-2.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1.5">
+      <div class="flex items-center justify-between border-b border-slate-800/80 pb-1">
+        <span class="group-title text-xs font-bold text-slate-200"></span>
+        <button type="button" class="group-toggle-btn text-[11px] text-pink-400 hover:text-pink-300 font-semibold"></button>
+      </div>
+      <div class="group-items-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5"></div>
+    </div>
+  </template>
+
+  <template id="tpl-line-check-item">
+    <label class="flex items-center gap-2 p-1.5 rounded-xl border cursor-pointer transition">
+      <input type="checkbox" class="line-chk rounded bg-slate-900 border-slate-600 text-pink-500" />
+      <span class="line-dot w-2.5 h-2.5 rounded-full shrink-0"></span>
+      <span class="line-name truncate text-[11px] font-medium"></span>
+    </label>
+  </template>
+
+  <template id="tpl-progress-bar-row">
+    <div class="space-y-0.5">
+      <div class="flex items-center justify-between text-[11px]">
+        <span class="bar-label font-bold text-slate-200"></span>
+        <span class="font-mono-num text-slate-300"><strong class="bar-cur text-white"></strong><span class="bar-tot"></span><span class="bar-pct text-sky-300 font-bold"></span></span>
+      </div>
+      <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+        <div class="bar-fill h-full transition-all duration-300"></div>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-county-jump-chip">
+    <button type="button" class="px-2 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] font-semibold text-slate-200 border border-slate-700 transition flex items-center gap-1">
+      <span class="chip-dot w-2 h-2 rounded-full shrink-0"></span>
+      <span class="chip-label truncate"></span>
+    </button>
+  </template>
+
+  <template id="tpl-sidebar-progress-card">
+    <div class="p-2.5 rounded-xl bg-slate-900/75 hover:bg-slate-800/80 border border-slate-800 cursor-pointer transition flex flex-col gap-1">
+      <div class="flex items-center justify-between text-xs gap-1">
+        <div class="flex items-center gap-1.5 font-bold text-slate-100 truncate">
+          <span class="card-dot w-2.5 h-2.5 rounded-full shrink-0"></span>
+          <span class="card-title truncate"></span>
+          <span class="card-sub text-[10px] text-slate-400 font-normal hidden"></span>
+          <span class="card-badge text-[10px] px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 shrink-0">📍點擊放大</span>
+        </div>
+        <div class="card-stat font-mono-num text-xs shrink-0 text-slate-300"></div>
+      </div>
+      <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+        <div class="card-fill h-full"></div>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-spoiler-locked-card">
+    <div class="p-3.5 rounded-2xl bg-slate-900/50 border border-dashed border-slate-700 text-center space-y-1">
+      <div class="locked-title text-xs font-bold text-amber-300"></div>
+      <p class="locked-desc text-[11px] text-slate-400"></p>
+    </div>
+  </template>
+
+  <template id="tpl-p2p-roster-item">
+    <div class="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px]">
+      <div class="flex items-center gap-1.5 truncate">
+        <span class="roster-name font-bold text-white truncate max-w-[150px]"></span>
+        <span class="roster-dev text-[9px] font-mono-num text-slate-500"></span>
+      </div>
+      <span class="roster-badge px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0"></span>
+    </div>
+  </template>
+
+  <template id="tpl-p2p-live-rank-row">
+    <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1 cursor-pointer hover:border-sky-500/50 transition">
+      <div class="flex items-center justify-between text-[11px] gap-1">
+        <div class="flex items-center gap-1.5 truncate">
+          <span class="rank-num font-mono-num text-slate-400 font-bold"></span>
+          <span class="rank-name font-bold text-white truncate max-w-[125px]"></span>
+          <span class="rank-status px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0"></span>
+          <span class="rank-watching hidden px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-400/40 text-[9px] font-extrabold shrink-0">👁️ 觀戰中</span>
+        </div>
+        <span class="rank-score font-mono-num text-sky-300 font-bold shrink-0"></span>
+      </div>
+      <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+        <div class="rank-bar h-full bg-sky-400 transition-all duration-300"></div>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-p2p-macro-bar">
+    <div class="space-y-0.5">
+      <div class="flex items-center justify-between text-[10px]">
+        <span class="macro-label font-bold text-slate-300"></span>
+        <span class="macro-stat text-slate-400 font-mono-num"></span>
+      </div>
+      <div class="grid grid-cols-2 gap-1 h-1.5 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
+        <div class="macro-my-bar h-full bg-sky-400 rounded-full transition-all duration-300"></div>
+        <div class="macro-opp-bar h-full bg-gradient-to-r from-indigo-400 to-fuchsia-400 rounded-full transition-all duration-300"></div>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-settlement-rank-row">
+    <div class="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-950/70 border border-slate-800 text-xs">
+      <span class="rank-name font-bold text-white"></span>
+      <span class="rank-meta font-mono-num text-slate-300"></span>
+    </div>
+  </template>
 
   <!-- 1. Static Datasets (Admin 368 Towns & Taiwan Railway/Metro/Highway Networks) -->
   <script src="data/admin-data.js"></script>

@@ -657,11 +657,9 @@ function updateRoadAndRailwayTileOverlays() {
 
   if (!map) return;
 
-  if (state.p2pRailRule === "ban_rail") {
-    const hasStations =
-      (state.stationQuizEnabled && state.quizStationLines.size > 0) ||
-      state.selectedTransportLines.size > 0 ||
-      (typeof getActiveQuizStations === "function" && getActiveQuizStations().length > 0);
+  const effectiveRailRule = state.role === "spectator" ? "free" : state.p2pRailRule;
+  if (effectiveRailRule === "ban_rail") {
+    const hasStations = Boolean(state.stationQuizEnabled && state.quizStationLines.size > 0);
     if (hasStations) {
       // If stations are enabled, allow "stations_only" or "off" (never rail_only or lines_and_stations)
       if (state.transportMode !== "stations_only" && state.transportMode !== "off") {
@@ -671,7 +669,7 @@ function updateRoadAndRailwayTileOverlays() {
       state.transportMode = "off";
     }
     state.showRailOverlay = state.transportMode !== "off";
-  } else if (state.p2pRailRule === "ban_roads_only") {
+  } else if (effectiveRailRule === "ban_roads_only") {
     // 🛑 僅 Ban 公路網：若目前為 lines_and_stations 強制轉為 rail_only (保留軌道線路+車站)
     if (state.transportMode === "lines_and_stations") {
       state.transportMode = "rail_only";
@@ -679,16 +677,16 @@ function updateRoadAndRailwayTileOverlays() {
       state.transportMode = "rail_only";
     }
     state.showRailOverlay = state.transportMode !== "off";
-  } else if (state.p2pRailRule === "force_lines") {
+  } else if (effectiveRailRule === "force_lines") {
     state.transportMode = "lines_and_stations";
     state.showRailOverlay = true;
-  } else if (state.p2pRailRule === "force_rail_only") {
+  } else if (effectiveRailRule === "force_rail_only") {
     state.transportMode = "rail_only";
     state.showRailOverlay = true;
   }
 
   // Safety fallback for legacy stations_only mode
-  if (state.transportMode === "stations_only" && !state.enableLegacyStationOnlyMode && state.p2pRailRule !== "ban_rail") {
+  if (state.transportMode === "stations_only" && !state.enableLegacyStationOnlyMode && effectiveRailRule !== "ban_rail") {
     state.transportMode = "rail_only";
   }
 
@@ -742,7 +740,7 @@ function updateRoadAndRailwayTileOverlays() {
   }
 
   // 1. Tile Overlays (In rail_only mode or ban_roads_only rule, highway overlay is strictly suppressed!)
-  if (mode === "lines_and_stations" && anyHighwaySelected && state.p2pRailRule !== "ban_roads_only") {
+  if (mode === "lines_and_stations" && anyHighwaySelected && effectiveRailRule !== "ban_roads_only") {
     const roadsTile = L.tileLayer(GIS_TILES.gis_roads_overlay, {
       maxZoom: 18,
       opacity: 0.85,
@@ -827,11 +825,12 @@ function updateRoadAndRailwayTileOverlays() {
   }
 
   // 3. Draw Station Dots as Native Geographic L.circleMarker on railCanvasRenderer (ZERO zoom drift, 100% on the vector line!)
+  const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
   const activeStations = getActiveQuizStations();
   activeStations.forEach((st) => {
-    const isUnlocked = state.unlockedStations.has(st.key);
-    const isMissed = state.isGameOver && !isUnlocked;
-    const isTarget = state.targetStationKey === st.key;
+    const isUnlocked = vState.unlockedStations.has(st.key);
+    const isMissed = (vState.isGameOver && !isUnlocked) || (vState.missedStations && vState.missedStations.has(st.key));
+    const isTarget = vState.targetStationKey === st.key;
 
     let radius = st.stKind === "thsr" ? 4.8 : 3.8;
     let strokeColor = st.color || (st.stKind === "tra" ? "#003b73" : "#38bdf8");
@@ -872,6 +871,15 @@ function updateRoadAndRailwayTileOverlays() {
 
     circleMarker.on("click", (ev) => {
       L.DomEvent.stopPropagation(ev);
+      if (state.role === "spectator") {
+        setFeedback(
+          isUnlocked
+            ? `👁️ 觀戰檢視：選手已解鎖車站「${st.displayName}」（${st.lineName}）`
+            : `👁️ 觀戰檢視：尚未解鎖車站（所屬路線：${st.lineName}）`,
+          "info"
+        );
+        return;
+      }
       if (isUnlocked) {
         setFeedback(`🚉 已解鎖車站：${st.displayName}（${st.lineName}）`, "info");
         return;

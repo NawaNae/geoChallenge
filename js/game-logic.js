@@ -10,10 +10,11 @@ function getScopeCounties() {
 }
 
 function isCountyRevealed(countyName) {
-  if (state.isGameOver || state.difficulty === "casual" || state.difficulty === "hard_suffix") return true;
-  if (state.unlockedCounties.has(countyName)) return true;
+  const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
+  if (vState.isGameOver || state.difficulty === "casual" || state.difficulty === "hard_suffix") return true;
+  if (vState.unlockedCounties.has(countyName)) return true;
   if (state.difficulty === "hard_full") {
-    return ALL_TOWNS.some((t) => t.countyName === countyName && state.unlockedTowns.has(t.id));
+    return ALL_TOWNS.some((t) => t.countyName === countyName && vState.unlockedTowns.has(t.id));
   }
   return false;
 }
@@ -25,7 +26,11 @@ function updatePrefixDropdownUI() {
   if (!select) return;
 
   const currentVal = select.value;
-  select.innerHTML = `<option value="">無固定前綴 (自由打)</option>`;
+  select.replaceChildren();
+  const defaultOpt = document.createElement("option");
+  defaultOpt.value = "";
+  defaultOpt.textContent = "無固定前綴 (自由打)";
+  select.appendChild(defaultOpt);
 
   const prefixOptions = [];
 
@@ -60,10 +65,13 @@ function updatePrefixDropdownUI() {
     });
 
     if (pillsWrap) {
-      if (prefixOptions.length === 0) {
-        pillsWrap.innerHTML = `<span class="text-[11px] text-slate-400 shrink-0">已解鎖前綴：</span><span class="text-[11px] text-slate-500 italic">尚未解鎖任何省或直轄市（請先輸入「臺灣省」、「福建省」或「臺北市」等六都）</span>`;
-      } else {
-        pillsWrap.innerHTML = `<span class="text-[11px] text-slate-400 shrink-0">點選套用前綴：</span>`;
+      const labelEl = document.getElementById("prefix-pills-label");
+      const emptyEl = document.getElementById("prefix-pills-empty");
+      const listEl = document.getElementById("prefix-pills-list");
+      if (labelEl) labelEl.textContent = prefixOptions.length === 0 ? "已解鎖前綴：" : "點選套用前綴：";
+      if (emptyEl) emptyEl.classList.toggle("hidden", prefixOptions.length > 0);
+      if (listEl) {
+        listEl.replaceChildren();
         prefixOptions.forEach((opt) => {
           const btn = document.createElement("button");
           btn.type = "button";
@@ -78,7 +86,7 @@ function updatePrefixDropdownUI() {
             updateLiveCombinedPreview();
             document.getElementById("answer-input").focus({ preventScroll: true });
           });
-          pillsWrap.appendChild(btn);
+          listEl.appendChild(btn);
         });
       }
     }
@@ -235,7 +243,7 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
 
   // CASE A: TARGET QUIZ MODE
   if (state.playMode === "target_random" || state.playMode === "target_click") {
-    if (!state.targetId) {
+    if (!vState.targetId) {
       if (!isAutoCheck) setFeedback("請先在地圖上點選一個目標區塊，或點擊「換一題」！", "warn");
       return false;
     }
@@ -661,7 +669,14 @@ function setFeedback(text, level = "info") {
     info: "text-slate-300"
   };
   el.className = `${textColors[level] || "text-slate-300"} font-medium flex items-center gap-1.5 truncate`;
-  el.innerHTML = `<span class="w-2 h-2 rounded-full shrink-0 ${dotColors[level] || "bg-sky-400"}"></span><span class="truncate">${text}</span>`;
+  const dotEl = document.getElementById("feedback-dot");
+  const txtEl = document.getElementById("feedback-text");
+  if (dotEl && txtEl) {
+    dotEl.className = `w-2 h-2 rounded-full shrink-0 ${dotColors[level] || "bg-sky-400"}`;
+    txtEl.textContent = text;
+  } else {
+    el.textContent = text;
+  }
 }
 
 // =========================================================================
@@ -714,6 +729,7 @@ function pickNextTargetRegion() {
   }
   updateTargetBannerUI();
   refreshAllPolygonStyles();
+  if (state.roomCode && typeof broadcastP2PState === "function") broadcastP2PState();
 }
 
 // Move target selection to the nearest locked neighbor in direction ('N' | 'S' | 'W' | 'E')
@@ -776,6 +792,7 @@ function moveTargetByDirection(dir) {
   state.lastTargetLng = best.lng;
   updateTargetBannerUI();
   refreshAllPolygonStyles();
+  if (state.roomCode && typeof broadcastP2PState === "function") broadcastP2PState();
   if (map) {
     map.panTo([best.lat, best.lng], { animate: true, duration: 0.35 });
   }
@@ -784,6 +801,17 @@ function moveTargetByDirection(dir) {
 
 function handlePolygonClick(townObj) {
   if (!isTownInScope(townObj)) return;
+  const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
+  if (state.role === "spectator") {
+    if (vState.unlockedTowns.has(townObj.id)) {
+      setFeedback(`👁️ 觀戰檢視：選手已解鎖「${townObj.fullHierarchyName}」`, "info");
+    } else if (isCountyRevealed(townObj.countyName)) {
+      setFeedback(`👁️ 觀戰檢視：位於「${townObj.countyName}」內之未解鎖行政區`, "info");
+    } else {
+      setFeedback(`👁️ 觀戰檢視：尚未解鎖此區塊`, "info");
+    }
+    return;
+  }
 
   if (state.playMode === "target_click" || state.playMode === "target_random") {
     if (state.difficulty === "county_only") {
@@ -804,6 +832,7 @@ function handlePolygonClick(townObj) {
     state.hintLevel = 0;
     updateTargetBannerUI();
     refreshAllPolygonStyles();
+    if (state.roomCode && typeof broadcastP2PState === "function") broadcastP2PState();
     document.getElementById("answer-input").focus({ preventScroll: true });
     return;
   }
@@ -840,15 +869,16 @@ function updateTargetBannerUI() {
   const descEl = document.getElementById("target-banner-desc");
   const hintBadge = document.getElementById("target-hint-badge");
   if (!banner) return;
+  const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
 
-  if (state.playMode === "free" && !state.targetStationKey) {
+  if (state.playMode === "free" && !vState.targetStationKey) {
     banner.classList.add("hidden");
     return;
   }
   banner.classList.remove("hidden");
 
-  if (state.targetStationKey) {
-    const targetSt = getActiveQuizStations().find((s) => s.key === state.targetStationKey);
+  if (vState.targetStationKey) {
+    const targetSt = getActiveQuizStations().find((s) => s.key === vState.targetStationKey);
     if (targetSt) {
       titleEl.textContent = "🚉 指定車站作答";
       hintBadge.textContent = targetSt.lineName;

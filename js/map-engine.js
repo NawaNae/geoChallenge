@@ -1,6 +1,51 @@
 // =========================================================================
 // 4. HARDWARE-ACCELERATED CANVAS LEAFLET MAP INITIALIZATION
 // =========================================================================
+if (typeof window.L === "undefined") {
+  // Lightweight offline fallback shim when Leaflet CDN is unreachable (e.g., offline file:// mode)
+  const noopLayer = () => ({
+    addTo() { return this; },
+    remove() { return this; },
+    clearLayers() { return this; },
+    setStyle() { return this; },
+    on() { return this; },
+    bindTooltip() { return this; },
+    getBounds() { return { isValid: () => true, getNorthWest: () => [25, 121], getSouthEast: () => [22, 120] }; }
+  });
+  window.L = {
+    latLngBounds: () => ({ isValid: () => true, pad: function() { return this; }, getNorthWest: () => [25, 121], getSouthEast: () => [22, 120] }),
+    canvas: () => ({}),
+    svg: () => ({}),
+    layerGroup: () => noopLayer(),
+    featureGroup: () => noopLayer(),
+    tileLayer: () => noopLayer(),
+    geoJSON: () => noopLayer(),
+    polyline: () => noopLayer(),
+    circleMarker: () => noopLayer(),
+    marker: () => noopLayer(),
+    divIcon: () => ({}),
+    DomEvent: { stopPropagation() {} },
+    map: () => ({
+      on() { return this; },
+      removeLayer() { return this; },
+      hasLayer() { return false; },
+      getSize: () => ({ x: 960, y: 600, divideBy: () => ({ x: 480, y: 300 }) }),
+      getCenter: () => ({ lat: 23.75, lng: 120.95 }),
+      getZoom: () => 8,
+      getZoomScale: () => 1,
+      project: () => ({ x: 480, y: 300 }),
+      latLngToContainerPoint: () => ({ x: 480, y: 300 }),
+      flyTo() {},
+      flyToBounds() {},
+      panTo() {},
+      zoomIn() {},
+      zoomOut() {},
+      invalidateSize() {},
+      createPane: () => ({ style: {} }),
+      getPane: () => ({ style: {} })
+    })
+  };
+}
 let map = null;
 let canvasRenderer = null;
 let activeTileLayers = [];
@@ -228,7 +273,7 @@ function zoomToCountyCenter(countyName) {
 // 4A-2. BASE LAYERS, TOPOJSON LOADER & POLYGON RENDERING
 // =========================================================================
 function setMapBaseLayer(layerKey, forceBypassLock = false) {
-  if (state.p2pLayerRule === "locked" && !forceBypassLock) {
+  if (state.p2pLayerRule === "locked" && !forceBypassLock && state.role !== "spectator") {
     setFeedback(`🔒 本場對戰已鎖定使用「${state.p2pForcedLayer}」圖層，無法自由切換！`, "warn");
     return;
   }
@@ -297,7 +342,7 @@ async function loadRealTaiwanTopoJSON() {
         const badge = document.getElementById("geo-data-badge");
         if (badge) {
           badge.className = "text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1";
-          badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>368 鄉鎮真實邊界就緒</span>`;
+          const spans = badge.querySelectorAll("span"); if (spans[0]) spans[0].className = "w-1.5 h-1.5 rounded-full bg-emerald-400"; if (spans[1]) spans[1].textContent = "368 鄉鎮真實邊界就緒";
         }
         const loader = document.getElementById("map-loading-overlay");
         if (loader) loader.classList.add("hidden");
@@ -459,23 +504,24 @@ function computePolygonStyle(townObj) {
     };
   }
 
+  const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
   const isTarget =
     (state.playMode === "target_random" || state.playMode === "target_click") &&
     (state.difficulty === "county_only"
-      ? state.targetId === townObj.countyName
-      : state.targetId === townObj.id);
+      ? vState.targetId === townObj.countyName
+      : vState.targetId === townObj.id);
 
   const isUnlocked =
     state.difficulty === "county_only"
-      ? state.unlockedCounties.has(townObj.countyName)
-      : state.unlockedTowns.has(townObj.id);
+      ? vState.unlockedCounties.has(townObj.countyName)
+      : vState.unlockedTowns.has(townObj.id);
 
-  const isMissed = state.missedTowns.has(townObj.id);
+  const isMissed = vState.missedTowns.has(townObj.id);
   const countyUnlockedInMaster =
-    state.difficulty === "master_hierarchy" && state.unlockedCounties.has(townObj.countyName);
+    state.difficulty === "master_hierarchy" && vState.unlockedCounties.has(townObj.countyName);
   const provinceUnlockedInMaster =
     state.difficulty === "master_hierarchy" &&
-    state.unlockedProvinces.has(townObj.isSpecial ? townObj.countyName : townObj.province);
+    vState.unlockedProvinces.has(townObj.isSpecial ? townObj.countyName : townObj.province);
 
   const baseCountyColor = COUNTY_COLORS[townObj.countyName] || "#38bdf8";
 
