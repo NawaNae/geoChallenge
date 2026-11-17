@@ -1,26 +1,26 @@
-// =========================================================================
+// ================================================================
 // 2. APPLICATION STATE (With Performance & IME Composition Flags)
-// =========================================================================
+// ================================================================
 const state = {
-  difficulty: "casual",        // 'casual' | 'county_only' | 'hard_full' | 'master_hierarchy'
-  playMode: "free",            // 'free' | 'target_random' | 'target_click'
-  mapLayer: "vector",          // 'vector' | 'terrain' | 'street' | 'satellite'
-  showRailOverlay: false,      // Default OFF
-  transportMode: "off",        // 'off' | 'rail_only' | 'lines_and_stations'
-  showDistrictBorders: true,   // Toggleable administrative boundaries (區界開關)
-  showStationNames: false,     // Hidden by default so station names don't spoil answers
-  openRailLoaded: false,       // True when OpenRailwayMap tiles successfully load in browser
+  difficulty: "casual",       // 'casual' | 'county_only' | 'hard_full' | 'master_hierarchy'
+  playMode: "free",           // 'free' | 'target_random' | 'target_click'
+  mapLayer: "vector",         // 'vector' | 'terrain' | 'street' | 'satellite'
+  showRailOverlay: false,     // Default OFF
+  transportMode: "off",       // 'off' | 'rail_only' | 'lines_and_stations'
+  showDistrictBorders: true,  // Toggleable administrative boundaries (區界開關)
+  showStationNames: false,    // Hidden by default so station names don't spoil answers
+  openRailLoaded: false,      // True when OpenRailwayMap tiles successfully load in browser
   hideMrtLinesOnOpenRail: false, // User toggle: hide MRT lines on openrail loaded, keep colored dots
-  p2pLayerRule: "free",        // 'free' | 'locked'
+  p2pLayerRule: "free",       // 'free' | 'locked'
   p2pForcedLayer: "vector",
-  p2pRailRule: "free",         // 'free' | 'ban_roads_only' | 'ban_rail' | 'force_lines' | 'force_rail_only'
-  leaderLineMode: "smart",     // 'smart' | 'all_callout' | 'inline_only'
-  // Performance & Label Display Settings
+  p2pRailRule: "free",        // 'free' | 'ban_roads_only' | 'ban_rail' | 'force_lines' | 'force_rail_only'
+  leaderLineMode: "smart",    // 'smart' | 'all_callout' | 'inline_only'
+  // Performance & Label Display Settings (Local only, never synced in P2P)
   dragSyncMode: "realtime_raf",// 'hide_on_move' (高效能移動時隱藏) | 'realtime_raf' (即時同步跟隨)
-  maxVisibleCallouts: 30,      // Max callout labels on screen
-  minPolygonPixelSize: 22,     // Hide labels for polygons smaller than this when zoomed out
-  perfLiteMode: true,          // Disable heavy CSS blurs by default for 60FPS
-  isImeComposing: false,       // Tracks Windows Bopomofo / IME dotted-underline state!
+  maxVisibleCallouts: 30,     // Max callout labels on screen
+  minPolygonPixelSize: 22,    // Hide labels for polygons smaller than this when zoomed out
+  perfLiteMode: true,         // Disable heavy CSS blurs by default for 60FPS
+  isImeComposing: false,      // Tracks Windows Bopomofo / IME dotted-underline state!
   selectedCounties: new Set(TAIWAN_ADMIN_DATA.map(c => c.name)),
   unlockedTowns: new Set(),
   unlockedCounties: new Set(),
@@ -32,7 +32,7 @@ const state = {
   stationQuizEnabled: false,
   quizTargetMode: "region", // 'region' | 'station' | 'mixed'
   showRawOpenRailwayTile: false,
-  showStationTerminusHints: false, // 軌道猜謎下預設不顯示路線頭尾端點站提示（防劇透，可手動開啟）
+  showStationTerminusHints: false, // 軌道猜謎下預設不顯示路線頭尾端點站提示 (防劇透, 可手動開啟)
   useAlgorithmicCleanRailTile: false,
   quizStationLines: new Set(),
   isGameOver: false,
@@ -50,10 +50,16 @@ const state = {
   localInstanceId: "inst_" + Math.random().toString(36).slice(2, 9),
   nickname: "GeoMasterTW",
   roomCode: "",
+  roomPassword: "",
   peer: null,
   conn: null,
+  peers: new Map(),           // Host-side: senderId -> DataConnection (prevents multi-player overwrite)
+  players: {},                // Roster: senderId -> { id, name, role, isReady, finished, finishReason, score, total, stationScore, stationTotal, macroProgress, finalStats }
   bcChannel: null,
   isHost: false,
+  role: "solo",               // 'solo' | 'host' | 'player' | 'spectator'
+  matchInProgress: false,
+  promptedLastPlayer: false,
   isReady: false,
   finished: false,
   finalStats: null,
@@ -83,9 +89,9 @@ const state = {
 // Initialize default selected transport lines from data/transport-data.js
 state.selectedTransportLines = new Set(TAIWAN_SELECTABLE_LINES.map((l) => l.id));
 
-// =========================================================================
+// ================================================================
 // 3. WEB AUDIO SYNTHESIZER
-// =========================================================================
+// ================================================================
 let audioCtx = null;
 function playTone(type) {
   if (!state.soundEnabled) return;

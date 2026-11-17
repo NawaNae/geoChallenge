@@ -1,6 +1,6 @@
-// =========================================================================
+// ============================================================================
 // 8. SPOILER-FREE PROGRESS DASHBOARD & QUICK COUNTY ZOOM CHIPS
-// =========================================================================
+// ============================================================================
 function updateScoreAndProgressUI() {
   const scopeCounties = getScopeCounties();
   const scopeTowns = getScopeTowns();
@@ -57,7 +57,7 @@ function updateScoreAndProgressUI() {
     const activeLineCount = state.stationQuizEnabled && state.quizStationLines.size > 0
       ? state.quizStationLines.size
       : Array.from(state.selectedTransportLines).filter((id) => !id.startsWith("hw_")).length;
-    if (cLabelEl) cLabelEl.textContent = "🛤️ 已選路線數";
+    if (cLabelEl) cLabelEl.textContent = "🗺️ 已選路線數";
     document.getElementById("stat-county-count").textContent = `${activeLineCount} 條路線`;
     document.getElementById("stat-county-pct").textContent = `${stPct}%`;
     document.getElementById("stat-county-bar").style.width = `${Math.min(100, parseFloat(stPct))}%`;
@@ -103,7 +103,7 @@ function updateScoreAndProgressUI() {
     topMainBar.style.width = `${Math.min(100, parseFloat(grandPct))}%`;
   }
 
-  // Render Dynamic Multi-Category Progress Bars (總進度 / 地區 / 台鐵 / 高鐵 / 捷運 / 輕軌 / 纜車 / 林鐵 / 糖鐵 — 有開才顯示!)
+  // Render Dynamic Multi-Category Progress Bars (總進度 / 地區 / 台鐵 / 高鐵 / 捷運 / 輕軌 / 纜車 / 林鐵 / 糖鐵 - 有開才顯示!)
   const multiBarsEl = document.getElementById("multi-category-progress-bars");
   if (multiBarsEl) {
     const bars = [];
@@ -125,7 +125,7 @@ function updateScoreAndProgressUI() {
         color: "#38bdf8"
       });
     }
-    // 3. 軌道各系統 (台鐵 / 高鐵 / 捷運 / 輕軌 / 纜車 / 林鐵 / 糖鐵 — 有開才顯示!)
+    // 3. 軌道各系統 (台鐵 / 高鐵 / 捷運 / 輕軌 / 纜車 / 林鐵 / 糖鐵 - 有開才顯示!)
     const macroOrder = [
       { key: "台鐵", label: "🚆 台鐵", color: "#0ea5e9" },
       { key: "高鐵", label: "🚄 高鐵", color: "#fb923c" },
@@ -204,7 +204,7 @@ function renderQuickZoomCountyChips() {
 
   if (visibleCounties.length === 0) {
     const emptyMsg = `<span class="col-span-3 text-[10px] text-slate-500 italic px-1">目前為純車站模式或尚未解鎖縣市</span>`;
-    if (bar) bar.innerHTML = `<span class="text-[11px] text-slate-500 italic">目前為純車站模式或尚未解鎖縣市（可點下方各路線卡片快速放大至該路線！）</span>`;
+    if (bar) bar.innerHTML = `<span class="text-[11px] text-slate-500 italic">目前為純車站模式或尚未解鎖縣市 (可點下方各路線卡片快速放大至該路線！)</span>`;
     if (mapJumpBar) mapJumpBar.innerHTML = emptyMsg;
     return;
   }
@@ -258,7 +258,7 @@ function renderCountyProgressSidebar() {
 
   // PART A: IF STATIONS ARE ENABLED, RENDER SYSTEM TOTALS (e.g. 台北捷運 總計, 台鐵 總計) + INDIVIDUAL LINES (e.g. 台鐵.縱貫線北段, 台北捷運.紅線)
   if (activeSt.length > 0) {
-    const activeLineSet = state.stationQuizEnabled && state.quizStationLines.size > 0
+    const activeLinesSet = state.stationQuizEnabled && state.quizStationLines.size > 0
       ? state.quizStationLines
       : state.selectedTransportLines;
 
@@ -304,7 +304,7 @@ function renderCountyProgressSidebar() {
           if (!map || stArr.length === 0) return;
           const b = L.latLngBounds(stArr.map((x) => [x.lat, x.lng]));
           if (b.isValid()) map.flyToBounds(b.pad(0.18), { duration: 0.55, maxZoom: 13 });
-          setFeedback(`📍 已放大至「${sysName}」全線範圍（已完成 ${unlockedS}/${totalS} 站 · ${pctS}%）`, "info");
+          setFeedback(`📍 已放大至「${sysName}」全線範圍 (已完成 ${unlockedS}/${totalS} 站 · ${pctS}%)`, "info");
         });
         container.appendChild(sCard);
       });
@@ -317,7 +317,7 @@ function renderCountyProgressSidebar() {
     container.appendChild(lineHeader);
 
     TAIWAN_SELECTABLE_LINES.forEach((line) => {
-      if (line.isHighway || !activeLineSet.has(line.id)) return;
+      if (line.isHighway || !activeLinesSet.has(line.id)) return;
       const meta = LINE_DISPLAY_META[line.id] || { dotName: line.name };
       const lineStations = activeSt.filter((s) => s.lineIds && s.lineIds.includes(line.id));
       if (lineStations.length === 0) return;
@@ -349,7 +349,7 @@ function renderCountyProgressSidebar() {
         if (!map || lineStations.length === 0) return;
         const b = L.latLngBounds(lineStations.map((x) => [x.lat, x.lng]));
         if (b.isValid()) map.flyToBounds(b.pad(0.2), { duration: 0.55, maxZoom: 13 });
-        setFeedback(`📍 已放大至「${lineTitle}」（已完成 ${unlockedL}/${totalL} 站 · ${pctL}%）`, "info");
+        setFeedback(`📍 已放大至「${lineTitle}」(已完成 ${unlockedL}/${totalL} 站 · ${pctL}%)`, "info");
       });
       container.appendChild(lRow);
     });
@@ -431,7 +431,7 @@ function renderCountyProgressSidebar() {
     const lockedCard = document.createElement("div");
     lockedCard.className = "p-3.5 rounded-2xl bg-slate-900/50 border border-dashed border-slate-700 text-center space-y-1";
     lockedCard.innerHTML = `
-      <div class="text-xs font-bold text-amber-300">🔒 尚有 ${hiddenCount} 個未解鎖縣市已隱藏名稱（防止劇透）</div>
+      <div class="text-xs font-bold text-amber-300">🔒 尚有 ${hiddenCount} 個未解鎖縣市已隱藏名稱 (防止劇透)</div>
       <p class="text-[11px] text-slate-400">
         在「${state.difficulty === "county_only" ? "縣市挑戰" : state.difficulty === "master_hierarchy" ? "最難三階解鎖" : "困難全名"}」模式下，未解鎖的縣市不會提前顯示於列表；當你猜出該縣市後，即會自動顯示進度並開放點擊放大定位！
       </p>
@@ -443,6 +443,7 @@ function renderCountyProgressSidebar() {
 }
 
 function checkVictoryCondition() {
+  if (state.isGameOver || state.finished || state.role === "spectator") return;
   const activeSt = getActiveQuizStations();
   const unlockedStCount = activeSt.filter((s) => state.unlockedStations.has(s.key)).length;
   const adminTotal =
@@ -470,6 +471,7 @@ function giveUpAndReveal() {
 }
 
 function finishGame(reason = "victory") {
+  if (state.role === "spectator") return;
   stopTimer();
   state.isGameOver = true;
   state.finished = true;
@@ -709,6 +711,50 @@ function showSettlementModal() {
       document.getElementById("vs-opp-score").textContent = `${oppGrandScore} / ${oppGrandTotal} (${oppPctStr})`;
       document.getElementById("vs-opp-time").textContent = formatTime(oppStats.elapsedSec || 0);
       document.getElementById("vs-opp-acc").textContent = `${oppStats.accuracy || 90}%`;
+
+      // Render multi-player ranked leaderboard when 3+ players
+      const activeList = typeof getActiveBattlePlayers === "function" ? getActiveBattlePlayers() : [];
+      let multiBoard = document.getElementById("settlement-multiplayer-board");
+      if (activeList.length > 2 && vsBanner) {
+        if (!multiBoard) {
+          multiBoard = document.createElement("div");
+          multiBoard.id = "settlement-multiplayer-board";
+          multiBoard.className = "mt-3 pt-3 border-t border-slate-700/80 space-y-1.5 text-left";
+          vsBanner.appendChild(multiBoard);
+        }
+        const ranked = [...activeList].sort((a, b) => {
+          const aTot = (a.total || 0) + (a.stationTotal || 0);
+          const bTot = (b.total || 0) + (b.stationTotal || 0);
+          const aCur = (a.score || 0) + (a.stationScore || 0);
+          const bCur = (b.score || 0) + (b.stationScore || 0);
+          const aPct = aTot > 0 ? aCur / aTot : 0;
+          const bPct = bTot > 0 ? bCur / bTot : 0;
+          if (bPct !== aPct) return bPct - aPct;
+          const aTime = a.finalStats?.elapsedSec ?? 999999;
+          const bTime = b.finalStats?.elapsedSec ?? 999999;
+          return aTime - bTime;
+        });
+        const medals = ["🥇", "🥈", "🥉"];
+        multiBoard.innerHTML = `
+          <div class="text-[11px] font-bold text-sky-300 uppercase tracking-wider">🏆 多人對戰即時排行榜</div>
+          ${ranked.map((p, idx) => {
+            const tot = (p.total || 0) + (p.stationTotal || 0);
+            const cur = (p.score || 0) + (p.stationScore || 0);
+            const pPct = tot > 0 ? ((cur / tot) * 100).toFixed(1) : "0.0";
+            const tStr = p.finalStats ? formatTime(p.finalStats.elapsedSec) : "作答中";
+            const stTag = p.finished ? (p.finishReason === "victory" ? "👑 通關" : "🏁 已結束") : "⏳ 作答中";
+            return `
+              <div class="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-950/70 border ${p.id === state.localInstanceId ? "border-sky-500/60" : "border-slate-800"} text-xs">
+                <span class="font-bold text-white">${medals[idx] || `#${idx + 1}`} ${p.name}${p.id === state.localInstanceId ? " (你)" : ""}</span>
+                <span class="font-mono-num text-slate-300">${cur}/${tot} (${pPct}%) · ${tStr} · ${stTag}</span>
+              </div>
+            `;
+          }).join("")}
+        `;
+        multiBoard.classList.remove("hidden");
+      } else if (multiBoard) {
+        multiBoard.classList.add("hidden");
+      }
     } else {
       if (vsBanner) vsBanner.classList.add("hidden");
       if (oppOngoingBanner) {
@@ -726,7 +772,7 @@ function showSettlementModal() {
   }
 
   document.getElementById("settlement-pct").textContent = pctStr;
-  document.getElementById("settlement-grand-score").textContent = `(${stats.grandScore} / ${stats.grandTotal} 題)`;
+  document.getElementById("settlement-grand-score").textContent = `${stats.grandScore} / ${stats.grandTotal} 題`;
   document.getElementById("settlement-time").textContent = formatTime(stats.elapsedSec);
   const avgSec = stats.grandScore > 0 ? (stats.elapsedSec / stats.grandScore).toFixed(1) : "0.0";
   document.getElementById("settlement-speed").textContent = `每題 ${avgSec} 秒`;
@@ -964,7 +1010,7 @@ function formatSettlementShareText(stats, isMultiplayer, oppStats) {
   }
 
   return [
-    `🗺️【Taiwan GeoMaster Pro · 台灣地理挑戰成績單】`,
+    `🗺️ 【Taiwan GeoMaster Pro · 台灣地理挑戰成績單】`,
     `👤 挑戰者：${stats.name}`,
     resultLine,
     `📊 總完成度：${pctStr} (${stats.grandScore} / ${stats.grandTotal} 題)`,
@@ -972,7 +1018,7 @@ function formatSettlementShareText(stats, isMultiplayer, oppStats) {
     `🎯 答題正確率：${stats.accuracy}% (答錯 ${stats.wrongAttempts} 次)`,
     `🔥 最高連擊：${stats.maxStreak} 連對`,
     `🎮 難度模式：${diffLabel}`,
-    `-----------------------------------`,
+    `--------------------------`,
     `挑戰你的台灣地理極限：${window.location.origin}${window.location.pathname}`
   ].join("\n");
 }
@@ -1031,6 +1077,7 @@ function resetGame() {
   state.targetStationKey = null;
   state.isGameOver = false;
   state.finished = false;
+  state.promptedLastPlayer = false;
   state.finalStats = null;
   state.elapsedSec = 0;
   state.targetId = null;
@@ -1075,9 +1122,9 @@ function resetGame() {
   broadcastP2PState("重新開局");
 }
 
-// =========================================================================
+// ============================================================================
 // 9. TIMER & COUNTDOWN ENGINE
-// =========================================================================
+// ============================================================================
 function formatTime(sec) {
   const s = Math.max(0, Math.floor(sec));
   const m = Math.floor(s / 60);
