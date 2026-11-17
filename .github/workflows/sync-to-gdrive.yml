@@ -41,16 +41,19 @@ jobs:
           conf_dir = os.path.expanduser('~/.config/rclone')
           os.makedirs(conf_dir, exist_ok=True)
 
-          config_text = f"""[gdrive]
-type = drive
-client_id = {client_id}
-client_secret = {client_secret}
-scope = drive
-token = {token}
-root_folder_id = {folder_id}
-"""
+          lines = [
+              "[gdrive]",
+              "type = drive",
+              f"client_id = {client_id}",
+              f"client_secret = {client_secret}",
+              "scope = drive",
+              f"token = {token}",
+              f"root_folder_id = {folder_id}",
+              ""
+          ]
+
           with open(os.path.join(conf_dir, 'rclone.conf'), 'w', encoding='utf-8') as f:
-              f.write(config_text)
+              f.write("\n".join(lines))
           PYEOF
 
       - name: 增量同步檔案到 Google Drive
