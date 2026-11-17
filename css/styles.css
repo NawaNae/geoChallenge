@@ -654,3 +654,19 @@ button { background-color: rgba(30, 41, 59, 0.85); color: #e2e8f0; border: 1px s
     max-height: 95dvh !important;
   }
 }
+
+/* Scope & Station Quick Preset Buttons & Checkboxes */
+.preset-chk {
+  cursor: pointer;
+  accent-color: currentColor;
+  flex-shrink: 0;
+  transition: transform 0.1s ease;
+}
+.preset-chk:hover {
+  transform: scale(1.15);
+}
+.scope-preset-active {
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.45), 0 4px 12px rgba(0, 0, 0, 0.35);
+  filter: brightness(1.12);
+}
+

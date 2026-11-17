@@ -93,6 +93,7 @@ const state = {
   perfLiteMode: true,         // Disable heavy CSS blurs by default for 60FPS
   isImeComposing: false,      // Tracks Windows Bopomofo / IME dotted-underline state!
   selectedCounties: new Set(TAIWAN_ADMIN_DATA.map((c) => c.name)),
+  selectedTownIds: new Set(ALL_TOWNS.map((t) => t.id)),
   unlockedTowns: new Set(),
   unlockedCounties: new Set(),
   unlockedProvinces: new Set(),

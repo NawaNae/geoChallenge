@@ -489,6 +489,9 @@ function bindPolygonEvents(layer, townObj) {
 }
 
 function isTownInScope(townObj) {
+  if (state.selectedTownIds instanceof Set) {
+    return state.selectedTownIds.has(townObj.id);
+  }
   return state.selectedCounties.has(townObj.countyName);
 }
 

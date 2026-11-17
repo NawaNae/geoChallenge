@@ -583,6 +583,38 @@ function getActiveQuizStations() {
   return list;
 }
 
+// Common station aliases (e.g. Kaohsiung Metro 2024 renamings & legacy station names)
+const STATION_NAME_ALIASES = {
+  "苓雅運動園區": ["技擊館"],
+  "技擊館": ["苓雅運動園區"],
+  "楠梓科技園區": ["楠梓加工區"],
+  "楠梓加工區": ["楠梓科技園區"],
+  "前金": ["市議會"],
+  "市議會": ["前金"],
+  "哈瑪星": ["西子灣"],
+  "西子灣": ["哈瑪星"],
+  "岡山高醫": ["南岡山"],
+  "南岡山": ["岡山高醫"]
+};
+
+function isStationMatch(st, core, comb, cNorm, combNorm, cStripped, combStripped) {
+  if (!st || !st.baseName) return false;
+  if (cStripped === st.baseName || combStripped === st.baseName) return true;
+  if (cNorm === normTw(st.displayName) || combNorm === normTw(st.displayName)) return true;
+  if (cNorm === normTw(`${st.baseName}站`) || combNorm === normTw(`${st.baseName}站`)) return true;
+  if (cNorm === normTw(`${st.baseName}車站`) || combNorm === normTw(`${st.baseName}車站`)) return true;
+  if (st.baseName.includes("/")) {
+    const noSlash = st.baseName.replace(/\//g, "");
+    if (noSlash === cStripped || noSlash === combStripped) return true;
+    if (st.baseName.split("/").some((part) => part && (part === cStripped || part === combStripped))) return true;
+  }
+  const aliases = STATION_NAME_ALIASES[st.baseName];
+  if (aliases && aliases.some((a) => a === cStripped || a === combStripped || normTw(a) === cNorm || normTw(a) === combNorm)) {
+    return true;
+  }
+  return false;
+}
+
 // Try matching user input against active stations!
 function tryMatchAndUnlockStation(core, combined, isAutoCheck) {
   const activeStations = getActiveQuizStations();
@@ -595,45 +627,25 @@ function tryMatchAndUnlockStation(core, combined, isAutoCheck) {
 
   if (state.targetStationKey) {
     const targetSt = activeStations.find((s) => s.key === state.targetStationKey);
-    if (targetSt) {
-      const ok =
-        cStripped === targetSt.baseName ||
-        combStripped === targetSt.baseName ||
-        cNorm === normTw(targetSt.displayName) ||
-        combNorm === normTw(targetSt.displayName) ||
-        (targetSt.baseName.includes("/") && targetSt.baseName.split("/").some((part) => part === cStripped));
-      if (ok) {
-        state.unlockedStations.add(targetSt.key);
-        state.lastTargetLat = targetSt.lat;
-        state.lastTargetLng = targetSt.lng;
-        state.targetStationKey = null;
-        updateRoadAndRailwayTileOverlays();
-        onSuccessfulUnlock(`🚉 答對指定車站：${targetSt.displayName}（${targetSt.lineName}）！`, targetSt.displayName, true);
-        if (state.playMode === "target_random") {
-          pickNextTargetRegion();
-        } else {
-          updateTargetBannerUI();
-        }
-        return true;
+    if (targetSt && isStationMatch(targetSt, core, combined, cNorm, combNorm, cStripped, combStripped)) {
+      state.unlockedStations.add(targetSt.key);
+      state.lastTargetLat = targetSt.lat;
+      state.lastTargetLng = targetSt.lng;
+      state.targetStationKey = null;
+      updateRoadAndRailwayTileOverlays();
+      onSuccessfulUnlock(`🚉 答對指定車站：${targetSt.displayName}（${targetSt.lineName}）！`, targetSt.displayName, true);
+      if (state.playMode === "target_random") {
+        pickNextTargetRegion();
+      } else {
+        updateTargetBannerUI();
       }
+      return true;
     }
   }
 
   const matched = activeStations.filter((st) => {
     if (state.unlockedStations.has(st.key)) return false;
-    if (st.baseName.includes("/") && st.baseName.split("/").some((part) => part && (part === cStripped || part === combStripped))) {
-      return true;
-    }
-    return (
-      cNorm === normTw(st.displayName) ||
-      combNorm === normTw(st.displayName) ||
-      cNorm === normTw(`${st.baseName}站`) ||
-      combNorm === normTw(`${st.baseName}站`) ||
-      cNorm === normTw(`${st.baseName}車站`) ||
-      combNorm === normTw(`${st.baseName}車站`) ||
-      cStripped === st.baseName ||
-      combStripped === st.baseName
-    );
+    return isStationMatch(st, core, combined, cNorm, combNorm, cStripped, combStripped);
   });
 
   if (matched.length > 0) {

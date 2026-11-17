@@ -502,7 +502,7 @@ function checkVictoryCondition() {
       ? Array.from(state.unlockedCounties).filter((c) => state.selectedCounties.has(c)).length
       : Array.from(state.unlockedTowns).filter((id) => {
           const t = ALL_TOWNS.find((x) => x.id === id);
-          return t && state.selectedCounties.has(t.countyName);
+          return t && (typeof isTownInScope === "function" ? isTownInScope(t) : state.selectedCounties.has(t.countyName));
         }).length;
 
   const total = adminTotal + activeSt.length;
@@ -552,7 +552,7 @@ function finishGame(reason = "victory") {
     ? Array.from(state.unlockedCounties).filter((c) => state.selectedCounties.has(c)).length
     : Array.from(state.unlockedTowns).filter((id) => {
         const t = ALL_TOWNS.find((x) => x.id === id);
-        return t && state.selectedCounties.has(t.countyName);
+        return t && (typeof isTownInScope === "function" ? isTownInScope(t) : state.selectedCounties.has(t.countyName));
       }).length;
 
   const grandTotal = adminTotal + activeSt.length;

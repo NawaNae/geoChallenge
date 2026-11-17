@@ -2,6 +2,9 @@
 // 6. GAME LOGIC: SPOILER-FREE PREFIXES, SMART SUFFIX OVERRIDE & WINDOWS IME FIX
 // =========================================================================
 function getScopeTowns() {
+  if (state.selectedTownIds instanceof Set) {
+    return ALL_TOWNS.filter((t) => state.selectedTownIds.has(t.id));
+  }
   return ALL_TOWNS.filter((t) => state.selectedCounties.has(t.countyName));
 }
 

@@ -928,35 +928,67 @@
 
             <!-- Step 3: Regional Scope Presets (Fully expanded 22 counties grid without inner scrollbar) -->
             <div id="scope-region-section" class="pt-2 border-t border-slate-800/90">
-              <label class="text-xs font-bold text-amber-300 uppercase tracking-wider block mb-2">
-                3. 選擇要猜的「行政區範圍」（可選全台/北中南東，或點「清除」單純猜車站）
-              </label>
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <label class="text-xs font-bold text-amber-300 uppercase tracking-wider block">
+                  3. 選擇要猜的「行政區範圍」（點按鈕互斥單選，點勾選框可多選疊加；或點「清除」單純猜車站）
+                </label>
+                <span class="text-[11px] text-slate-400 font-normal">
+                  💡 點按鈕：單選此範圍 ｜ 點勾選框：多選加入/移除
+                </span>
+              </div>
               <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
-                <button id="btn-scope-all" type="button" class="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition">
-                  🇹🇼 全台 (22縣市·368區)
+                <button id="btn-scope-all" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選全台｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-sky-400 text-sky-500 cursor-pointer pointer-events-auto" />
+                  <span>🇹🇼 全台 (22縣市·368區)</span>
                 </button>
-                <button id="btn-scope-six" type="button" class="px-3 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition">
-                  🏙️ 六都直轄市 (158區)
+                <button id="btn-scope-west" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選西部16縣市｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-blue-400 text-blue-500 cursor-pointer pointer-events-auto" />
+                  <span>🧭 西部地區 (16縣市·323區)</span>
                 </button>
-                <button id="btn-scope-north" type="button" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition">
-                  ⬆️ 北部地區 (北北基桃竹宜·89區)
+                <button id="btn-scope-six" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選六都直轄市｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-indigo-400 text-indigo-500 cursor-pointer pointer-events-auto" />
+                  <span>🏙️ 六都直轄市 (158區)</span>
                 </button>
-                <button id="btn-scope-central" type="button" class="px-3 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold transition">
-                  ⛰️ 中部地區 (苗中彰投雲·105區)
+                <button id="btn-scope-north" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選北部地區｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-emerald-400 text-emerald-500 cursor-pointer pointer-events-auto" />
+                  <span>⬆️ 北部地區 (北北基桃竹宜·89區)</span>
                 </button>
-                <button id="btn-scope-south" type="button" class="px-3 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-xs font-bold transition">
-                  ☀️ 南部地區 (嘉南高屏澎·132區)
+                <button id="btn-scope-central" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選中部地區｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-teal-400 text-teal-500 cursor-pointer pointer-events-auto" />
+                  <span>⛰️ 中部地區 (苗中彰投雲·105區)</span>
                 </button>
-                <button id="btn-scope-east" type="button" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition">
-                  🌊 東部地區 (花東·29區)
+                <button id="btn-scope-south" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選南部地區｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-orange-400 text-orange-500 cursor-pointer pointer-events-auto" />
+                  <span>☀️ 南部地區 (嘉南高屏澎·132區)</span>
                 </button>
-                <button id="btn-scope-islands" type="button" class="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition">
-                  離島澎金馬 (16鄉鎮)
+                <button id="btn-scope-east" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選東部地區｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-cyan-400 text-cyan-500 cursor-pointer pointer-events-auto" />
+                  <span>🌊 東部地區 (花東·29區)</span>
                 </button>
-                <button id="btn-scope-random-one" type="button" class="px-3 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 text-xs font-bold transition">
+                <button id="btn-scope-mountain" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-lime-500/20 hover:bg-lime-500/30 text-lime-300 border border-lime-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選山區鄉鎮｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-lime-400 text-lime-500 cursor-pointer pointer-events-auto" />
+                  <span>⛰️ 山區鄉鎮 (30山地原民區+內陸山地·58區)</span>
+                </button>
+                <button id="btn-scope-west-plain" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選西部平原｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-amber-400 text-amber-500 cursor-pointer pointer-events-auto" />
+                  <span>🌾 西部平原 (西半部平原與盆地·263區)</span>
+                </button>
+                <button id="btn-scope-west-coast" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-200 border border-sky-600/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選西部濱海鄉鎮｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-sky-500 text-sky-400 cursor-pointer pointer-events-auto" />
+                  <span>🏖️ 西部濱海鄉鎮 (臨台灣海峽·59區)</span>
+                </button>
+                <button id="btn-scope-east-coast" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-teal-600/20 hover:bg-teal-600/30 text-teal-200 border border-teal-600/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選東部濱海鄉鎮｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-teal-500 text-teal-400 cursor-pointer pointer-events-auto" />
+                  <span>🌊 東部濱海鄉鎮 (臨太平洋·21區)</span>
+                </button>
+                <button id="btn-scope-islands" type="button" class="scope-preset-btn px-2.5 py-1.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-200 border border-amber-600/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選離島澎金馬｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-amber-500 text-amber-400 cursor-pointer pointer-events-auto" />
+                  <span>🏝️ 離島澎金馬 (16鄉鎮)</span>
+                </button>
+                <button id="btn-scope-random-one" type="button" class="px-3 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 text-xs font-bold transition cursor-pointer" title="隨機單一縣市">
                   🎲 隨機單一縣市
                 </button>
-                <button id="btn-scope-clear" type="button" class="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition" title="清除所有行政區（純猜車站）">
+                <button id="btn-scope-clear" type="button" class="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition cursor-pointer" title="清除所有行政區（純猜車站）">
                   清除
                 </button>
               </div>
@@ -968,7 +1000,7 @@
             <div id="scope-station-section" class="pt-2 border-t border-slate-800/90">
               <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <label class="text-xs font-bold text-pink-300 uppercase tracking-wider">
-                  4. 🚉 選擇要猜的「車站與軌道系統」（可選「不猜車站」、或任選台北捷運、台鐵各線、輕軌、高鐵等）
+                  4. 🚉 選擇要猜的「車站與軌道系統」（點按鈕互斥單選，點勾選框可多選疊加；或選「不猜車站」）
                 </label>
                 <div class="flex items-center gap-2">
                   <label class="flex items-center gap-1.5 text-slate-300 cursor-pointer text-xs" title="勾選後於路線清單與題目提示中顯示起訖端點站（如淡水—象山）；預設關閉以防洩題劇透">
@@ -981,35 +1013,56 @@
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
-                <button id="btn-qst-none" type="button" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold transition">
+                <button id="btn-qst-none" type="button" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-bold transition cursor-pointer" title="清除所有車站題目">
                   🚫 不猜車站 (關閉車站題庫)
                 </button>
-                <button id="btn-qst-tpemrt" type="button" class="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition">
-                  🚇 台北捷運全線 (北捷5線+環狀線)
+                <button id="btn-qst-tpemrt" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選台北捷運｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-rose-400 text-rose-500 cursor-pointer pointer-events-auto" />
+                  <span>🚇 台北捷運 (北捷5線+環狀線)</span>
                 </button>
-                <button id="btn-qst-allmrt" type="button" class="px-2.5 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 text-xs font-bold transition">
-                  🚇 全台都會捷運 (北/新北/桃/中/高捷)
+                <button id="btn-qst-khmrt" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選高雄捷運｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-emerald-400 text-emerald-500 cursor-pointer pointer-events-auto" />
+                  <span>🚇 高雄捷運 (紅線+橘線)</span>
                 </button>
-                <button id="btn-qst-lrt" type="button" class="px-2.5 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold transition">
-                  🚋 全台輕軌 (淡海/安坑/高雄)
+                <button id="btn-qst-tcmrt" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選台中捷運｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-teal-400 text-teal-500 cursor-pointer pointer-events-auto" />
+                  <span>🚇 台中捷運 (綠線)</span>
                 </button>
-                <button id="btn-qst-tra-all" type="button" class="px-2.5 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition">
-                  🚆 台鐵全線 (西部/東部/南迴+4支線)
+                <button id="btn-qst-tymrt" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選桃園捷運｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-purple-400 text-purple-500 cursor-pointer pointer-events-auto" />
+                  <span>🚇 桃園捷運 (機場線)</span>
                 </button>
-                <button id="btn-qst-tra-east" type="button" class="px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition">
-                  🚆 台鐵東部 (宜蘭+北迴+花東)
+                <button id="btn-qst-allmrt" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選都會捷運｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-fuchsia-400 text-fuchsia-500 cursor-pointer pointer-events-auto" />
+                  <span>🚇 全台都會捷運 (北/新北/桃/中/高捷)</span>
                 </button>
-                <button id="btn-qst-tra-branch" type="button" class="px-2.5 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition">
-                  🚆 台鐵四大支線 (平溪/內灣/集集/沙崙)
+                <button id="btn-qst-lrt" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選全台輕軌｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-cyan-400 text-cyan-500 cursor-pointer pointer-events-auto" />
+                  <span>🚋 全台輕軌 (淡海/安坑/高雄)</span>
                 </button>
-                <button id="btn-qst-thsr" type="button" class="px-2.5 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-xs font-bold transition">
-                  🚄 台灣高鐵 (12站)
+                <button id="btn-qst-tra-all" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選台鐵全線｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-sky-400 text-sky-500 cursor-pointer pointer-events-auto" />
+                  <span>🚆 台鐵全線 (西部/東部/南迴+4支線)</span>
                 </button>
-                <button id="btn-qst-heritage" type="button" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition">
-                  🌲 林鐵+糖鐵+纜車
+                <button id="btn-qst-tra-east" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選台鐵東部｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-blue-400 text-blue-500 cursor-pointer pointer-events-auto" />
+                  <span>🚆 台鐵東部 (宜蘭+北迴+花東)</span>
                 </button>
-                <button id="btn-qst-all" type="button" class="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition">
-                  ✅ 全選所有車站
+                <button id="btn-qst-tra-branch" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選台鐵四大支線｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-indigo-400 text-indigo-500 cursor-pointer pointer-events-auto" />
+                  <span>🚆 台鐵四大支線 (平溪/內灣/集集/沙崙)</span>
+                </button>
+                <button id="btn-qst-thsr" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選台灣高鐵｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-orange-400 text-orange-500 cursor-pointer pointer-events-auto" />
+                  <span>🚄 台灣高鐵 (12站)</span>
+                </button>
+                <button id="btn-qst-heritage" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-600/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：單選林鐵糖鐵纜車｜點勾選框：多選加入/移除">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-emerald-500 text-emerald-400 cursor-pointer pointer-events-auto" />
+                  <span>🌲 林鐵+糖鐵+纜車</span>
+                </button>
+                <button id="btn-qst-all" type="button" class="station-preset-btn px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="點擊按鈕：全選所有車站｜點勾選框：全選/全部取消">
+                  <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded bg-slate-900/80 border-amber-400 text-amber-500 cursor-pointer pointer-events-auto" />
+                  <span>✅ 全選所有車站</span>
                 </button>
               </div>
 

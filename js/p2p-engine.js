@@ -35,7 +35,7 @@ function getLocalGrandCounts() {
       ? Array.from(state.unlockedCounties).filter((c) => state.selectedCounties.has(c)).length
       : Array.from(state.unlockedTowns).filter((id) => {
           const t = ALL_TOWNS.find((x) => x.id === id);
-          return t && state.selectedCounties.has(t.countyName);
+          return t && (typeof isTownInScope === "function" ? isTownInScope(t) : state.selectedCounties.has(t.countyName));
         }).length;
 
   const activeSt = getActiveQuizStations();
@@ -174,6 +174,7 @@ function getHostSyncConfig(isSettingChange = false) {
     quizTargetMode: state.quizTargetMode || "region",
     showStationTerminusHints: Boolean(state.showStationTerminusHints),
     selectedCounties: Array.from(state.selectedCounties),
+    selectedTownIds: state.selectedTownIds ? Array.from(state.selectedTownIds) : ALL_TOWNS.filter(t => state.selectedCounties.has(t.countyName)).map(t => t.id),
     quizStationLines: Array.from(state.quizStationLines),
     difficulty: state.difficulty,
     playMode: state.playMode,
@@ -622,7 +623,8 @@ function describeConfigDiff(patch) {
   }
   if (patch.selectedCounties) {
     const newSet = new Set(patch.selectedCounties);
-    lines.push(`行政區範圍：${state.selectedCounties.size} 縣市 ➔ ${newSet.size} 縣市`);
+    const townCountStr = patch.selectedTownIds ? ` (${patch.selectedTownIds.length} 區)` : "";
+    lines.push(`行政區範圍：${state.selectedCounties.size} 縣市 ➔ ${newSet.size} 縣市${townCountStr}`);
   }
   if (patch.quizStationLines) {
     const newLines = new Set(patch.quizStationLines);
@@ -647,6 +649,7 @@ function buildProposedConfigFromPatch(patch) {
   if (patch.difficulty) base.difficulty = patch.difficulty;
   if (patch.playMode) base.playMode = patch.playMode;
   if (patch.selectedCounties) base.selectedCounties = Array.from(patch.selectedCounties);
+  if (patch.selectedTownIds) base.selectedTownIds = Array.from(patch.selectedTownIds);
   if (patch.quizStationLines) base.quizStationLines = Array.from(patch.quizStationLines);
   if (typeof patch.showStationTerminusHints === "boolean") {
     base.showStationTerminusHints = patch.showStationTerminusHints;
@@ -2158,7 +2161,7 @@ function handleIncomingP2PData(payload, senderIdFromMsg = null) {
           ? uCounties.filter((c) => state.selectedCounties.has(c)).length
           : uTowns.filter((id) => {
               const t = ALL_TOWNS.find((x) => x.id === id);
-              return t && state.selectedCounties.has(t.countyName);
+              return t && (typeof isTownInScope === "function" ? isTownInScope(t) : state.selectedCounties.has(t.countyName));
             }).length
         : payload.score || 0;
 
@@ -2536,6 +2539,11 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   if (Array.isArray(cfg.selectedCounties)) {
     state.selectedCounties = new Set(cfg.selectedCounties);
   }
+  if (Array.isArray(cfg.selectedTownIds)) {
+    state.selectedTownIds = new Set(cfg.selectedTownIds);
+  } else if (Array.isArray(cfg.selectedCounties)) {
+    state.selectedTownIds = new Set(ALL_TOWNS.filter(t => state.selectedCounties.has(t.countyName)).map(t => t.id));
+  }
   if (Array.isArray(cfg.quizStationLines)) {
     state.quizStationLines = new Set(cfg.quizStationLines);
   }
@@ -2545,6 +2553,7 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
     state.stationQuizEnabled = false;
   } else if (state.quizTargetMode === "station") {
     state.selectedCounties.clear();
+    if (state.selectedTownIds) state.selectedTownIds.clear();
     state.stationQuizEnabled = state.quizStationLines.size > 0;
   } else {
     state.stationQuizEnabled = state.quizStationLines.size > 0;
@@ -2659,7 +2668,12 @@ function applyScopePreset(presetKey) {
   } else if (presetKey === "stations_only") {
     patch.quizTargetMode = "station";
     patch.selectedCounties = [];
+    patch.selectedTownIds = [];
     patch.quizStationLines = TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway).map((l) => l.id);
+  }
+  if (Array.isArray(patch.selectedCounties) && !patch.selectedTownIds) {
+    const cSet = new Set(patch.selectedCounties);
+    patch.selectedTownIds = ALL_TOWNS.filter(t => cSet.has(t.countyName)).map(t => t.id);
   }
   requestOrApplyConfigChange(patch, "題庫範圍");
 }
