@@ -610,29 +610,43 @@
           <div id="p2p-lobby-sidebar" class="hidden pt-3 mt-3 border-t border-slate-800/90">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
 
-              <!-- 1. Nickname, Password, Create/Join Room & Dual Invite Links (lg:col-span-5) -->
+              <!-- 1. Nickname, Join (Section A), Host (Section B) & Dual Invite Links (lg:col-span-5) -->
               <div class="lg:col-span-5 p-3 rounded-2xl bg-slate-950/75 border border-slate-800 space-y-2.5">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div>
-                    <label class="text-[11px] text-slate-400 font-semibold block mb-1">👤 你的玩家暱稱</label>
-                    <input id="p2p-nickname-input" type="text" value="GeoMasterTW" class="w-full bg-slate-950 text-white text-xs font-semibold rounded-xl px-3 py-1.5 border border-slate-700 focus:outline-none focus:border-indigo-400" />
+                <div>
+                  <label class="text-[11px] text-slate-400 font-semibold block mb-1">👤 你的玩家暱稱</label>
+                  <input id="p2p-nickname-input" type="text" value="GeoMasterTW" class="w-full bg-slate-950 text-white text-xs font-semibold rounded-xl px-3 py-1.5 border border-slate-700 focus:outline-none focus:border-indigo-400" />
+                </div>
+
+                <!-- Section A: Join Room (房號 + 密碼 + 連線入房 放在一起) -->
+                <div class="p-2.5 rounded-xl bg-slate-900/60 border border-indigo-500/30 space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
+                      <span>🎮 連線入房</span>
+                    </span>
+                    <span class="text-[10px] text-slate-500">輸入房號與密碼連線</span>
                   </div>
-                  <div>
-                    <label class="text-[11px] text-slate-400 font-semibold block mb-1">🔒 房間密碼 (房主可設/選填)</label>
-                    <input id="p2p-password-input" type="password" autocomplete="off" placeholder="留空代表無密碼公開房" class="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400" />
+                  <div class="flex flex-col sm:flex-row gap-1.5">
+                    <input id="p2p-room-code-input" type="text" placeholder="6碼房號" class="w-full sm:w-28 font-mono-num uppercase bg-slate-950 text-amber-300 text-xs font-bold rounded-xl px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-amber-400" />
+                    <input id="p2p-password-input" type="password" autocomplete="off" placeholder="房間密碼 (若有)" class="w-full sm:flex-1 px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400" />
+                    <button id="btn-p2p-join" type="button" class="w-full sm:w-auto px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shrink-0 transition flex items-center justify-center gap-1 shadow-sm">
+                      <span>連線入房</span>
+                    </button>
                   </div>
                 </div>
 
-                <!-- Host Room Box & Join Room Box -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5 border-t border-slate-800/80">
-                  <button id="btn-p2p-host" type="button" class="w-full px-2.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs transition shadow-md flex items-center justify-center gap-1">
-                    <span>👑</span>
-                    <span>建立新房間 (Host)</span>
-                  </button>
-                  <div class="flex gap-1">
-                    <input id="p2p-room-code-input" type="text" placeholder="輸入6碼房號" class="w-full font-mono-num uppercase bg-slate-950 text-amber-300 text-xs font-bold rounded-xl px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-amber-400" />
-                    <button id="btn-p2p-join" type="button" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shrink-0 transition">
-                      連線入房
+                <!-- Section B: Host Room (開新房間 放在一起) -->
+                <div class="p-2.5 rounded-xl bg-slate-900/60 border border-sky-500/30 space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-sky-300 flex items-center gap-1">
+                      <span>👑 建立新房間</span>
+                    </span>
+                    <span class="text-[10px] text-slate-500">即時開房與生成邀請連結</span>
+                  </div>
+                  <div class="flex flex-col sm:flex-row gap-1.5">
+                    <input id="p2p-host-password-input" type="password" autocomplete="off" placeholder="自訂房間密碼 (選填/留空公開)" class="w-full sm:flex-1 px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400" />
+                    <button id="btn-p2p-host" type="button" class="w-full sm:w-auto px-3.5 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs transition shadow-md shrink-0 flex items-center justify-center gap-1">
+                      <span>👑</span>
+                      <span>建立房間</span>
                     </button>
                   </div>
                 </div>

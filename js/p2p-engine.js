@@ -288,6 +288,8 @@ function resumeSavedRoomSession(saved) {
   }
   const passInput = document.getElementById("p2p-password-input");
   if (passInput && saved.roomPassword) passInput.value = saved.roomPassword;
+  const hostPassInput = document.getElementById("p2p-host-password-input");
+  if (hostPassInput && saved.roomPassword) hostPassInput.value = saved.roomPassword;
 
   if (saved.isHost) {
     if (saved.config) applyRemoteSyncConfig(saved.config, true, true);
@@ -1922,10 +1924,12 @@ function initP2PEngine() {
 
 function hostP2PRoom(existingCode = "", existingPassword = null, restoredPlayers = null) {
   const code = existingCode || "TW" + Math.random().toString(36).substring(2, 6).toUpperCase();
+  const hostPassInput = document.getElementById("p2p-host-password-input");
   const pwd =
     existingPassword !== null
       ? existingPassword
-      : document.getElementById("p2p-password-input")?.value.trim() || "";
+      : (hostPassInput?.value.trim() || document.getElementById("p2p-password-input")?.value.trim() || "");
+  if (hostPassInput && pwd) hostPassInput.value = pwd;
 
   state.roomCode = code;
   state.roomPassword = pwd;

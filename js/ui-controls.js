@@ -1229,8 +1229,8 @@ function bindAllUIEvents() {
     setSpectatingTarget(e.target.value);
   });
 
-  // Host dynamic password update
-  document.getElementById("p2p-password-input")?.addEventListener("input", (e) => {
+  // Host dynamic password update & Input shortcuts
+  const onHostPasswordInput = (e) => {
     e.target.classList.remove("border-rose-500");
     if (state.isHost && state.roomCode) {
       state.roomPassword = e.target.value.trim();
@@ -1239,6 +1239,19 @@ function bindAllUIEvents() {
       updateRoomShareLinksUI();
       saveActiveSessionToStorage();
     }
+  };
+  document.getElementById("p2p-password-input")?.addEventListener("input", onHostPasswordInput);
+  document.getElementById("p2p-host-password-input")?.addEventListener("input", onHostPasswordInput);
+
+  // Enter key support for quick join & host
+  document.getElementById("p2p-room-code-input")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") joinP2PRoom();
+  });
+  document.getElementById("p2p-password-input")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") joinP2PRoom();
+  });
+  document.getElementById("p2p-host-password-input")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") hostP2PRoom();
   });
 
   const bindShareCopyButton = (btnId, inputId, labelText) => {
