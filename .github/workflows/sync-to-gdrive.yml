@@ -1,0 +1,68 @@
+name: Sync to Google Drive
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync-gdrive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 檢出完整 Git 歷史
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 壓縮 .git 內部碎片檔案 (提升 Google Drive 同步速度)
+        run: |
+          git gc --prune=now
+
+      - name: 安裝 rclone
+        run: sudo apt-get install -y rclone
+
+      - name: 配置 Google Drive 連線 (OAuth 2.0)
+        env:
+          GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: |
+          # 透過 Python 寫入 rclone 設定，機密全數由 GitHub Secrets 提供
+          python3 - << 'PYEOF'
+          import os
+
+          token = os.environ.get('GDRIVE_TOKEN', '').strip()
+          folder_id = os.environ.get('GDRIVE_FOLDER_ID', '').strip()
+          client_id = os.environ.get('GDRIVE_CLIENT_ID', '').strip()
+          client_secret = os.environ.get('GDRIVE_CLIENT_SECRET', '').strip()
+
+          conf_dir = os.path.expanduser('~/.config/rclone')
+          os.makedirs(conf_dir, exist_ok=True)
+
+          config_text = f"""[gdrive]
+type = drive
+client_id = {client_id}
+client_secret = {client_secret}
+scope = drive
+token = {token}
+root_folder_id = {folder_id}
+"""
+          with open(os.path.join(conf_dir, 'rclone.conf'), 'w', encoding='utf-8') as f:
+              f.write(config_text)
+          PYEOF
+
+      - name: 增量同步檔案到 Google Drive
+        run: |
+          # rclone sync 會增量比對，只更新有變動的檔案（diff）
+          # 包含完整 .git 歷史，排除 .github workflow 本身
+          rclone sync . gdrive: \
+            --fast-list \
+            --drive-use-trash=false \
+            --exclude ".github/**" \
+            -v
+
+      - name: 清理設定檔
+        if: always()
+        run: rm -rf ~/.config/rclone
