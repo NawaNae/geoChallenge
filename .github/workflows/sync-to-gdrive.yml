@@ -29,14 +29,25 @@ jobs:
           GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
-          # 透過 Python 寫入 rclone 設定，機密全數由 GitHub Secrets 提供
+          # 檢查必要的 Secrets 是否存在，並透過 Python 寫入 rclone 設定
           python3 - << 'PYEOF'
-          import os
+          import os, sys
 
           token = os.environ.get('GDRIVE_TOKEN', '').strip()
           folder_id = os.environ.get('GDRIVE_FOLDER_ID', '').strip()
           client_id = os.environ.get('GDRIVE_CLIENT_ID', '').strip()
           client_secret = os.environ.get('GDRIVE_CLIENT_SECRET', '').strip()
+
+          missing = []
+          if not token: missing.append("GDRIVE_TOKEN")
+          if not client_id: missing.append("GDRIVE_CLIENT_ID")
+          if not client_secret: missing.append("GDRIVE_CLIENT_SECRET")
+          if not folder_id: missing.append("GDRIVE_FOLDER_ID")
+
+          if missing:
+              print(f"❌ 錯誤：GitHub Repository Secrets 缺少以下變數: {', '.join(missing)}", file=sys.stderr)
+              print("👉 請前往 Repo -> Settings -> Secrets and variables -> Actions 確認是否有新增！", file=sys.stderr)
+              sys.exit(1)
 
           conf_dir = os.path.expanduser('~/.config/rclone')
           os.makedirs(conf_dir, exist_ok=True)
@@ -54,6 +65,7 @@ jobs:
 
           with open(os.path.join(conf_dir, 'rclone.conf'), 'w', encoding='utf-8') as f:
               f.write("\n".join(lines))
+          print("✅ rclone 連線配置成功建立！")
           PYEOF
 
       - name: 增量同步檔案到 Google Drive
