@@ -120,7 +120,9 @@ const state = {
   quizTargetMode: "region", // 'region' | 'station' | 'mixed'
   settingsTab: "simple",    // 'simple' | 'advanced' (Default 'simple' per user spec)
   showRawOpenRailwayTile: false,
-  showStationTerminusHints: false, // 軌道猜謎下預設不顯示路線頭尾端點站提示 (防劇透, 可手動開啟)
+  showStationTerminusHints: false,
+  allowTargetHints: false,         // 指定/隨機模式下預設關閉提示 (可於設定開啟或由房主禁用)
+  filterStationsByRegion: false,   // 混合模式下：僅猜所選行政區域內的鐵道車站 // 軌道猜謎下預設不顯示路線頭尾端點站提示 (防劇透, 可手動開啟)
   useAlgorithmicCleanRailTile: false,
   quizStationLines: new Set(),
   isGameOver: false,
@@ -161,7 +163,9 @@ const state = {
   role: "solo",               // 'solo' | 'host' | 'player' | 'spectator'
   spectatingPlayerId: null,   // Player ID currently being watched on map & sidebar
   spectatorLayerInitialized: false,
-  pendingConfigProposal: null,// Consensus vote proposal object for Host difficulty/rule changes
+  _configToastTimer: null,    // Auto-dismiss timer for lightweight room setting change toast
+  _readyJustClearedByHost: false,
+  _lastBroadcastConfigJson: "",
   matchInProgress: false,
   promptedLastPlayer: false,
   isReady: false,

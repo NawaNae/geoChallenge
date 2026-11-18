@@ -198,13 +198,15 @@ function syncPrimaryOpponentFromRoster() {
   state.opponent.finalStats = primary.finalStats || null;
 }
 
-function getHostSyncConfig(isSettingChange = false) {
+function getHostSyncConfig(isSettingChange = false, changeLabel = "", changeDetail = "") {
   const lruleEl = document.getElementById("p2p-layer-rule-select");
   const flayerEl = document.getElementById("p2p-forced-layer-select");
   const rruleEl = document.getElementById("p2p-rail-rule-select");
   return {
     quizTargetMode: state.quizTargetMode || "region",
     showStationTerminusHints: Boolean(state.showStationTerminusHints),
+    filterStationsByRegion: Boolean(state.filterStationsByRegion),
+    allowTargetHints: Boolean(state.allowTargetHints),
     selectedCounties: Array.from(state.selectedCounties),
     selectedTownIds: state.selectedTownIds
       ? Array.from(state.selectedTownIds)
@@ -217,7 +219,9 @@ function getHostSyncConfig(isSettingChange = false) {
     layerRule: lruleEl ? lruleEl.value : state.p2pLayerRule,
     forcedLayer: flayerEl ? flayerEl.value : state.p2pForcedLayer,
     railRule: rruleEl ? rruleEl.value : state.p2pRailRule,
-    isSettingChange: Boolean(isSettingChange)
+    isSettingChange: Boolean(isSettingChange),
+    changeLabel: changeLabel || "",
+    changeDetail: changeDetail || ""
   };
 }
 
@@ -263,6 +267,8 @@ function getConciseRegionSummaryText() {
   const mountainIds = ALL_TOWNS.filter((t) => TAIWAN_MOUNTAIN_SET.has(t.fullCountyTown)).map((t) => t.id);
   const westPlainIds = ALL_TOWNS.filter((t) => TAIWAN_WEST_PLAIN_SET.has(t.fullCountyTown)).map((t) => t.id);
   const eastPlainIds = ALL_TOWNS.filter((t) => typeof TAIWAN_EAST_PLAIN_SET !== "undefined" && TAIWAN_EAST_PLAIN_SET.has(t.fullCountyTown)).map((t) => t.id);
+  const westCoastIds = ALL_TOWNS.filter((t) => TAIWAN_WEST_COAST_SET.has(t.fullCountyTown)).map((t) => t.id);
+  const eastCoastIds = ALL_TOWNS.filter((t) => TAIWAN_EAST_COAST_SET.has(t.fullCountyTown)).map((t) => t.id);
   const sixIds = ALL_TOWNS.filter((t) => t.isSpecial).map((t) => t.id);
   const westIds = ALL_TOWNS.filter((t) => TAIWAN_WEST_COUNTY_SET.has(t.countyName)).map((t) => t.id);
 
@@ -274,6 +280,8 @@ function getConciseRegionSummaryText() {
   if (checkExact(mountainIds)) return "山區鄉鎮";
   if (checkExact(westPlainIds)) return "西部平原";
   if (checkExact(eastPlainIds)) return "東部平原";
+  if (checkExact(westCoastIds)) return "西部濱海";
+  if (checkExact(eastCoastIds)) return "東部濱海";
   if (checkExact(sixIds)) return "六都直轄市";
   if (checkExact(westIds)) return "西部地區";
 
@@ -409,12 +417,17 @@ function renderRoomConciseSettingsSummary() {
   // 3. Station Line (Only if selected!)
   const stText = getConciseStationSummaryText();
   if (stText) {
-    rows.push({ label: "車站：", text: stText, highlight: "text-pink-200" });
+    const filterSuffix = state.filterStationsByRegion && state.quizTargetMode !== "station" && state.selectedCounties.size > 0
+      ? `（📍僅限所選區域內 ${typeof getActiveQuizStations === "function" ? getActiveQuizStations().length : ""} 站）`
+      : "";
+    rows.push({ label: "車站：", text: `${stText}${filterSuffix}`, highlight: "text-pink-200" });
   }
 
   // 4. Interface Restriction Line (Only if restricted / non-default!)
   const uiLimits = [];
   if (state.showStationTerminusHints) uiLimits.push("顯示路線頭尾端點提示");
+  if (state.allowTargetHints) uiLimits.push("開放指定/隨機模式提示");
+  else if (state.playMode !== "free") uiLimits.push("禁用目標提示 (Ban)");
   if (state.p2pRailRule === "ban_roads_only") uiLimits.push("禁用公路路網");
   else if (state.p2pRailRule === "ban_rail") uiLimits.push("禁用軌道與公路路網");
   else if (state.p2pRailRule === "force_lines") uiLimits.push("強制開啟完整路網＋車站");
@@ -746,7 +759,7 @@ function leaveP2PRoom(silentReason = null) {
   state.role = "solo";
   state.spectatingPlayerId = null;
   state.spectatorLayerInitialized = false;
-  state.pendingConfigProposal = null;
+  hideRoomConfigChangeToast();
   state.matchInProgress = false;
   state.isReady = false;
   state.opponent.connected = false;
@@ -761,7 +774,6 @@ function leaveP2PRoom(silentReason = null) {
     }
   } catch (_) {}
 
-  document.getElementById("modal-config-vote")?.classList.add("hidden");
   document.getElementById("modal-room")?.classList.add("hidden");
   document.getElementById("modal-join-entry")?.classList.add("hidden");
 
@@ -1046,8 +1058,53 @@ function applyP2PLayerRule(rule, forcedLayer, railRule) {
 }
 
 // ============================================================================
-// UNANIMOUS CONSENT VOTE ENGINE FOR HOST DIFFICULTY / CONFIG CHANGES
+// HOST CONFIG CHANGE DIFF & LIGHTWEIGHT AUTO-DISMISSING TOAST ENGINE
+// (No voting required: Ready button serves as confirmation; changes reset Ready)
 // ============================================================================
+function hideRoomConfigChangeToast() {
+  if (state._configToastTimer) {
+    clearTimeout(state._configToastTimer);
+    state._configToastTimer = null;
+  }
+  document.getElementById("room-config-toast")?.classList.add("hidden");
+  document.getElementById("p2p-re-ready-warning")?.classList.add("hidden");
+}
+
+function showRoomConfigChangeToast(message, tone = "warn", alsoShowInRoomFooter = false) {
+  if (state._configToastTimer) {
+    clearTimeout(state._configToastTimer);
+    state._configToastTimer = null;
+  }
+
+  const toastEl = document.getElementById("room-config-toast");
+  const iconEl = document.getElementById("room-config-toast-icon");
+  const textEl = document.getElementById("room-config-toast-text");
+
+  if (toastEl && textEl) {
+    const cleanMsg = String(message || "").replace(/^(?:🔔|⚙️|⚠️)\s*/u, "");
+    textEl.textContent = cleanMsg;
+    if (iconEl) {
+      iconEl.textContent = tone === "warn" ? "🔔" : "⚙️";
+    }
+    toastEl.className =
+      tone === "warn"
+        ? "fixed top-3 sm:top-3.5 left-1/2 -translate-x-1/2 z-[820] max-w-[94vw] sm:max-w-2xl px-3.5 py-2 rounded-2xl apple-glass bg-slate-900/95 border border-amber-400/50 text-amber-100 text-xs font-bold shadow-2xl pointer-events-none flex items-center gap-2 transition-all duration-300"
+        : "fixed top-3 sm:top-3.5 left-1/2 -translate-x-1/2 z-[820] max-w-[94vw] sm:max-w-2xl px-3.5 py-2 rounded-2xl apple-glass bg-slate-900/95 border border-sky-400/50 text-sky-100 text-xs font-bold shadow-2xl pointer-events-none flex items-center gap-2 transition-all duration-300";
+    toastEl.classList.remove("hidden");
+  }
+
+  const warningBanner = document.getElementById("p2p-re-ready-warning");
+  if (warningBanner) {
+    warningBanner.classList.add("hidden");
+  }
+
+  const durationMs =
+    typeof window.CONFIG_TOAST_DURATION_MS === "number" ? window.CONFIG_TOAST_DURATION_MS : 3200;
+  state._configToastTimer = setTimeout(() => {
+    hideRoomConfigChangeToast();
+  }, durationMs);
+}
+
 function describeConfigDiff(patch) {
   const diffNames = {
     casual: "🟢 休閒難度",
@@ -1062,36 +1119,45 @@ function describeConfigDiff(patch) {
     target_click: "👆 點選指定區塊"
   };
   const qmNames = {
-    region: "🗺️ 區",
-    station: "🚉 車站",
-    mixed: "🔀 混合"
+    region: "🗺️ 猜行政區",
+    station: "🚉 猜車站",
+    mixed: "🔀 區域＋車站混合"
   };
 
   const lines = [];
   if (patch.difficulty && patch.difficulty !== state.difficulty) {
-    lines.push(`挑戰難度：${diffNames[state.difficulty] || state.difficulty} ➔ ${diffNames[patch.difficulty] || patch.difficulty}`);
+    lines.push(`${diffNames[state.difficulty] || state.difficulty} ➔ ${diffNames[patch.difficulty] || patch.difficulty}`);
   }
   if (patch.quizTargetMode && patch.quizTargetMode !== state.quizTargetMode) {
-    lines.push(`挑戰類型：${qmNames[state.quizTargetMode] || state.quizTargetMode} ➔ ${qmNames[patch.quizTargetMode] || patch.quizTargetMode}`);
+    lines.push(`${qmNames[state.quizTargetMode] || state.quizTargetMode} ➔ ${qmNames[patch.quizTargetMode] || patch.quizTargetMode}`);
   }
   if (patch.playMode && patch.playMode !== state.playMode) {
-    lines.push(`出題方式：${pmNames[state.playMode] || state.playMode} ➔ ${pmNames[patch.playMode] || patch.playMode}`);
+    lines.push(`${pmNames[state.playMode] || state.playMode} ➔ ${pmNames[patch.playMode] || patch.playMode}`);
   }
   if (patch.selectedCounties) {
     const newSet = new Set(patch.selectedCounties);
     const townCountStr = patch.selectedTownIds ? ` (${patch.selectedTownIds.length} 區)` : "";
-    lines.push(`行政區範圍：${state.selectedCounties.size} 縣市 ➔ ${newSet.size} 縣市${townCountStr}`);
+    lines.push(`${newSet.size} 縣市${townCountStr}`);
   }
   if (patch.quizStationLines) {
     const newLines = new Set(patch.quizStationLines);
-    lines.push(`車站題庫：${state.quizStationLines.size} 條路線 ➔ ${newLines.size} 條路線`);
+    lines.push(`${newLines.size} 條路線`);
+  }
+  if (typeof patch.showStationTerminusHints === "boolean" && patch.showStationTerminusHints !== state.showStationTerminusHints) {
+    lines.push(patch.showStationTerminusHints ? "開啟頭尾端點站提示" : "關閉頭尾端點站提示");
+  }
+  if (typeof patch.filterStationsByRegion === "boolean" && patch.filterStationsByRegion !== state.filterStationsByRegion) {
+    lines.push(patch.filterStationsByRegion ? "開啟僅猜所選區域內鐵道車站" : "關閉區域鐵道過濾（猜全線車站）");
+  }
+  if (typeof patch.allowTargetHints === "boolean" && patch.allowTargetHints !== state.allowTargetHints) {
+    lines.push(patch.allowTargetHints ? "開放指定/隨機模式提示按鈕" : "禁用 (Ban) 指定/隨機模式提示按鈕");
   }
   if (patch.timerMode) {
     const newTimerDesc = patch.timerMode === "up" ? "正計時" : `倒數 ${Math.round((patch.countdownTotalSec || state.countdownTotalSec) / 60)} 分鐘`;
-    lines.push(`計時規則變更為：${newTimerDesc}`);
+    lines.push(newTimerDesc);
   }
   if (patch.layerRule || patch.forcedLayer || patch.railRule) {
-    lines.push(`底圖/路網限制變更`);
+    lines.push("已更新圖層/路網限制");
   }
   if (lines.length === 0) {
     lines.push("更新房間題庫與比賽設定");
@@ -1110,11 +1176,25 @@ function buildProposedConfigFromPatch(patch) {
   if (typeof patch.showStationTerminusHints === "boolean") {
     base.showStationTerminusHints = patch.showStationTerminusHints;
   }
+  if (typeof patch.filterStationsByRegion === "boolean") {
+    base.filterStationsByRegion = patch.filterStationsByRegion;
+  }
+  if (typeof patch.allowTargetHints === "boolean") {
+    base.allowTargetHints = patch.allowTargetHints;
+  }
   if (patch.timerMode) base.timerMode = patch.timerMode;
   if (patch.countdownTotalSec !== undefined) base.countdownTotalSec = patch.countdownTotalSec;
   if (patch.layerRule) base.layerRule = patch.layerRule;
   if (patch.forcedLayer) base.forcedLayer = patch.forcedLayer;
   if (patch.railRule) base.railRule = patch.railRule;
+
+  if (!patch.quizTargetMode) {
+    if (patch.quizStationLines && patch.quizStationLines.length > 0 && base.quizTargetMode === "region") {
+      base.quizTargetMode = base.selectedCounties.length > 0 ? "mixed" : "station";
+    } else if (patch.selectedCounties && patch.selectedCounties.length > 0 && base.quizTargetMode === "station") {
+      base.quizTargetMode = base.quizStationLines.length > 0 ? "mixed" : "region";
+    }
+  }
 
   if (base.quizTargetMode === "region") {
     base.quizStationLines = [];
@@ -1134,197 +1214,16 @@ function requestOrApplyConfigChange(patch, changeLabel = "比賽設定") {
     return false;
   }
 
-  const proposedCfg = buildProposedConfigFromPatch(patch);
-  const contestingClients = state.isHost && state.roomCode ? getNonHostBattlePlayers() : [];
-
-  // In Solo mode OR Host with 0 contesting human players -> apply immediately (never broadcast if solo!)
-  if (!state.roomCode || contestingClients.length === 0) {
-    applyRemoteSyncConfig(proposedCfg, false, true);
-    if (state.isHost && state.roomCode) {
-      broadcastP2PConfig(true);
-      broadcastRosterFromHost();
-      updateP2PLobbyUI();
-    }
-    return true;
-  }
-
-  // Host has >=1 contesting human players -> Require Unanimous Consent Vote!
   const diffDescriptions = describeConfigDiff(patch);
-  const proposal = {
-    proposalId: "vote_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
-    hostName: state.nickname || "房主",
-    changeLabel,
-    diffDescriptions,
-    proposedConfig: proposedCfg,
-    requiredVoters: contestingClients.map((p) => ({ id: p.id, name: p.name })),
-    votes: {}
-  };
-  state.pendingConfigProposal = proposal;
+  const diffSummary = diffDescriptions.join(" · ");
+  const proposedCfg = buildProposedConfigFromPatch(patch);
 
-  renderScopeModalGrid();
-  renderConfigVoteModalUI(proposal);
-  sendP2PMessage("CONFIG_CHANGE_PROPOSAL", proposal);
-  setFeedback(`🗳️ 已向全體參賽玩家 (${contestingClients.length} 人) 發起「${changeLabel}」變更投票！`, "warn");
-  return false;
-}
-
-function renderConfigVoteModalUI(proposal) {
-  const modal = document.getElementById("modal-config-vote");
-  if (!modal || !proposal) return;
-
-  const titleEl = document.getElementById("config-vote-title");
-  const descEl = document.getElementById("config-vote-desc");
-  const diffListEl = document.getElementById("config-vote-diff-list");
-  const tallyEl = document.getElementById("config-vote-tally-text");
-  const playersListEl = document.getElementById("config-vote-players-list");
-  const playerActions = document.getElementById("config-vote-player-actions");
-  const hostActions = document.getElementById("config-vote-host-actions");
-
-  if (titleEl) {
-    titleEl.textContent = state.isHost
-      ? `⏳ 等待參賽玩家同意變更「${proposal.changeLabel}」`
-      : `👑 房主【${proposal.hostName || "房主"}】申請變更「${proposal.changeLabel}」`;
+  // Apply immediately without voting; if Host in room, reset players' Ready & broadcast lightweight notice!
+  applyRemoteSyncConfig(proposedCfg, false, true);
+  if (state.isHost && state.roomCode) {
+    onHostSettingChange(changeLabel, diffSummary);
   }
-  if (descEl) {
-    descEl.textContent = "須經房內全體參賽選手同意才會生效。";
-  }
-
-  if (diffListEl) {
-    diffListEl.replaceChildren();
-    (proposal.diffDescriptions || []).forEach((line) => {
-      const div = document.createElement("div");
-      div.className = "flex items-center gap-1.5 text-amber-200";
-      div.textContent = `• ${line}`;
-      diffListEl.appendChild(div);
-    });
-  }
-
-  const voters = proposal.requiredVoters || [];
-  const votes = proposal.votes || {};
-  const approvedCount = voters.filter((v) => votes[v.id] === true).length;
-
-  if (tallyEl) {
-    tallyEl.textContent = `${approvedCount} / ${voters.length} 人已同意`;
-  }
-
-  if (playersListEl) {
-    playersListEl.replaceChildren();
-    voters.forEach((v) => {
-      const row = document.createElement("div");
-      row.className = "flex items-center justify-between px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px]";
-      const nSpan = document.createElement("span");
-      nSpan.className = "font-bold text-white";
-      nSpan.textContent = v.name + (v.id === state.localInstanceId ? " (你)" : "");
-      const sSpan = document.createElement("span");
-      if (votes[v.id] === true) {
-        sSpan.className = "text-emerald-400 font-bold";
-        sSpan.textContent = "✅ 已同意";
-      } else if (votes[v.id] === false) {
-        sSpan.className = "text-rose-400 font-bold";
-        sSpan.textContent = "❌ 不同意";
-      } else {
-        sSpan.className = "text-amber-300";
-        sSpan.textContent = "⏳ 投票中...";
-      }
-      row.appendChild(nSpan);
-      row.appendChild(sSpan);
-      playersListEl.appendChild(row);
-    });
-  }
-
-  const isVoter = !state.isHost && state.role === "player" && voters.some((v) => v.id === state.localInstanceId);
-  const hasVoted = votes[state.localInstanceId] !== undefined;
-
-  if (playerActions) {
-    playerActions.classList.toggle("hidden", !isVoter || hasVoted);
-  }
-  if (hostActions) {
-    hostActions.classList.toggle("hidden", !state.isHost);
-  }
-
-  if (state.isHost || isVoter) {
-    modal.classList.remove("hidden");
-  }
-}
-
-function submitConfigChangeVote(approved) {
-  const prop = state.pendingConfigProposal;
-  if (!prop) return;
-  prop.votes = prop.votes || {};
-  prop.votes[state.localInstanceId] = Boolean(approved);
-  renderConfigVoteModalUI(prop);
-  sendP2PMessage("CONFIG_CHANGE_VOTE", {
-    proposalId: prop.proposalId,
-    approved: Boolean(approved),
-    voterName: state.nickname || "玩家"
-  });
-}
-
-function cancelHostConfigProposal() {
-  if (!state.isHost || !state.pendingConfigProposal) return;
-  const propId = state.pendingConfigProposal.proposalId;
-  state.pendingConfigProposal = null;
-  document.getElementById("modal-config-vote")?.classList.add("hidden");
-  sendP2PMessage("CONFIG_CHANGE_RESULT", {
-    proposalId: propId,
-    approved: false,
-    cancelledByHost: true
-  });
-  setFeedback("🚫 已撤回設定變更申請，維持原比賽設定", "info");
-}
-
-function handleIncomingConfigVoteOnHost(payload, senderId) {
-  if (!state.isHost || !state.pendingConfigProposal) return;
-  const prop = state.pendingConfigProposal;
-  if (payload?.proposalId !== prop.proposalId) return;
-
-  prop.votes = prop.votes || {};
-  prop.votes[senderId] = Boolean(payload.approved);
-
-  if (!payload.approved) {
-    const rejecter = payload.voterName || state.players[senderId]?.name || "參賽玩家";
-    state.pendingConfigProposal = null;
-    document.getElementById("modal-config-vote")?.classList.add("hidden");
-    renderScopeModalGrid();
-    sendP2PMessage("CONFIG_CHANGE_RESULT", {
-      proposalId: prop.proposalId,
-      approved: false,
-      rejectedBy: rejecter,
-      changeLabel: prop.changeLabel
-    });
-    setFeedback(`❌ 參賽玩家【${rejecter}】不同意變更「${prop.changeLabel}」，維持原設定！`, "error");
-    playTone("error");
-    return;
-  }
-
-  const allApproved = prop.requiredVoters.every((v) => prop.votes[v.id] === true || state.players[v.id]?.disconnected);
-  if (allApproved) {
-    const finalCfg = prop.proposedConfig;
-    const label = prop.changeLabel;
-    state.pendingConfigProposal = null;
-    document.getElementById("modal-config-vote")?.classList.add("hidden");
-
-    applyRemoteSyncConfig(finalCfg, false, true);
-    getNonHostBattlePlayers().forEach((p) => {
-      p.isReady = false;
-    });
-    sendP2PMessage("CONFIG_CHANGE_RESULT", {
-      proposalId: prop.proposalId,
-      approved: true,
-      config: finalCfg,
-      changeLabel: label
-    });
-    broadcastRosterFromHost();
-    updateP2PLobbyUI();
-    setFeedback(`✅ 全體參賽玩家同意！已套用「${label}」變更。`, "tier");
-    playTone("tier");
-  } else {
-    renderConfigVoteModalUI(prop);
-    sendP2PMessage("CONFIG_VOTE_PROGRESS", {
-      proposalId: prop.proposalId,
-      votes: prop.votes
-    });
-  }
+  return true;
 }
 
 // ============================================================================
@@ -1718,6 +1617,10 @@ function dispatchP2PMessage(msg, sourceConn = null) {
       Object.values(state.players).forEach((p) => { p._viewSets = null; });
       if (state.players[state.localInstanceId]) {
         state.role = state.players[state.localInstanceId].role;
+        if (!state.isHost && state.role !== "spectator" && state.isReady && !state.players[state.localInstanceId].isReady) {
+          state._readyJustClearedByHost = true;
+          state.isReady = false;
+        }
       }
     }
     if (typeof msg.payload?.matchInProgress === "boolean") {
@@ -1757,44 +1660,13 @@ function dispatchP2PMessage(msg, sourceConn = null) {
   } else if (msg.type === "SYNC_CONFIG") {
     if (state.isHost) return;
     applyRemoteSyncConfig(msg.payload, false, true);
-  } else if (msg.type === "CONFIG_CHANGE_PROPOSAL") {
-    if (state.isHost) return;
-    state.pendingConfigProposal = msg.payload;
-    if (state.role === "player") {
-      renderConfigVoteModalUI(msg.payload);
-      playTone("tier");
-      setFeedback(`🗳️ 房主申請變更「${msg.payload?.changeLabel || "設定"}」，請在彈窗中投票表決！`, "warn");
-    } else {
-      setFeedback(`⏳ 房主發起「${msg.payload?.changeLabel || "設定"}」變更投票，等待參賽選手同意中...`, "info");
-    }
-  } else if (msg.type === "CONFIG_CHANGE_VOTE") {
-    handleIncomingConfigVoteOnHost(msg.payload, msg.senderId);
-  } else if (msg.type === "CONFIG_VOTE_PROGRESS") {
-    if (state.pendingConfigProposal && msg.payload?.proposalId === state.pendingConfigProposal.proposalId) {
-      state.pendingConfigProposal.votes = msg.payload.votes || {};
-      renderConfigVoteModalUI(state.pendingConfigProposal);
-    }
-  } else if (msg.type === "CONFIG_CHANGE_RESULT") {
-    state.pendingConfigProposal = null;
-    document.getElementById("modal-config-vote")?.classList.add("hidden");
-    if (msg.payload?.approved && msg.payload?.config) {
-      applyRemoteSyncConfig(msg.payload.config, false, true);
-      setFeedback(`✅ 全體參賽玩家同意！已更新「${msg.payload.changeLabel || "比賽設定"}」`, "tier");
-      playTone("tier");
-    } else {
-      renderScopeModalGrid();
-      const reason = msg.payload?.cancelledByHost
-        ? "🚫 房主已撤回設定變更申請，維持原設定"
-        : `❌ 參賽玩家【${msg.payload?.rejectedBy || "選手"}】不同意變更，維持原設定！`;
-      setFeedback(reason, "warn");
-    }
   } else if (msg.type === "SYNC_READY_STATUS") {
     const targetId = msg.senderId;
     if (state.players[targetId]) {
       const prevReady = state.players[targetId].isReady;
       if (msg.payload?.name) state.players[targetId].name = msg.payload.name;
       state.players[targetId].isReady = Boolean(msg.payload?.ready);
-      if (state.isHost && prevReady !== state.players[targetId].isReady) {
+      if (state.isHost && prevReady !== state.players[targetId].isReady && msg.payload?.reason !== "config_reset") {
         playTone(msg.payload?.ready ? "unlock" : "error");
         setFeedback(
           `玩家【${msg.payload?.name || "對手"}】${msg.payload?.ready ? "已準備完成！" : "取消了準備"}`,
@@ -2066,7 +1938,7 @@ function updateP2PLobbyUI() {
       }
     }
     if (applyScopeBtn) {
-      applyScopeBtn.textContent = nonHostPlayers.length > 0 ? "🗳️ 變更設定並送交表決" : "✅ 確認設定並返回房間";
+      applyScopeBtn.textContent = "✅ 確認設定並返回房間";
     }
   } else {
     // =========================================================================
@@ -2137,7 +2009,7 @@ function updateP2PLobbyUI() {
 function toggleP2PReady() {
   if (!state.roomCode || state.isHost || state.role === "spectator") return;
   state.isReady = !state.isReady;
-  document.getElementById("p2p-re-ready-warning")?.classList.add("hidden");
+  hideRoomConfigChangeToast();
   ensureLocalPlayerInRoster();
   sendP2PMessage("SYNC_READY_STATUS", { ready: state.isReady, name: state.nickname });
   updateP2PLobbyUI();
@@ -2568,7 +2440,7 @@ function hostP2PRoom(existingCode = "", existingPassword = null, restoredPlayers
   state.role = "host";
   state.hubEntryTab = "host";
   state.spectatingPlayerId = null;
-  state.pendingConfigProposal = null;
+  hideRoomConfigChangeToast();
   state.matchInProgress = false;
   state.promptedLastPlayer = false;
   state.isReady = true;
@@ -3140,7 +3012,7 @@ function startSynchronizedP2PCountdown(cfg, isHost) {
   document.getElementById("modal-scope")?.classList.add("hidden");
   document.getElementById("modal-room")?.classList.add("hidden");
   document.getElementById("modal-join-entry")?.classList.add("hidden");
-  document.getElementById("modal-config-vote")?.classList.add("hidden");
+  hideRoomConfigChangeToast();
 
   if (cfg) {
     applyRemoteSyncConfig(cfg, true, true);
@@ -3229,11 +3101,35 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   if (!cfg) return;
   if (!isAuthorized && !canLocalModifyGameConfig() && state.isHost) return;
 
+  const wasReadyBeforeConfig = Boolean(
+    state.isReady || state._readyJustClearedByHost || state.players?.[state.localInstanceId]?.isReady
+  );
+  state._readyJustClearedByHost = false;
+
   if (cfg.quizTargetMode) {
     state.quizTargetMode = cfg.quizTargetMode;
   }
   if (typeof cfg.showStationTerminusHints !== "undefined") {
     state.showStationTerminusHints = Boolean(cfg.showStationTerminusHints);
+    const c1 = document.getElementById("chk-station-terminus-hints");
+    const c2 = document.getElementById("chk-transport-terminus-hints");
+    if (c1) c1.checked = state.showStationTerminusHints;
+    if (c2) c2.checked = state.showStationTerminusHints;
+  }
+  if (typeof cfg.filterStationsByRegion !== "undefined") {
+    state.filterStationsByRegion = Boolean(cfg.filterStationsByRegion);
+    ["chk-mixed-filter-station-region", "chk-simple-filter-station-region", "chk-adv-filter-station-region"].forEach((cid) => {
+      const el = document.getElementById(cid);
+      if (el) el.checked = state.filterStationsByRegion;
+    });
+  }
+  if (typeof cfg.allowTargetHints !== "undefined") {
+    state.allowTargetHints = Boolean(cfg.allowTargetHints);
+    ["chk-allow-target-hints", "chk-room-allow-target-hints"].forEach((cid) => {
+      const el = document.getElementById(cid);
+      if (el) el.checked = state.allowTargetHints;
+    });
+    if (typeof updateTargetBannerUI === "function") updateTargetBannerUI();
   }
   if (Array.isArray(cfg.selectedCounties)) {
     state.selectedCounties = new Set(cfg.selectedCounties);
@@ -3308,30 +3204,65 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   resetGame();
   renderScopeModalGrid();
 
-  if (!fromCountdown && !state.isHost && state.role !== "spectator" && cfg.isSettingChange) {
-    state.isReady = false;
-    sendP2PMessage("SYNC_READY_STATUS", { ready: false, name: state.nickname });
-    const warningBanner = document.getElementById("p2p-re-ready-warning");
-    if (warningBanner) warningBanner.classList.remove("hidden");
-    setFeedback(`⚠️ 房間設定已變更 (${summaryLabel})，請重新確認並點擊「準備」！`, "warn");
+  if (!fromCountdown && !state.isHost && cfg.isSettingChange) {
+    const changeLabel = cfg.changeLabel || "房間設定";
+    const detailText =
+      cfg.changeDetail && cfg.changeDetail !== "更新房間題庫與比賽設定"
+        ? cfg.changeDetail
+        : summaryLabel;
+    if (state.role !== "spectator") {
+      state.isReady = false;
+      if (state.players && state.players[state.localInstanceId]) {
+        state.players[state.localInstanceId].isReady = false;
+      }
+      sendP2PMessage("SYNC_READY_STATUS", {
+        ready: false,
+        name: state.nickname,
+        reason: "config_reset"
+      });
+      const toastMsg = wasReadyBeforeConfig
+        ? `🔔 房主已變更「${changeLabel}」(${detailText})，準備已取消，請重新準備`
+        : `🔔 房主已變更「${changeLabel}」(${detailText})`;
+      setFeedback(toastMsg, "warn");
+      showRoomConfigChangeToast(toastMsg, "warn", true);
+    } else {
+      const toastMsg = `🔔 房主已變更「${changeLabel}」(${detailText})`;
+      setFeedback(toastMsg, "info");
+      showRoomConfigChangeToast(toastMsg, "info", false);
+    }
   }
 
   updateP2PLobbyUI();
 }
 
-function broadcastP2PConfig(isSettingChange = false) {
+function broadcastP2PConfig(isSettingChange = false, changeLabel = "", changeDetail = "") {
   if (!state.isHost || !state.roomCode) return;
-  sendP2PMessage("SYNC_CONFIG", getHostSyncConfig(isSettingChange));
+  const payload = getHostSyncConfig(isSettingChange, changeLabel, changeDetail);
+  state._lastBroadcastConfigJson = JSON.stringify(getHostSyncConfig(false));
+  sendP2PMessage("SYNC_CONFIG", payload);
 }
 
-function onHostSettingChange(name = "") {
+function onHostSettingChange(name = "", detail = "") {
   if (!state.isHost || !state.roomCode) return;
-  getNonHostBattlePlayers().forEach((p) => { p.isReady = false; });
-  state.opponent.isReady = false;
-  broadcastP2PConfig(true);
+  const humanPlayers = getNonHostBattlePlayers().filter((p) => p.id !== "ai_rival");
+  const hadReadyPlayers = humanPlayers.some((p) => p.isReady);
+  humanPlayers.forEach((p) => {
+    p.isReady = false;
+  });
+  if (!state.aiRivalActive) {
+    state.opponent.isReady = false;
+  }
+  syncPrimaryOpponentFromRoster();
+  broadcastP2PConfig(true, name || "比賽設定", detail || "");
   broadcastRosterFromHost();
   updateP2PLobbyUI();
-  setFeedback(`已更新${name ? `「${name}」` : "房間設定"}，已同步所有成員畫面！`, "warn");
+
+  const labelText = name ? `「${name}」` : "房間設定";
+  const detailPart = detail && detail !== "更新房間題庫與比賽設定" ? ` (${detail})` : "";
+  const readyNote = hadReadyPlayers ? " · 已重設玩家準備狀態" : "";
+  const msg = `🔔 已變更${labelText}${detailPart}${readyNote}`;
+  setFeedback(msg, "info");
+  showRoomConfigChangeToast(msg, hadReadyPlayers ? "warn" : "info", false);
 }
 
 function toggleAiRivalSimulation() {

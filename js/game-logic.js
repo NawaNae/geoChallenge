@@ -229,26 +229,38 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
     startTimer();
   }
 
-  // CASE 0: PURE STATION QUIZ MODE (0 counties selected) OR TARGETED STATION DOT OR "站" SUFFIX
+  if (state.playMode === "free") {
+    state.targetStationKey = null;
+    state.targetId = null;
+  }
+
+  // CASE 0: PURE STATION QUIZ MODE (0 counties selected) OR TARGETED STATION DOT (only in target modes) OR "站" SUFFIX
   const isStationQuizActive = state.quizTargetMode !== "region" && state.stationQuizEnabled && state.quizStationLines.size > 0;
   const isPureStationQuiz = state.selectedCounties.size === 0 && isStationQuizActive;
+  const isTargetingStation = (state.playMode === "target_click" || state.playMode === "target_random") && Boolean(state.targetStationKey);
   if (
     isStationQuizActive &&
-    (isPureStationQuiz || state.targetStationKey || core.endsWith("站") || suffix === "站")
+    (isPureStationQuiz || isTargetingStation || core.endsWith("站") || suffix === "站")
   ) {
     if (tryMatchAndUnlockStation(core, combined, isAutoCheck)) {
       return true;
     }
-    if (isPureStationQuiz || state.targetStationKey || core.endsWith("站") || suffix === "站") {
-      if (!isAutoCheck) triggerWrongFeedback(`找不到或已解鎖車站：「${combined}」`);
+    if (isPureStationQuiz || isTargetingStation || core.endsWith("站") || suffix === "站") {
+      if (!isAutoCheck) {
+        triggerWrongFeedback(
+          isTargetingStation
+            ? `與指定目標車站不符：「${combined}」`
+            : `找不到或已解鎖車站：「${combined}」`
+        );
+      }
       return false;
     }
   }
 
   // CASE A: TARGET QUIZ MODE
   if (state.playMode === "target_random" || state.playMode === "target_click") {
-    if (!vState.targetId) {
-      if (!isAutoCheck) setFeedback("請先在地圖上點選一個目標區塊，或點擊「換一題」！", "warn");
+    if (!state.targetId && !state.targetStationKey) {
+      if (!isAutoCheck) setFeedback("請先在地圖上點選一個目標區塊或車站，或使用上方目標控制按鈕！", "warn");
       return false;
     }
 
@@ -736,13 +748,85 @@ function pickNextTargetRegion() {
   if (state.roomCode && typeof broadcastP2PState === "function") broadcastP2PState();
 }
 
+// Exit target/random mode back to normal free recall mode
+function exitTargetQuizMode() {
+  state.targetId = null;
+  state.targetStationKey = null;
+  state.hintLevel = 0;
+  if (canLocalModifyGameConfig()) {
+    if (state.isHost && state.roomCode && state.playMode !== "free") {
+      if (typeof requestOrApplyConfigChange === "function") {
+        requestOrApplyConfigChange({ playMode: "free" }, "出題方式");
+      }
+      return;
+    }
+    state.playMode = "free";
+    if (typeof syncConfigButtonsUI === "function") syncConfigButtonsUI();
+    if (typeof updateModeBadgeText === "function") updateModeBadgeText();
+  }
+  updateTargetBannerUI();
+  if (typeof updateRoadAndRailwayTileOverlays === "function") updateRoadAndRailwayTileOverlays();
+  refreshAllPolygonStyles();
+  if (typeof renderRoomConciseSettingsSummary === "function") renderRoomConciseSettingsSummary();
+  setFeedback("已退出指定/隨機目標視窗，切回一般自由輸入模式！", "info");
+  const inp = document.getElementById("answer-input");
+  if (inp) inp.focus({ preventScroll: true });
+}
+
 // Move target selection to the nearest locked neighbor in direction ('N' | 'S' | 'W' | 'E')
 function moveTargetByDirection(dir) {
   if (state.playMode === "free") {
-    setPlayMode("target_click");
+    return;
   }
   let curLat = state.lastTargetLat;
   let curLng = state.lastTargetLng;
+
+  const isPureStationMode = getScopeTowns().length === 0 && getScopeCounties().length === 0;
+  const moveStation = Boolean(state.targetStationKey || isPureStationMode);
+
+  if (moveStation) {
+    const activeStations = getActiveQuizStations();
+    if (state.targetStationKey) {
+      const curSt = activeStations.find((s) => s.key === state.targetStationKey);
+      if (curSt) { curLat = curSt.lat; curLng = curSt.lng; }
+    }
+    const stCandidates = activeStations.filter((s) => !state.unlockedStations.has(s.key) && s.key !== state.targetStationKey);
+    if (stCandidates.length === 0) return;
+
+    let bestSt = null;
+    let bestStScore = Infinity;
+    stCandidates.forEach((item) => {
+      const dLat = item.lat - curLat;
+      const dLng = item.lng - curLng;
+      const dist = Math.hypot(dLat, dLng);
+      if (dist < 1e-6) return;
+      let primary = 0, perp = 0;
+      if (dir === "N") { primary = dLat; perp = Math.abs(dLng); }
+      else if (dir === "S") { primary = -dLat; perp = Math.abs(dLng); }
+      else if (dir === "E") { primary = dLng; perp = Math.abs(dLat); }
+      else if (dir === "W") { primary = -dLng; perp = Math.abs(dLat); }
+      if (primary <= 0) return;
+      const score = dist + perp * 1.35;
+      if (score < bestStScore) {
+        bestStScore = score;
+        bestSt = item;
+      }
+    });
+    if (!bestSt) return;
+    state.hintLevel = 0;
+    state.targetStationKey = bestSt.key;
+    state.targetId = null;
+    state.lastTargetLat = bestSt.lat;
+    state.lastTargetLng = bestSt.lng;
+    updateRoadAndRailwayTileOverlays();
+    updateTargetBannerUI();
+    refreshAllPolygonStyles();
+    if (state.roomCode && typeof broadcastP2PState === "function") broadcastP2PState();
+    if (map) map.panTo([bestSt.lat, bestSt.lng], { animate: true, duration: 0.35 });
+    const inp = document.getElementById("answer-input");
+    if (inp) inp.focus({ preventScroll: true });
+    return;
+  }
 
   if (state.targetId) {
     if (state.difficulty === "county_only") {
@@ -760,7 +844,6 @@ function moveTargetByDirection(dir) {
 
   if (candidates.length === 0) return;
 
-  // Filter candidates in the requested half-plane and score by distance + directional alignment
   let best = null;
   let bestScore = Infinity;
 
@@ -777,9 +860,8 @@ function moveTargetByDirection(dir) {
     else if (dir === "E") { primary = dLng; perp = Math.abs(dLat); }
     else if (dir === "W") { primary = -dLng; perp = Math.abs(dLat); }
 
-    if (primary <= 0) return; // Must be in the chosen direction
+    if (primary <= 0) return;
 
-    // Score favors close neighbors that align well with the arrow direction
     const score = dist + perp * 1.35;
     if (score < bestScore) {
       bestScore = score;
@@ -787,20 +869,22 @@ function moveTargetByDirection(dir) {
     }
   });
 
-  // Fallback if edge of island reached: pick closest in that general axis or wrap
   if (!best) return;
 
   state.hintLevel = 0;
+  state.targetStationKey = null;
   state.targetId = state.difficulty === "county_only" ? best.name : best.id;
   state.lastTargetLat = best.lat;
   state.lastTargetLng = best.lng;
+  updateRoadAndRailwayTileOverlays();
   updateTargetBannerUI();
   refreshAllPolygonStyles();
   if (state.roomCode && typeof broadcastP2PState === "function") broadcastP2PState();
   if (map) {
     map.panTo([best.lat, best.lng], { animate: true, duration: 0.35 });
   }
-  document.getElementById("answer-input").focus({ preventScroll: true });
+  const inp = document.getElementById("answer-input");
+  if (inp) inp.focus({ preventScroll: true });
 }
 
 function handlePolygonClick(townObj) {
@@ -831,13 +915,16 @@ function handlePolygonClick(townObj) {
       }
       state.targetId = townObj.id;
     }
+    state.targetStationKey = null;
     state.lastTargetLat = townObj.lat;
     state.lastTargetLng = townObj.lng;
     state.hintLevel = 0;
+    updateRoadAndRailwayTileOverlays();
     updateTargetBannerUI();
     refreshAllPolygonStyles();
     if (state.roomCode && typeof broadcastP2PState === "function") broadcastP2PState();
-    document.getElementById("answer-input").focus({ preventScroll: true });
+    const inp = document.getElementById("answer-input");
+    if (inp) inp.focus({ preventScroll: true });
     return;
   }
 
@@ -875,24 +962,40 @@ function updateTargetBannerUI() {
   if (!banner) return;
   const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
 
-  if (state.playMode === "free" && !vState.targetStationKey) {
+  // 一般自由模式 (playMode === "free") 不顯示提示/隨機橫幅，並確保清除殘留目標鎖定
+  if (state.playMode === "free") {
+    state.targetId = null;
+    state.targetStationKey = null;
     banner.classList.add("hidden");
     return;
   }
   banner.classList.remove("hidden");
 
+  const isRandom = state.playMode === "target_random";
+  const isClick = state.playMode === "target_click";
+
+  // 依據模式精確區分按鈕：指定模式只保留上下左右；隨機模式顯示隨機按鈕；提示預設隱藏除非開啟 allowTargetHints；皆可退出
+  const dirGroup = document.getElementById("target-dir-group");
+  const nextBtn = document.getElementById("btn-target-next");
+  const hintBtn = document.getElementById("btn-target-hint");
+  const exitBtn = document.getElementById("btn-target-exit");
+
+  if (dirGroup) dirGroup.classList.toggle("hidden", !isClick);
+  if (nextBtn) nextBtn.classList.toggle("hidden", !isRandom);
+  if (hintBtn) hintBtn.classList.toggle("hidden", !state.allowTargetHints);
+  if (exitBtn) exitBtn.classList.remove("hidden");
+
   if (vState.targetStationKey) {
     const targetSt = getActiveQuizStations().find((s) => s.key === vState.targetStationKey);
     if (targetSt) {
-      titleEl.textContent = "🚉 指定車站作答";
+      titleEl.textContent = isRandom ? "🎯 隨機抽題 · 車站目標" : "👆 指定模式 · 車站目標";
       hintBadge.textContent = targetSt.lineName;
-      descEl.textContent = "請輸入高亮閃爍圓點的「車站名稱」（免加站字亦可）";
+      descEl.textContent = "請輸入高亮圓點的「車站名稱」（或點選地圖其他行政區/車站切換目標）";
       return;
     }
   }
 
-  const isRandom = state.playMode === "target_random";
-  titleEl.textContent = isRandom ? "🎯 指定目標模式 · 隨機抽題" : "👆 指定目標模式 · 自選點選";
+  titleEl.textContent = isRandom ? "🎯 隨機抽題模式" : "👆 指定點選模式";
 
   const reqText =
     state.difficulty === "casual"
@@ -903,9 +1006,11 @@ function updateTargetBannerUI() {
       ? "進階後綴：請輸入正確「鄉鎮市區+後綴」（免縣市）"
       : "困難全名：請輸入完整「縣市+鄉鎮市區+後綴」";
 
-  if (!state.targetId) {
+  if (!vState.targetId) {
     hintBadge.textContent = "等待點選目標";
-    descEl.textContent = "請直接點擊地圖上任一未解鎖區塊或車站圓點進行作答！";
+    descEl.textContent = isClick
+      ? "請點擊地圖區塊/車站，或按右側 ←↑↓→ 鍵切換目標！"
+      : "請點擊右側「🎲 隨機下個」抽取下一個目標！";
   } else {
     hintBadge.textContent = "琥珀色高亮區塊";
     descEl.textContent = reqText;
@@ -913,6 +1018,10 @@ function updateTargetBannerUI() {
 }
 
 function giveTargetHint() {
+  if (!state.allowTargetHints) {
+    setFeedback("🚫 本局未開啟目標提示功能（預設關閉）", "warn");
+    return;
+  }
   if (state.targetStationKey) {
     const st = getActiveQuizStations().find((s) => s.key === state.targetStationKey);
     if (st) {

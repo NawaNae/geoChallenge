@@ -719,3 +719,18 @@ input, select {
   outline: none !important;
   width: 5.2rem;
 }
+
+/* Lightweight Auto-Dismissing Room Setting Change Toast */
+.z-\[820\] { z-index: 820; }
+#room-config-toast {
+  position: fixed;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 820;
+  max-width: min(94vw, 42rem);
+  padding: 0.55rem 0.95rem;
+  border-radius: 1rem;
+  pointer-events: none;
+  box-shadow: 0 16px 36px rgba(2, 6, 23, 0.72);
+}

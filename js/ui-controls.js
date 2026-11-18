@@ -40,6 +40,18 @@ function syncConfigButtonsUI() {
   if (simpleRegBox) simpleRegBox.classList.toggle("hidden", qm === "station");
   if (simpleStBox) simpleStBox.classList.toggle("hidden", qm === "region");
 
+  const mixedSwitchBar = document.getElementById("mixed-region-rail-switch-bar");
+  const wrapSimpleFilter = document.getElementById("wrap-simple-filter-st-region");
+  const wrapAdvFilter = document.getElementById("wrap-adv-filter-st-region");
+  if (mixedSwitchBar) mixedSwitchBar.classList.toggle("hidden", qm !== "mixed");
+  if (wrapSimpleFilter) wrapSimpleFilter.classList.toggle("hidden", qm === "station");
+  if (wrapAdvFilter) wrapAdvFilter.classList.toggle("hidden", qm === "station");
+
+  ["chk-mixed-filter-station-region", "chk-simple-filter-station-region", "chk-adv-filter-station-region"].forEach((cid) => {
+    const el = document.getElementById(cid);
+    if (el) el.checked = Boolean(state.filterStationsByRegion);
+  });
+
   document.querySelectorAll(".diff-btn").forEach((btn) => {
     const d = btn.getAttribute("data-diff");
     const isCurrent = d === state.difficulty;
@@ -54,6 +66,11 @@ function syncConfigButtonsUI() {
     btn.className = isCurrent
       ? "playmode-btn px-2 py-1 rounded-lg text-[11px] font-bold border transition bg-emerald-500/20 border-emerald-400 text-emerald-200"
       : "playmode-btn px-2 py-1 rounded-lg text-[11px] font-bold border border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800";
+  });
+
+  ["chk-allow-target-hints", "chk-room-allow-target-hints"].forEach((cid) => {
+    const el = document.getElementById(cid);
+    if (el) el.checked = Boolean(state.allowTargetHints);
   });
 
   document.querySelectorAll(".hub-timer-btn").forEach((btn) => {
@@ -76,7 +93,7 @@ function setDifficulty(diff) {
     syncConfigButtonsUI();
     return;
   }
-  if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+  if (state.isHost && state.roomCode) {
     if (diff === state.difficulty) return;
     requestOrApplyConfigChange({ difficulty: diff }, "挑戰難度");
     return;
@@ -98,18 +115,21 @@ function setPlayMode(pm) {
     syncConfigButtonsUI();
     return;
   }
-  if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+  if (state.isHost && state.roomCode) {
     if (pm === state.playMode) return;
     requestOrApplyConfigChange({ playMode: pm }, "出題方式");
     return;
   }
   state.playMode = pm;
+  state.targetId = null;
+  state.targetStationKey = null;
+  state.hintLevel = 0;
   syncConfigButtonsUI();
   updateModeBadgeText();
   if (pm === "target_random") {
     pickNextTargetRegion();
   } else {
-    state.targetId = null;
+    if (typeof updateRoadAndRailwayTileOverlays === "function") updateRoadAndRailwayTileOverlays();
     updateTargetBannerUI();
     refreshAllPolygonStyles();
   }
@@ -133,7 +153,10 @@ function updateModeBadgeText() {
   }
 }
 
-function countUniqueStationsForLines(lineIdSet) {
+function countUniqueStationsForLines(lineIdSet, applyRegionFilter = true) {
+  if (typeof buildStationsFromLineSet === "function") {
+    return buildStationsFromLineSet(lineIdSet, applyRegionFilter).length;
+  }
   const seen = new Set();
   TAIWAN_SELECTABLE_LINES.forEach((line) => {
     if (line.isHighway || !lineIdSet.has(line.id)) return;
@@ -205,7 +228,19 @@ function renderLineChecklistView(containerEl, selectedSet, includeHighways, acce
         }
         if (dot) dot.style.background = l.color;
         if (nameSpan) {
-          nameSpan.textContent = l.isHighway ? lineTitle : `${lineTitle} (${l.stations.length}站)`;
+          if (l.isHighway) {
+            nameSpan.textContent = lineTitle;
+          } else if (
+            !includeHighways &&
+            typeof shouldFilterStationsByRegion === "function" &&
+            shouldFilterStationsByRegion()
+          ) {
+            const inReg = countUniqueStationsForLines(new Set([l.id]), true);
+            nameSpan.textContent = `${lineTitle} (區域內 ${inReg}/${l.stations.length}站)`;
+            if (inReg === 0) item.classList.add("opacity-50");
+          } else {
+            nameSpan.textContent = `${lineTitle} (${l.stations.length}站)`;
+          }
         }
         itemsGrid.appendChild(item);
       });
@@ -226,7 +261,9 @@ const SIMPLE_REGION_MAP = {
   islands: () => ALL_TOWNS.filter((t) => ["澎湖縣", "金門縣", "連江縣"].includes(t.countyName)).map((t) => t.id),
   mountain: () => ALL_TOWNS.filter((t) => TAIWAN_MOUNTAIN_SET.has(t.fullCountyTown)).map((t) => t.id),
   west_plain: () => ALL_TOWNS.filter((t) => TAIWAN_WEST_PLAIN_SET.has(t.fullCountyTown)).map((t) => t.id),
-  east_plain: () => ALL_TOWNS.filter((t) => typeof TAIWAN_EAST_PLAIN_SET !== "undefined" && TAIWAN_EAST_PLAIN_SET.has(t.fullCountyTown)).map((t) => t.id)
+  east_plain: () => ALL_TOWNS.filter((t) => typeof TAIWAN_EAST_PLAIN_SET !== "undefined" && TAIWAN_EAST_PLAIN_SET.has(t.fullCountyTown)).map((t) => t.id),
+  west_coast: () => ALL_TOWNS.filter((t) => TAIWAN_WEST_COAST_SET.has(t.fullCountyTown)).map((t) => t.id),
+  east_coast: () => ALL_TOWNS.filter((t) => TAIWAN_EAST_COAST_SET.has(t.fullCountyTown)).map((t) => t.id)
 };
 
 const SIMPLE_STATION_MAP = {
@@ -234,6 +271,8 @@ const SIMPLE_STATION_MAP = {
   khmrt: () => TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway && l.id.startsWith("mrt_kh_")).map((l) => l.id),
   tcmrt: () => TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway && l.id === "mrt_tc_g").map((l) => l.id),
   thsr: () => TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway && l.id === "thsr_main").map((l) => l.id),
+  tra_coast: () => ["tra_coast"],
+  tra_mountain: () => ["tra_mountain"],
   tra_west_main: () => ["tra_west_n", "tra_mountain", "tra_coast", "tra_chengzhui", "tra_west_s", "tra_pingtung"],
   tra_east_main: () => ["tra_yilan", "tra_north_link", "tra_taitung", "tra_south_link"],
   all_main: () =>
@@ -265,6 +304,8 @@ const STATION_PRESETS = [
   { id: "btn-qst-tymrt", getLineIds: () => TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway && l.id === "mrt_ty_a").map((l) => l.id) },
   { id: "btn-qst-allmrt", getLineIds: () => TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway && l.id.startsWith("mrt_")).map((l) => l.id) },
   { id: "btn-qst-lrt", getLineIds: () => TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway && l.id.startsWith("lrt_")).map((l) => l.id) },
+  { id: "btn-qst-tra-coast", getLineIds: SIMPLE_STATION_MAP.tra_coast },
+  { id: "btn-qst-tra-mountain", getLineIds: SIMPLE_STATION_MAP.tra_mountain },
   { id: "btn-qst-tra-west", getLineIds: SIMPLE_STATION_MAP.tra_west_main },
   { id: "btn-qst-tra-east", getLineIds: SIMPLE_STATION_MAP.tra_east_main },
   { id: "btn-qst-tra-branch", getLineIds: () => TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway && ["tra_pingxi", "tra_neiwan", "tra_jiji", "tra_shalun", "tra_chengzhui"].includes(l.id)).map((l) => l.id) },
@@ -316,8 +357,6 @@ function syncPresetButtonsUI() {
     const spanCls =
       key === "all_main"
         ? " col-span-2 sm:col-span-4"
-        : key === "tra_west_main" || key === "tra_east_main"
-        ? " col-span-2 sm:col-span-2"
         : "";
     btn.className = allIn
       ? `simple-station-btn p-2.5 rounded-xl bg-pink-500/25 border border-pink-400 text-white font-bold text-xs flex items-center justify-between gap-1.5 transition shadow${spanCls}`
@@ -422,7 +461,7 @@ function renderScopeModalGrid() {
         }
         const nextCounties = new Set(ALL_TOWNS.filter((t) => nextTowns.has(t.id)).map((t) => t.countyName));
 
-        if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+        if (state.isHost && state.roomCode) {
           requestOrApplyConfigChange(
             {
               selectedTownIds: Array.from(nextTowns),
@@ -455,7 +494,7 @@ function renderScopeModalGrid() {
       if (shouldAdd) nextLines.add(id);
       else nextLines.delete(id);
     });
-    if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+    if (state.isHost && state.roomCode) {
       requestOrApplyConfigChange({ quizStationLines: Array.from(nextLines) }, "車站題庫路線");
       return;
     }
@@ -466,15 +505,36 @@ function renderScopeModalGrid() {
   });
 
   const totalTowns = getScopeTowns().length;
-  const totalStations = countUniqueStationsForLines(state.quizStationLines);
+  const totalStations = countUniqueStationsForLines(state.quizStationLines, true);
+  const unFilteredStations = countUniqueStationsForLines(state.quizStationLines, false);
+  const isRegFilterOn = typeof shouldFilterStationsByRegion === "function" && shouldFilterStationsByRegion();
   const stBadge = document.getElementById("scope-station-status-badge");
   if (stBadge) {
     if (state.quizStationLines.size === 0) {
       stBadge.textContent = "🚫 不猜車站 (0站)";
       stBadge.className = "text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-400";
+    } else if (isRegFilterOn) {
+      stBadge.textContent = `🚉 區域內 ${totalStations} / ${unFilteredStations} 站 (${state.quizStationLines.size}線)`;
+      stBadge.className = totalStations > 0
+        ? "text-[11px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-200 border border-amber-500/40"
+        : "text-[11px] font-bold px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40";
     } else {
       stBadge.textContent = `🚉 已選 ${state.quizStationLines.size} 線 · 共 ${totalStations} 站`;
       stBadge.className = "text-[11px] font-bold px-2 py-0.5 rounded-lg bg-pink-500/20 text-pink-300 border border-pink-500/40";
+    }
+  }
+  const mixedFilterBadge = document.getElementById("mixed-filter-station-badge");
+  if (mixedFilterBadge) {
+    if (state.filterStationsByRegion) {
+      mixedFilterBadge.textContent = totalStations > 0
+        ? `📍 已過濾：僅出題所選區域內 ${totalStations} 座車站 (原 ${unFilteredStations} 站)`
+        : `⚠️ 所選區域內無已選路線之車站 (0 / ${unFilteredStations} 站)`;
+      mixedFilterBadge.className = totalStations > 0
+        ? "text-[11px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-200 border border-amber-400/50"
+        : "text-[11px] font-bold px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-200 border border-rose-400/50";
+    } else {
+      mixedFilterBadge.textContent = `目前：出題所選路線全線車站 (${unFilteredStations} 站)`;
+      mixedFilterBadge.className = "text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700";
     }
   }
 
@@ -507,8 +567,7 @@ const MODAL_IDS = [
   "modal-info",
   "modal-settlement",
   "modal-opponent-finished",
-  "modal-rematch-confirm",
-  "modal-config-vote"
+  "modal-rematch-confirm"
 ];
 
 function syncModalBodyScrollLock() {
@@ -521,6 +580,7 @@ function syncModalBodyScrollLock() {
 
 // Opens the simplified Room Lobby / Create-Join Modal (#modal-room)
 function openRoomModal() {
+  document.getElementById("modal-scope")?.classList.add("hidden");
   updateP2PLobbyUI();
   const modal = document.getElementById("modal-room");
   if (modal) modal.classList.remove("hidden");
@@ -915,7 +975,7 @@ function bindAllUIEvents() {
 
   const handleTerminusToggle = (checked) => {
     if (!canLocalModifyGameConfig()) return;
-    if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+    if (state.isHost && state.roomCode) {
       requestOrApplyConfigChange({ showStationTerminusHints: checked }, "頭尾端點站提示");
       return;
     }
@@ -933,6 +993,31 @@ function bindAllUIEvents() {
 
   document.getElementById("chk-station-terminus-hints")?.addEventListener("change", (e) => handleTerminusToggle(e.target.checked));
   document.getElementById("chk-transport-terminus-hints")?.addEventListener("change", (e) => handleTerminusToggle(e.target.checked));
+
+  const handleFilterStationsByRegionToggle = (checked) => {
+    if (!canLocalModifyGameConfig()) {
+      setFeedback("🔒 僅房主可調整區域鐵道過濾設定！", "warn");
+      syncConfigButtonsUI();
+      return;
+    }
+    if (state.isHost && state.roomCode) {
+      requestOrApplyConfigChange({ filterStationsByRegion: checked }, "區域鐵道過濾");
+      return;
+    }
+    state.filterStationsByRegion = Boolean(checked);
+    ["chk-mixed-filter-station-region", "chk-simple-filter-station-region", "chk-adv-filter-station-region"].forEach((cid) => {
+      const el = document.getElementById(cid);
+      if (el) el.checked = state.filterStationsByRegion;
+    });
+    renderScopeModalGrid();
+    if (typeof updateRoadAndRailwayTileOverlays === "function") updateRoadAndRailwayTileOverlays();
+    if (typeof updateScoreAndProgressUI === "function") updateScoreAndProgressUI();
+    if (state.isHost && state.roomCode) onHostSettingChange("區域鐵道過濾");
+  };
+
+  ["chk-mixed-filter-station-region", "chk-simple-filter-station-region", "chk-adv-filter-station-region"].forEach((cid) => {
+    document.getElementById(cid)?.addEventListener("change", (e) => handleFilterStationsByRegionToggle(e.target.checked));
+  });
 
   // Transport Preset Buttons
   document.getElementById("btn-tpreset-all").addEventListener("click", () => {
@@ -1024,7 +1109,7 @@ function bindAllUIEvents() {
       if (!canLocalModifyGameConfig()) return;
       const mode = btn.getAttribute("data-timermode") || "up";
       const sec = parseInt(btn.getAttribute("data-sec"), 10) || 300;
-      if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+      if (state.isHost && state.roomCode) {
         requestOrApplyConfigChange({ timerMode: mode, countdownTotalSec: sec }, "計時模式");
         return;
       }
@@ -1039,12 +1124,36 @@ function bindAllUIEvents() {
     });
   });
 
-  document.getElementById("btn-target-next").addEventListener("click", () => pickNextTargetRegion());
-  document.getElementById("btn-target-hint").addEventListener("click", () => giveTargetHint());
-  document.getElementById("btn-dir-n").addEventListener("click", () => moveTargetByDirection("N"));
-  document.getElementById("btn-dir-s").addEventListener("click", () => moveTargetByDirection("S"));
-  document.getElementById("btn-dir-w").addEventListener("click", () => moveTargetByDirection("W"));
-  document.getElementById("btn-dir-e").addEventListener("click", () => moveTargetByDirection("E"));
+  document.getElementById("btn-target-next")?.addEventListener("click", () => pickNextTargetRegion());
+  document.getElementById("btn-target-hint")?.addEventListener("click", () => giveTargetHint());
+  document.getElementById("btn-target-exit")?.addEventListener("click", () => exitTargetQuizMode());
+  document.getElementById("btn-dir-n")?.addEventListener("click", () => moveTargetByDirection("N"));
+  document.getElementById("btn-dir-s")?.addEventListener("click", () => moveTargetByDirection("S"));
+  document.getElementById("btn-dir-w")?.addEventListener("click", () => moveTargetByDirection("W"));
+  document.getElementById("btn-dir-e")?.addEventListener("click", () => moveTargetByDirection("E"));
+
+  const handleAllowTargetHintsToggle = (checked) => {
+    if (!canLocalModifyGameConfig()) {
+      setFeedback("🔒 僅房主可調整目標提示開關！", "warn");
+      syncConfigButtonsUI();
+      return;
+    }
+    if (state.isHost && state.roomCode) {
+      requestOrApplyConfigChange({ allowTargetHints: Boolean(checked) }, "目標提示權限");
+      return;
+    }
+    state.allowTargetHints = Boolean(checked);
+    ["chk-allow-target-hints", "chk-room-allow-target-hints"].forEach((cid) => {
+      const el = document.getElementById(cid);
+      if (el) el.checked = state.allowTargetHints;
+    });
+    updateTargetBannerUI();
+    if (typeof renderRoomConciseSettingsSummary === "function") renderRoomConciseSettingsSummary();
+    if (state.isHost && state.roomCode) onHostSettingChange("目標提示權限");
+  };
+  ["chk-allow-target-hints", "chk-room-allow-target-hints"].forEach((cid) => {
+    document.getElementById(cid)?.addEventListener("change", (e) => handleAllowTargetHintsToggle(e.target.checked));
+  });
 
   window.addEventListener("keydown", (e) => {
     if (e.isComposing || state.isImeComposing) return;
@@ -1253,7 +1362,7 @@ function bindAllUIEvents() {
         }
       }
 
-      if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+      if (state.isHost && state.roomCode) {
         requestOrApplyConfigChange(
           {
             quizTargetMode: qm,
@@ -1346,7 +1455,7 @@ function bindAllUIEvents() {
       ALL_TOWNS.filter((t) => nextTowns.has(t.id)).map((t) => t.countyName)
     );
 
-    if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+    if (state.isHost && state.roomCode) {
       requestOrApplyConfigChange(
         {
           selectedTownIds: Array.from(nextTowns),
@@ -1382,7 +1491,7 @@ function bindAllUIEvents() {
       nextLines = new Set(targetLineIds);
     }
 
-    if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+    if (state.isHost && state.roomCode) {
       requestOrApplyConfigChange({ quizStationLines: Array.from(nextLines) }, "車站題庫");
       return;
     }
@@ -1539,9 +1648,14 @@ function bindAllUIEvents() {
       setFeedback(`🚉 已開啟車站挑戰 (共 ${state.quizStationLines.size} 條路線、${activeSt.length} 座車站)！`, "tier");
     }
 
-    // Only broadcast if local user is Host in an active room! Solo mode never broadcasts!
+    if (typeof syncModalBodyScrollLock === "function") syncModalBodyScrollLock();
+
+    // Only broadcast if local user is Host in an active room and config changed on apply! Solo mode never broadcasts!
     if (state.isHost && state.roomCode) {
-      onHostSettingChange("題庫範圍");
+      const currentSig = JSON.stringify(getHostSyncConfig(false));
+      if (state._lastBroadcastConfigJson !== currentSig) {
+        onHostSettingChange("題庫範圍", summaryLabel);
+      }
     }
   });
 
@@ -1640,7 +1754,7 @@ function bindAllUIEvents() {
     const lrule = document.getElementById("p2p-layer-rule-select").value;
     const flayer = document.getElementById("p2p-forced-layer-select").value;
     const rrule = document.getElementById("p2p-rail-rule-select").value;
-    if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+    if (state.isHost && state.roomCode) {
       requestOrApplyConfigChange({ layerRule: lrule, forcedLayer: flayer, railRule: rrule }, label);
       return;
     }
@@ -1652,10 +1766,6 @@ function bindAllUIEvents() {
   document.getElementById("p2p-forced-layer-select")?.addEventListener("change", () => handleLayerRuleChange("指定底圖"));
   document.getElementById("p2p-rail-rule-select")?.addEventListener("change", () => handleLayerRuleChange("路網規則"));
 
-  // Consensus Vote Modal Buttons
-  document.getElementById("btn-vote-approve")?.addEventListener("click", () => submitConfigChangeVote(true));
-  document.getElementById("btn-vote-reject")?.addEventListener("click", () => submitConfigChangeVote(false));
-  document.getElementById("btn-vote-cancel")?.addEventListener("click", () => cancelHostConfigProposal());
 
   // Host Start Battle
   document.getElementById("btn-p2p-sync-start").addEventListener("click", () => {
@@ -1733,7 +1843,7 @@ function bindAllUIEvents() {
       const mode = btn.getAttribute("data-timermode");
       const sec = parseInt(btn.getAttribute("data-sec"), 10) || 300;
       document.getElementById("modal-timer").classList.add("hidden");
-      if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+      if (state.isHost && state.roomCode) {
         requestOrApplyConfigChange({ timerMode: mode, countdownTotalSec: sec }, "計時模式");
         return;
       }
@@ -1751,7 +1861,7 @@ function bindAllUIEvents() {
     if (!canLocalModifyGameConfig()) return;
     const mins = Math.max(1, parseInt(document.getElementById("custom-countdown-min").value, 10) || 5);
     document.getElementById("modal-timer").classList.add("hidden");
-    if (state.isHost && state.roomCode && getNonHostBattlePlayers().length > 0) {
+    if (state.isHost && state.roomCode) {
       requestOrApplyConfigChange({ timerMode: "down", countdownTotalSec: mins * 60 }, "自訂倒數時間");
       return;
     }

@@ -562,6 +562,7 @@ function finishGame(reason = "victory") {
   const correctAttempts = (state.stats && state.stats.correctAttempts) || grandScore;
   const accuracy = totalAttempts > 0 ? Math.round((correctAttempts / totalAttempts) * 100) : 100;
   const maxStreak = (state.stats && state.stats.maxStreak) || 0;
+  const blockStats = computeClearedBlocksStats(scopeCounties, scopeTowns, activeSt);
 
   state.finalStats = {
     name: (document.getElementById("p2p-nickname-input")?.value.trim()) || state.nickname || "玩家",
@@ -572,6 +573,16 @@ function finishGame(reason = "victory") {
     unlockedStCount,
     stationTotal: activeSt.length,
     elapsedSec: state.elapsedSec,
+    timerMode: state.timerMode,
+    countdownTotalSec: state.countdownTotalSec,
+    difficulty: state.difficulty,
+    completedCounties: blockStats.completedCounties,
+    totalScopeCounties: blockStats.totalScopeCounties,
+    completedLines: blockStats.completedLines,
+    totalScopeLines: blockStats.totalScopeLines,
+    completedBlocks: blockStats.completedBlocks,
+    totalBlocks: blockStats.totalBlocks,
+    clearedSummaryText: blockStats.clearedSummaryText,
     accuracy,
     wrongAttempts,
     maxStreak,
@@ -590,23 +601,601 @@ function finishGame(reason = "victory") {
   if (reason === "victory") {
     setFeedback(`🎉 恭喜全數通關！共完成 ${grandScore} 題，耗時 ${formatTime(state.elapsedSec)}！`, "tier");
   } else if (reason === "timeout") {
-    setFeedback("⏰ 時間到！已揭曉全部未完成題目並生成挑戰成績單。", "error");
+    setFeedback("⏰ 時間到！已依答題速率與破關區塊數生成挑戰成績單。", "error");
   } else {
     setFeedback("已提早結束本局，揭曉未完成地名並生成挑戰成績單！", "warn");
   }
 }
 
-function getGradeFromStats(stats) {
-  const pct = stats.grandTotal > 0 ? (stats.grandScore / stats.grandTotal) * 100 : 0;
-  if (pct >= 100) {
-    if (stats.elapsedSec <= 300) return { grade: "SSS", title: "台灣全島制霸地理神", desc: "神乎其技！全島 100% 盲猜破關" };
-    if (stats.elapsedSec <= 600) return { grade: "SS", title: "環島特急神速達人", desc: "極速通關！精熟台灣全島地理" };
-    return { grade: "S+", title: "台灣全島通關大師", desc: "堅毅沉穩！成功解鎖所有目標" };
+function computeClearedBlocksStats(scopeCountiesArg, scopeTownsArg, activeStArg) {
+  const scopeCounties = scopeCountiesArg || getScopeCounties();
+  const scopeTowns = scopeTownsArg || getScopeTowns();
+  const activeSt = activeStArg || getActiveQuizStations();
+  const hasRegionScope = state.quizTargetMode !== "station" && (scopeTowns.length > 0 || scopeCounties.length > 0);
+
+  let completedCounties = 0;
+  let totalScopeCounties = 0;
+  if (hasRegionScope) {
+    if (state.difficulty === "county_only") {
+      totalScopeCounties = scopeCounties.length;
+      completedCounties = scopeCounties.filter((c) => state.unlockedCounties.has(c.name)).length;
+    } else {
+      const townsByCounty = new Map();
+      scopeTowns.forEach((t) => {
+        if (!townsByCounty.has(t.countyName)) townsByCounty.set(t.countyName, []);
+        townsByCounty.get(t.countyName).push(t);
+      });
+      totalScopeCounties = townsByCounty.size;
+      townsByCounty.forEach((tList) => {
+        if (tList.length > 0 && tList.every((t) => state.unlockedTowns.has(t.id))) {
+          completedCounties++;
+        }
+      });
+    }
   }
-  if (pct >= 90) return { grade: "S", title: "卓越級·台灣地理通", desc: "近乎完美！對台灣鄉土瞭若指掌" };
-  if (pct >= 75) return { grade: "A", title: "嫻熟級·在地探索專家", desc: "表現亮眼！掌握絕大多數核心地名" };
-  if (pct >= 50) return { grade: "B", title: "潛力級·環島見習生", desc: "循序漸進！已經跨過全島半數門檻" };
-  return { grade: "C", title: "起步級·啟程旅人", desc: "邁開步伐！踏上認識台灣的第一步" };
+
+  let completedLines = 0;
+  let totalScopeLines = 0;
+  if (activeSt.length > 0 && state.quizStationLines instanceof Set && state.quizStationLines.size > 0) {
+    TAIWAN_SELECTABLE_LINES.forEach((line) => {
+      if (line.isHighway || !state.quizStationLines.has(line.id)) return;
+      const lineSt = activeSt.filter((s) => s.lineIds && s.lineIds.includes(line.id));
+      if (lineSt.length > 0) {
+        totalScopeLines++;
+        if (lineSt.every((s) => state.unlockedStations.has(s.key))) {
+          completedLines++;
+        }
+      }
+    });
+  }
+
+  const completedBlocks = completedCounties + completedLines;
+  const totalBlocks = totalScopeCounties + totalScopeLines;
+  const parts = [];
+  if (totalScopeCounties > 0) parts.push(`破關 ${completedCounties}/${totalScopeCounties} 縣市`);
+  if (totalScopeLines > 0) parts.push(`${completedLines}/${totalScopeLines} 路線`);
+  const clearedSummaryText = parts.length > 0 ? parts.join(" · ") : `破關 ${completedBlocks} 區塊`;
+
+  return {
+    completedCounties,
+    totalScopeCounties,
+    completedLines,
+    totalScopeLines,
+    completedBlocks,
+    totalBlocks,
+    clearedSummaryText
+  };
+}
+
+const COUNTY_MAYOR_TITLES = {
+  "臺北市": { mayor: "台北市長", god: "首都天龍制霸神", expert: "台北首都專家", master: "台北街區達人" },
+  "新北市": { mayor: "新北市長", god: "新北29區山海大霸主", expert: "新北山海專家", master: "新北都會達人" },
+  "桃園市": { mayor: "桃園市長", god: "國門之都制霸神", expert: "桃園台地專家", master: "桃園生活圈達人" },
+  "臺中市": { mayor: "台中市長", god: "中台灣山海屯霸主", expert: "台中山海屯專家", master: "大台中地理達人" },
+  "臺南市": { mayor: "台南市長", god: "府城南瀛37區霸主", expert: "台南府城專家", master: "古都南瀛達人" },
+  "高雄市": { mayor: "高雄市長", god: "港都山海38區大霸主", expert: "高雄港都專家", master: "南霸天港都達人" },
+  "基隆市": { mayor: "基隆市長", god: "雨都港灣制霸王", expert: "基隆山海港專家", master: "雨都探索達人" },
+  "新竹市": { mayor: "新竹市長", god: "竹塹風城科技霸主", expert: "新竹風城專家", master: "竹市科技達人" },
+  "新竹縣": { mayor: "新竹縣長", god: "竹縣山海客庄霸主", expert: "新竹縣地理專家", master: "竹縣客庄達人" },
+  "苗栗縣": { mayor: "苗栗縣長", god: "苗栗山城聖王 · 苗栗國王", expert: "苗栗山海線專家", master: "苗栗山城達人" },
+  "彰化縣": { mayor: "彰化縣長", god: "半線26鄉鎮平原霸主", expert: "彰化平原專家", master: "半線古都達人" },
+  "南投縣": { mayor: "南投縣長", god: "台灣內地百岳山神", expert: "南投山城專家", master: "南投百岳達人" },
+  "雲林縣": { mayor: "雲林縣長", god: "雲嘉南農業首都霸主", expert: "雲林平原海口專家", master: "雲林鄉土達人" },
+  "嘉義市": { mayor: "嘉義市長", god: "諸羅桃城制霸王", expert: "嘉義桃城專家", master: "諸羅城市達人" },
+  "嘉義縣": { mayor: "嘉義縣長", god: "阿里山與嘉南山海霸主", expert: "嘉義山海平原專家", master: "嘉縣山海達人" },
+  "屏東縣": { mayor: "屏東縣長", god: "國境之南33鄉鎮霸主", expert: "屏東山海半島專家", master: "南國半島達人" },
+  "宜蘭縣": { mayor: "宜蘭縣長", god: "蘭陽平原山海霸主", expert: "宜蘭噶瑪蘭專家", master: "蘭陽山海達人" },
+  "花蓮縣": { mayor: "花蓮縣長", god: "洄瀾縱谷太魯閣霸主", expert: "花蓮後山專家", master: "洄瀾山海達人" },
+  "臺東縣": { mayor: "台東縣長", god: "日昇之都山海離島霸主", expert: "台東縱谷海岸專家", master: "台東山海達人" },
+  "澎湖縣": { mayor: "澎湖縣長", god: "菊島群島航海霸主", expert: "澎湖菊島專家", master: "澎湖跳島達人" },
+  "金門縣": { mayor: "金門縣長", god: "浯江戰地最高司令", expert: "金門戰地專家", master: "金門列島達人" },
+  "連江縣": { mayor: "連江縣長", god: "馬祖列島藍眼淚霸主", expert: "馬祖列島專家", master: "馬祖跳島達人" }
+};
+
+function makeTierTitles(scopeLabel, sssTitle, ssTitle, spTitle, sTitle, aTitle, bTitle, cTitle) {
+  return {
+    scopeLabel,
+    titles: {
+      SSS: sssTitle,
+      SS: ssTitle,
+      "S+": spTitle,
+      S: sTitle,
+      A: aTitle,
+      B: bTitle || `${scopeLabel}見習挑戰者`,
+      C: cTitle || `${scopeLabel}啟程旅人`
+    }
+  };
+}
+
+function detectRegionThemeProfile() {
+  const townIds = state.selectedTownIds instanceof Set
+    ? state.selectedTownIds
+    : new Set(ALL_TOWNS.filter((t) => state.selectedCounties.has(t.countyName)).map((t) => t.id));
+  if (state.quizTargetMode === "station" || townIds.size === 0) return null;
+
+  if (state.difficulty === "county_only" && state.selectedCounties.size === 22) {
+    return makeTierTitles(
+      "台灣22縣市",
+      "👑 台灣22縣市總督 · 全島霸主",
+      "🗺️ 22縣市極速制霸宗師",
+      "🗺️ 台灣縣市通關大師",
+      "🗺️ 台灣縣市地理專家",
+      "🧭 台灣行政區達人"
+    );
+  }
+
+  if (townIds.size === ALL_TOWNS.length) {
+    return makeTierTitles(
+      "台灣全島",
+      "👑 台灣全島制霸地理神",
+      "🚄 環島特急神速宗師",
+      "🏆 台灣全島通關大師",
+      "🗺️ 台灣全島地理專家",
+      "🧭 在地鄉土探索達人",
+      "🌱 環島地理見習生",
+      "🚶 認識台灣啟程旅人"
+    );
+  }
+
+  const checkExact = (arr) => arr.length === townIds.size && arr.every((id) => townIds.has(id));
+
+  const westCoastIds = ALL_TOWNS.filter((t) => TAIWAN_WEST_COAST_SET.has(t.fullCountyTown)).map((t) => t.id);
+  const eastCoastIds = ALL_TOWNS.filter((t) => TAIWAN_EAST_COAST_SET.has(t.fullCountyTown)).map((t) => t.id);
+  const bothCoastIds = Array.from(new Set([...westCoastIds, ...eastCoastIds]));
+  const mountainIds = ALL_TOWNS.filter((t) => TAIWAN_MOUNTAIN_SET.has(t.fullCountyTown)).map((t) => t.id);
+  const westPlainIds = ALL_TOWNS.filter((t) => TAIWAN_WEST_PLAIN_SET.has(t.fullCountyTown)).map((t) => t.id);
+  const eastPlainIds = ALL_TOWNS.filter((t) => typeof TAIWAN_EAST_PLAIN_SET !== "undefined" && TAIWAN_EAST_PLAIN_SET.has(t.fullCountyTown)).map((t) => t.id);
+  const bothPlainIds = Array.from(new Set([...westPlainIds, ...eastPlainIds]));
+  const northIds = ALL_TOWNS.filter((t) => ["臺北市", "新北市", "基隆市", "新竹市", "桃園市", "新竹縣", "宜蘭縣"].includes(t.countyName)).map((t) => t.id);
+  const centralIds = ALL_TOWNS.filter((t) => ["苗栗縣", "臺中市", "彰化縣", "南投縣", "雲林縣"].includes(t.countyName)).map((t) => t.id);
+  const southIds = ALL_TOWNS.filter((t) => ["嘉義市", "嘉義縣", "臺南市", "高雄市", "屏東縣", "澎湖縣"].includes(t.countyName)).map((t) => t.id);
+  const eastIds = ALL_TOWNS.filter((t) => ["花蓮縣", "臺東縣"].includes(t.countyName)).map((t) => t.id);
+  const islandIds = ALL_TOWNS.filter((t) => ["澎湖縣", "金門縣", "連江縣"].includes(t.countyName)).map((t) => t.id);
+  const sixIds = ALL_TOWNS.filter((t) => t.isSpecial).map((t) => t.id);
+  const westIds = ALL_TOWNS.filter((t) => TAIWAN_WEST_COUNTY_SET.has(t.countyName)).map((t) => t.id);
+
+  if (checkExact(westCoastIds)) {
+    return makeTierTitles(
+      "西部濱海",
+      "👑 西濱王者 · 台61破風霸主",
+      "🌊 西濱極速領航宗師",
+      "🌅 西海岸全線通關大師",
+      "🌊 西部濱海專家",
+      "🦀 西濱海口探索達人",
+      "🚲 西濱追風見習騎士",
+      "🏖️ 西海岸踏浪旅人"
+    );
+  }
+  if (checkExact(eastCoastIds)) {
+    return makeTierTitles(
+      "東部濱海",
+      "👑 東濱王者 · 太平洋黑潮海神",
+      "🌊 台11線東海岸制霸宗師",
+      "🌅 蘇花東海岸通關大師",
+      "🌊 東部濱海專家",
+      "🐬 東海岸山海探索達人",
+      "🚲 東濱太平洋見習生",
+      "🏖️ 東海岸看海旅人"
+    );
+  }
+  if (checkExact(bothCoastIds)) {
+    return makeTierTitles(
+      "全台濱海",
+      "🔱 台灣環島海神 · 雙濱王者",
+      "🌊 環島海岸線制霸宗師",
+      "⚓ 全台濱海通關大師",
+      "🌊 台灣環島濱海專家",
+      "🐚 環島海岸線達人"
+    );
+  }
+  if (checkExact(mountainIds)) {
+    return makeTierTitles(
+      "台灣山區",
+      "⛰️ 台灣護國山神",
+      "🦅 中央山脈縱走霸主",
+      "🌲 百岳山林通關宗師",
+      "⛰️ 台灣山區專家",
+      "🥾 高山原鄉探索達人",
+      "🌿 山林步道見習山友",
+      "🏕️ 初入山林登山客"
+    );
+  }
+  if (checkExact(westPlainIds)) {
+    return makeTierTitles(
+      "西部平原",
+      "🌾 西部平原王者 · 沃野之神",
+      "🏙️ 西半部平原台地宗師",
+      "🌾 西部平原通關大師",
+      "🌾 西部平原專家",
+      "🚜 西部平原探索達人"
+    );
+  }
+  if (checkExact(eastPlainIds)) {
+    return makeTierTitles(
+      "東部平原",
+      "🌾 蘭陽花東縱谷之神",
+      "🏞️ 東部平原縱谷霸主",
+      "🌾 東部平原通關大師",
+      "🌾 東部平原專家",
+      "🚲 蘭陽縱谷探索達人"
+    );
+  }
+  if (checkExact(bothPlainIds)) {
+    return makeTierTitles(
+      "全台平地",
+      "🌾 台灣全境平原大霸主",
+      "🏙️ 全台平原盆地宗師",
+      "🌾 全台平地通關大師",
+      "🌾 台灣平地地理專家",
+      "🚜 平原城鄉探索達人"
+    );
+  }
+  if (checkExact(northIds)) {
+    return makeTierTitles(
+      "北部地區",
+      "👑 北台灣總督 · 北部王者",
+      "🏙️ 北北基桃竹宜制霸宗師",
+      "⬆️ 北部全境通關大師",
+      "⬆️ 北部專家",
+      "🧭 北台灣生活圈達人"
+    );
+  }
+  if (checkExact(centralIds)) {
+    return makeTierTitles(
+      "中部地區",
+      "👑 中台灣霸主 · 中部王者",
+      "⛰️ 苗中彰投雲制霸宗師",
+      "⛰️ 中部全境通關大師",
+      "⛰️ 中部專家",
+      "🧭 中台灣生活圈達人"
+    );
+  }
+  if (checkExact(southIds)) {
+    return makeTierTitles(
+      "南部地區",
+      "👑 南台灣霸主 · 南霸天王者",
+      "☀️ 嘉南高屏澎制霸宗師",
+      "☀️ 南部全境通關大師",
+      "☀️ 南部專家",
+      "🧭 南台灣生活圈達人"
+    );
+  }
+  if (checkExact(eastIds)) {
+    return makeTierTitles(
+      "東部地區",
+      "👑 後山山海霸主 · 花東王者",
+      "🌊 花東縱谷海岸制霸宗師",
+      "🌊 東部全境通關大師",
+      "🌊 東部專家",
+      "🧭 花東山海探索達人"
+    );
+  }
+  if (checkExact(islandIds)) {
+    return makeTierTitles(
+      "外島澎金馬",
+      "👑 台海跳島霸主 · 離島航海王",
+      "🏝️ 澎金馬外島制霸宗師",
+      "🏝️ 外島全境通關大師",
+      "🏝️ 外島專家",
+      "⛴️ 澎金馬跳島達人"
+    );
+  }
+  if (checkExact(sixIds)) {
+    return makeTierTitles(
+      "六都直轄市",
+      "👑 六都聯合總督 · 都會王者",
+      "🏙️ 六大直轄市制霸宗師",
+      "🏙️ 六都全境通關大師",
+      "🏙️ 六都專家",
+      "🚇 六都都會生活達人"
+    );
+  }
+  if (checkExact(westIds)) {
+    return makeTierTitles(
+      "西部16縣市",
+      "👑 西台灣大霸主 · 西部王者",
+      "🚄 西半部16縣市制霸宗師",
+      "🗺️ 西部全境通關大師",
+      "🗺️ 西部地理專家",
+      "🧭 西台灣走廊達人"
+    );
+  }
+
+  // Single County Selected (e.g. 台北市長、新北市長、桃園市長、苗栗縣長...)
+  const activeCounties = TAIWAN_ADMIN_DATA.filter((c) =>
+    ALL_TOWNS.some((t) => t.countyName === c.name && townIds.has(t.id))
+  );
+  if (activeCounties.length === 1) {
+    const c = activeCounties[0];
+    const allCountyTowns = ALL_TOWNS.filter((t) => t.countyName === c.name);
+    const isFullCounty = allCountyTowns.every((t) => townIds.has(t.id));
+    const m = COUNTY_MAYOR_TITLES[c.name] || {
+      mayor: `${c.short || c.name}首長`,
+      god: `${c.name}制霸王者`,
+      expert: `${c.name}地理專家`,
+      master: `${c.name}在地達人`
+    };
+    if (isFullCounty) {
+      return makeTierTitles(
+        c.name,
+        `👑 榮譽${m.mayor} · ${m.god}`,
+        `🏛️ 榮譽${m.mayor}`,
+        `🎖️ 準${m.mayor} · ${c.short}通關大師`,
+        `🗺️ ${m.expert}`,
+        `🧭 ${m.master}`,
+        `🌱 ${c.short}見習市民`,
+        `🚶 ${c.short}觀光旅人`
+      );
+    }
+  }
+
+  // Famous Multi-County Metropolitan / Regional Combos
+  const cSet = new Set(activeCounties.map((c) => c.name));
+  const hasOnly = (names) => names.length === cSet.size && names.every((n) => cSet.has(n));
+  if (hasOnly(["臺北市", "新北市"])) {
+    return makeTierTitles("雙北都會", "👑 雙北聯合總督 · 首都圈霸主", "🏙️ 雙北41區制霸宗師", "🏙️ 雙北通關大師", "🏙️ 雙北專家", "🚇 雙北生活圈達人");
+  }
+  if (hasOnly(["臺北市", "新北市", "基隆市"])) {
+    return makeTierTitles("北北基", "👑 北北基首都圈大霸主", "🏙️ 北北基山海制霸宗師", "🏙️ 北北基通關大師", "🏙️ 北北基專家", "🧭 北北基生活圈達人");
+  }
+  if (hasOnly(["臺北市", "新北市", "基隆市", "桃園市"])) {
+    return makeTierTitles("北北基桃", "👑 北北基桃千萬都會總督", "🏙️ 北北基桃制霸宗師", "🏙️ 北北基桃通關大師", "🏙️ 北北基桃專家", "🚇 北北基桃通勤達人");
+  }
+  if (hasOnly(["新竹市", "新竹縣"]) || hasOnly(["新竹市", "新竹縣", "苗栗縣"])) {
+    const lbl = cSet.has("苗栗縣") ? "竹竹苗" : "大新竹";
+    return makeTierTitles(lbl, `👑 ${lbl}矽谷山城大霸主`, `🔬 ${lbl}科技走廊宗師`, `🗺️ ${lbl}通關大師`, `🗺️ ${lbl}專家`, `🧭 ${lbl}生活圈達人`);
+  }
+  if (hasOnly(["臺中市", "彰化縣", "南投縣"])) {
+    return makeTierTitles("中彰投", "👑 中彰投山海平原總督", "⛰️ 中彰投制霸宗師", "🗺️ 中彰投通關大師", "🗺️ 中彰投專家", "🧭 中彰投生活圈達人");
+  }
+  if (hasOnly(["嘉義市", "嘉義縣"])) {
+    return makeTierTitles("大嘉義", "👑 大嘉義諸羅山海霸主", "🌲 嘉市嘉縣制霸宗師", "🗺️ 大嘉義通關大師", "🗺️ 嘉義專家", "🧭 諸羅山海達人");
+  }
+  if (hasOnly(["雲林縣", "嘉義市", "嘉義縣", "臺南市"])) {
+    return makeTierTitles("雲嘉南", "👑 雲嘉南平原大霸主", "🌾 嘉南平原制霸宗師", "🌾 雲嘉南通關大師", "🌾 雲嘉南專家", "🧭 雲嘉南生活圈達人");
+  }
+  if (hasOnly(["高雄市", "屏東縣"])) {
+    return makeTierTitles("高屏地區", "👑 高屏南霸天聯合總督", "☀️ 高屏山海制霸宗師", "☀️ 高屏通關大師", "☀️ 高屏專家", "🧭 高屏生活圈達人");
+  }
+  if (hasOnly(["宜蘭縣", "花蓮縣", "臺東縣"])) {
+    return makeTierTitles("宜花東", "👑 宜花東太平洋縱谷總督", "🌊 宜花東山海制霸宗師", "🌊 宜花東通關大師", "🌊 宜花東專家", "🧭 東台灣山海達人");
+  }
+
+  // Check if user selected a subset of a terrain (e.g. 東部山區, 北部濱海, etc.)
+  const allInMountain = Array.from(townIds).every((id) => {
+    const t = ALL_TOWNS.find((x) => x.id === id);
+    return t && TAIWAN_MOUNTAIN_SET.has(t.fullCountyTown);
+  });
+  if (allInMountain) {
+    return makeTierTitles("山區部落", "⛰️ 山岳領域護國山神", "🦅 高山縱走制霸宗師", "🌲 山區通關大師", "⛰️ 山區地理專家", "🥾 山林探索達人");
+  }
+  const allInCoast = Array.from(townIds).every((id) => {
+    const t = ALL_TOWNS.find((x) => x.id === id);
+    return t && (TAIWAN_WEST_COAST_SET.has(t.fullCountyTown) || TAIWAN_EAST_COAST_SET.has(t.fullCountyTown));
+  });
+  if (allInCoast) {
+    return makeTierTitles("濱海地區", "🌊 海岸線破風王者", "🌊 濱海極速領航宗師", "🌅 濱海通關大師", "🌊 濱海地理專家", "🦀 海岸探索達人");
+  }
+
+  const shortNames = activeCounties.slice(0, 3).map((c) => c.short || c.name).join("");
+  const label = activeCounties.length > 3 ? `${shortNames}等${activeCounties.length}縣市` : (shortNames || "自選區域");
+  return makeTierTitles(
+    label,
+    `👑 ${label}制霸王者`,
+    `⚡ ${label}極速宗師`,
+    `🏆 ${label}通關大師`,
+    `🗺️ ${label}地理專家`,
+    `🧭 ${label}探索達人`
+  );
+}
+
+function detectStationThemeProfile() {
+  if (state.quizTargetMode === "region" || !state.stationQuizEnabled || !(state.quizStationLines instanceof Set) || state.quizStationLines.size === 0) {
+    return null;
+  }
+  const sel = state.quizStationLines;
+  const hasExactLines = (arr) => arr.length === sel.size && arr.every((id) => sel.has(id));
+
+  // Single Line Special Titles
+  if (sel.size === 1) {
+    const lid = Array.from(sel)[0];
+    const singleLineMap = {
+      tra_coast: makeTierTitles("台鐵海線", "🌊 台鐵海線王者 · 海風木造站宗師", "🚆 海岸線鐵道制霸霸主", "🚆 台鐵海線通關大師", "🚆 台鐵海線專家", "🚆 海線五寶鐵道達人"),
+      tra_mountain: makeTierTitles("台鐵山線", "⛰️ 台鐵山線王者 · 舊山線勝興宗師", "🚆 臺中線山岳鐵道霸主", "🚆 台鐵山線通關大師", "🚆 台鐵山線專家", "🚆 山線鐵道探索達人"),
+      tra_west_n: makeTierTitles("台鐵縱貫線北段", "👑 縱貫線北段王者 · 北台鐵道霸主", "🚆 縱貫北段極速宗師", "🚆 縱貫線北段通關大師", "🚆 台鐵縱貫北段專家", "🚆 縱貫北段通勤達人"),
+      tra_west_s: makeTierTitles("台鐵縱貫線南段", "👑 縱貫線南段王者 · 嘉南鐵道霸主", "🚆 縱貫南段極速宗師", "🚆 縱貫線南段通關大師", "🚆 台鐵縱貫南段專家", "🚆 縱貫南段鐵道達人"),
+      tra_pingtung: makeTierTitles("台鐵屏東線", "👑 台鐵屏東線王者 · 南國鐵道霸主", "🚆 屏東線制霸宗師", "🚆 台鐵屏東線通關大師", "🚆 台鐵屏東線專家", "🚆 屏東線鐵道達人"),
+      tra_yilan: makeTierTitles("台鐵宜蘭線", "👑 台鐵宜蘭線王者 · 東北角鐵道霸主", "🚆 宜蘭線山海鐵道宗師", "🚆 台鐵宜蘭線通關大師", "🚆 台鐵宜蘭線專家", "🚆 宜蘭線鐵道達人"),
+      tra_north_link: makeTierTitles("台鐵北迴線", "👑 北迴線王者 · 清水斷崖鐵道神", "🚆 北迴線山海隧道宗師", "🚆 台鐵北迴線通關大師", "🚆 台鐵北迴線專家", "🚆 北迴線鐵道達人"),
+      tra_taitung: makeTierTitles("台鐵花東線", "👑 花東線王者 · 縱谷稻浪鐵道神", "🚆 花東線極速制霸宗師", "🚆 台鐵花東線通關大師", "🚆 台鐵花東線專家", "🚆 花東縱谷鐵道達人"),
+      tra_south_link: makeTierTitles("台鐵南迴線", "👑 南迴線王者 · 藍皮解憂鐵道神", "🚆 南迴線穿山越海宗師", "🚆 台鐵南迴線通關大師", "🚆 台鐵南迴線專家", "🚆 南迴山海鐵道達人"),
+      tra_pingxi: makeTierTitles("平溪深澳支線", "🏮 平溪線天燈鐵道王者", "🚆 平溪深澳支線宗師", "🚆 平溪支線通關大師", "🚆 平溪支線專家", "🚆 平溪鐵道漫遊達人"),
+      tra_neiwan: makeTierTitles("內灣六家支線", "🌸 內灣線客庄鐵道王者", "🚆 內灣六家支線宗師", "🚆 內灣支線通關大師", "🚆 內灣支線專家", "🚆 內灣鐵道漫遊達人"),
+      tra_jiji: makeTierTitles("集集支線", "🌲 集集線綠色隧道鐵道王", "🚆 集集支線制霸宗師", "🚆 集集支線通關大師", "🚆 集集支線專家", "🚆 集集鐵道漫遊達人"),
+      tra_shalun: makeTierTitles("沙崙支線", "🚄 沙崙支線雙鐵轉乘王者", "🚆 沙崙支線制霸宗師", "🚆 沙崙支線通關大師", "🚆 沙崙支線專家", "🚆 沙崙線達人"),
+      tra_chengzhui: makeTierTitles("成追線", "🎫 成追線追分成功金榜王者", "🚆 成追線鐵道宗師", "🚆 成追線通關大師", "🚆 成追線專家", "🚆 追分成功達人"),
+      thsr_main: makeTierTitles("台灣高鐵", "🚄 台灣高鐵時速300極速王者", "🚄 高鐵一日生活圈宗師", "🚄 台灣高鐵通關大師", "🚄 台灣高鐵專家", "🚄 高鐵商務旅運達人"),
+      mrt_tpe_r: makeTierTitles("北捷淡水信義線", "🚇 淡水信義紅線制霸王者", "🚇 北捷紅線極速宗師", "🚇 淡水信義線通關大師", "🚇 北捷紅線專家", "🚇 紅線通勤達人"),
+      mrt_tpe_bl: makeTierTitles("北捷板南線", "🚇 板南藍線黃金動脈王者", "🚇 北捷藍線極速宗師", "🚇 板南線通關大師", "🚇 北捷板南線專家", "🚇 藍線通勤達人"),
+      mrt_tpe_g: makeTierTitles("北捷松山新店線", "🚇 松山新店綠線制霸王者", "🚇 北捷綠線極速宗師", "🚇 松山新店線通關大師", "🚇 北捷綠線專家", "🚇 綠線通勤達人"),
+      mrt_tpe_o: makeTierTitles("北捷中和新蘆線", "🚇 中和新蘆橘線雙支線王者", "🚇 北捷橘線極速宗師", "🚇 中和新蘆線通關大師", "🚇 北捷橘線專家", "🚇 橘線大橋頭達人"),
+      mrt_tpe_br: makeTierTitles("北捷文湖線", "🚇 文湖棕線高架制霸王者", "🚇 北捷文湖線極速宗師", "🚇 文湖線通關大師", "🚇 北捷文湖線專家", "🚇 文湖線通勤達人"),
+      mrt_ntpc_y: makeTierTitles("新北環狀線", "🚇 新北環狀線跨區制霸王者", "🚇 環狀黃線極速宗師", "🚇 新北環狀線通關大師", "🚇 新北環狀線專家", "🚇 環狀線轉乘達人"),
+      mrt_ntpc_lb: makeTierTitles("新北三鶯線", "🚇 新北三鶯線陶瓷走廊王者", "🚇 三鶯線極速宗師", "🚇 三鶯線通關大師", "🚇 新北三鶯線專家", "🚇 三鶯線達人"),
+      mrt_ty_a: makeTierTitles("桃園機場捷運", "✈️ 機場捷運國門飛翔王者", "🚇 桃捷紫線極速宗師", "🚇 機場捷運通關大師", "🚇 桃園機捷專家", "🚇 國門機捷達人"),
+      mrt_tc_g: makeTierTitles("台中捷運綠線", "🚇 台中捷運綠線制霸王者", "🚇 中捷烏日文心宗師", "🚇 台中捷運通關大師", "🚇 台中捷運專家", "🚇 中捷綠線達人"),
+      mrt_kh_r: makeTierTitles("高雄捷運紅線", "🚇 高捷紅線港都南北王者", "🚇 高捷紅線極速宗師", "🚇 高捷紅線通關大師", "🚇 高捷紅線專家", "🚇 高捷紅線達人"),
+      mrt_kh_o: makeTierTitles("高雄捷運橘線", "🚇 高捷橘線美麗島制霸王者", "🚇 高捷橘線極速宗師", "🚇 高捷橘線通關大師", "🚇 高捷橘線專家", "🚇 高捷橘線達人"),
+      lrt_danhai: makeTierTitles("淡海輕軌", "🚋 淡海輕軌山海藍綠王者", "🚋 淡海輕軌極速宗師", "🚋 淡海輕軌通關大師", "🚋 淡海輕軌專家", "🚋 淡海追風達人"),
+      lrt_ankeng: makeTierTitles("安坑輕軌", "🚋 安坑輕軌安心橋制霸王者", "🚋 安坑輕軌極速宗師", "🚋 安坑輕軌通關大師", "🚋 安坑輕軌專家", "🚋 安坑輕軌達人"),
+      lrt_kaohsiung: makeTierTitles("高雄環狀輕軌", "🚋 高雄輕軌龍貓隧道大王者", "🚋 高雄環狀輕軌宗師", "🚋 高雄輕軌通關大師", "🚋 高雄輕軌專家", "🚋 港都輕軌漫遊達人"),
+      for_alishan: makeTierTitles("阿里山林鐵", "🌲 阿里山森林鐵路神木霸主", "🚂 獨立山螺旋登山鐵道宗師", "🌲 阿里山林鐵通關大師", "🌲 阿里山林鐵專家", "🌲 阿里山小火車達人")
+    };
+    if (singleLineMap[lid]) return singleLineMap[lid];
+  }
+
+  // Multi-Line Presets & Combinations
+  if (hasExactLines(["tra_mountain", "tra_coast"]) || hasExactLines(["tra_mountain", "tra_coast", "tra_chengzhui"])) {
+    return makeTierTitles("台鐵山海線", "👑 台鐵山海雙線王者 · 追分成功宗師", "🚆 中部山海鐵道制霸霸主", "🚆 台鐵山海線通關大師", "🚆 台鐵山海線專家", "🚆 山海線鐵道達人");
+  }
+  if (hasExactLines(["tra_west_n", "tra_mountain", "tra_coast", "tra_chengzhui", "tra_west_s", "tra_pingtung"])) {
+    return makeTierTitles("台鐵西部主線", "👑 西部幹線鐵道王者 · 縱貫山海霸主", "🚆 台鐵西部主線極速宗師", "🚆 台鐵西部主線通關大師", "🚆 台鐵西部主線專家", "🚆 西部幹線鐵道達人");
+  }
+  if (hasExactLines(["tra_yilan", "tra_north_link", "tra_taitung", "tra_south_link"])) {
+    return makeTierTitles("台鐵東部主線", "👑 東部幹線鐵道王者 · 山海環線霸主", "🚆 台鐵東部主線極速宗師", "🚆 台鐵東部主線通關大師", "🚆 台鐵東部主線專家", "🚆 東部幹線鐵道達人");
+  }
+  if (Array.from(sel).every((id) => id.startsWith("tra_"))) {
+    if (sel.size >= 10) {
+      return makeTierTitles("台鐵全線", "👑 台鐵環島全線大宗師 · 榮譽鐵道局長", "🚆 台鐵環島路網極速霸主", "🚆 台鐵全線通關大師", "🚆 台鐵全線鐵道專家", "🚆 環島鐵道旅行達人");
+    }
+    if (Array.from(sel).every((id) => ["tra_pingxi", "tra_neiwan", "tra_jiji", "tra_shalun", "tra_chengzhui"].includes(id))) {
+      return makeTierTitles("台鐵觀光支線", "👑 台鐵觀光支線大滿貫王者", "🚆 台鐵支線制霸宗師", "🚆 台鐵支線通關大師", "🚆 台鐵支線專家", "🚆 支線鐵道漫遊達人");
+    }
+    return makeTierTitles("台鐵路網", "👑 台鐵鐵道制霸王者", "🚆 台鐵路網極速宗師", "🚆 台鐵路網通關大師", "🚆 台鐵鐵道專家", "🚆 台鐵鐵道達人");
+  }
+
+  if (Array.from(sel).every((id) => id.startsWith("mrt_tpe_") || id === "mrt_ntpc_y" || id === "mrt_ntpc_lb")) {
+    return makeTierTitles("雙北捷運", "👑 雙北捷運路網總工程師 · 北捷王者", "🚇 雙北捷運極速制霸宗師", "🚇 台北捷運全網通關大師", "🚇 台北捷運專家", "🚇 北捷轉乘通勤達人");
+  }
+  if (Array.from(sel).every((id) => id.startsWith("mrt_kh_") || id === "lrt_kaohsiung")) {
+    return makeTierTitles("高雄捷運與輕軌", "👑 高雄捷運港都路網霸主", "🚇 高捷紅橘輕軌制霸宗師", "🚇 高雄捷運通關大師", "🚇 高雄捷運專家", "🚇 港都捷運達人");
+  }
+  if (Array.from(sel).every((id) => id.startsWith("mrt_"))) {
+    return makeTierTitles("全台捷運", "👑 全台五大都會捷運總霸主", "🚇 全台捷運路網極速宗師", "🚇 全台捷運通關大師", "🚇 全台捷運專家", "🚇 都會捷運路網達人");
+  }
+  if (Array.from(sel).every((id) => id.startsWith("lrt_"))) {
+    return makeTierTitles("全台輕軌", "👑 全台輕軌系統制霸王者", "🚋 淡海安坑高雄輕軌宗師", "🚋 全台輕軌通關大師", "🚋 台灣輕軌專家", "🚋 輕軌漫遊達人");
+  }
+  if (Array.from(sel).every((id) => id.startsWith("for_") || id.startsWith("sug_") || id.startsWith("gon_"))) {
+    return makeTierTitles("林鐵糖鐵纜車", "👑 台灣林鐵糖鐵五分車文化大宗師", "🌲 觀光鐵道與纜車制霸霸主", "🍬 林鐵糖鐵纜車通關大師", "🌲 台灣觀光鐵道專家", "🚂 懷舊鐵道探索達人");
+  }
+
+  return makeTierTitles("台灣軌道全網", "👑 台灣鐵道與捷運全網大宗師", "🚄 全台軌道交通極速霸主", "🚆 台灣軌道全網通關大師", "🚆 台灣軌道交通專家", "🚉 台灣鐵道捷運達人");
+}
+
+function getGradeFromStats(stats) {
+  const grandScore = Number(stats.grandScore || 0);
+  const grandTotal = Math.max(1, Number(stats.grandTotal || 1));
+  const pct = (grandScore / grandTotal) * 100;
+  const elapsedSec = Math.max(1, Number(stats.elapsedSec || state.elapsedSec || 1));
+  const qPerSec = grandScore / elapsedSec;
+  const secPerQ = grandScore > 0 ? elapsedSec / grandScore : 999;
+
+  const isCountdown = (stats.timerMode || state.timerMode) === "down";
+  const countdownLimitSec = Number(stats.countdownTotalSec || state.countdownTotalSec || 300);
+  const diff = stats.difficulty || state.difficulty || "casual";
+  const diffMult =
+    diff === "master_hierarchy"
+      ? 1.65
+      : diff === "hard_full"
+      ? 1.45
+      : diff === "hard_suffix"
+      ? 1.2
+      : 1.0;
+
+  const completedBlocks = Number(
+    stats.completedBlocks ??
+      computeClearedBlocksStats().completedBlocks ??
+      0
+  );
+  const clearedText = stats.clearedSummaryText || computeClearedBlocksStats().clearedSummaryText;
+
+  // 1. Determine Grade Tier (SSS / SS / S+ / S / A / B / C)
+  //    - Scales dynamically by question speed (qPerSec / secPerQ) & cleared blocks (completedBlocks)
+  //    - In Countdown Mode, never penalizes the player when grandTotal is too large to finish in time!
+  let grade = "C";
+  if (grandScore <= 0) {
+    grade = "C";
+  } else if (pct >= 100) {
+    // 100% Full Clear: Judge SSS / SS / S+ by average seconds per question (scaled by difficulty)
+    if (secPerQ <= 2.4 * diffMult || (grandTotal <= 20 && elapsedSec <= 45 * diffMult)) {
+      grade = "SSS";
+    } else if (secPerQ <= 4.2 * diffMult || (grandTotal <= 20 && elapsedSec <= 80 * diffMult)) {
+      grade = "SS";
+    } else {
+      grade = "S+";
+    }
+  } else if (isCountdown) {
+    // Countdown Mode (< 100% total pool):
+    // Evaluate by answering pace (questions per second) + expected capacity in countdown window + cleared blocks bonus!
+    const benchmarkSecPerQ = 3.0 * diffMult;
+    const expectedTargetCount = Math.min(grandTotal, Math.max(10, Math.round(countdownLimitSec / benchmarkSecPerQ)));
+    const paceRatio = grandScore / expectedTargetCount;
+    const adjQPerSec = qPerSec * diffMult;
+    const speedRatio = adjQPerSec / 0.33; // 0.33 q/s (3.0s/q) = 1.0 baseline S/SS pace
+    const blockBonus = completedBlocks * 0.035;
+    const countdownScore = Math.max(paceRatio, speedRatio * 0.85 + paceRatio * 0.15) + blockBonus;
+
+    if (countdownScore >= 1.15 || (grandScore >= 25 && adjQPerSec >= 0.42)) {
+      grade = "SSS";
+    } else if (countdownScore >= 0.95 || (grandScore >= 20 && adjQPerSec >= 0.33)) {
+      grade = "SS";
+    } else if (countdownScore >= 0.80 || (grandScore >= 16 && adjQPerSec >= 0.26)) {
+      grade = "S+";
+    } else if (countdownScore >= 0.65 || pct >= 88) {
+      grade = "S";
+    } else if (countdownScore >= 0.45 || pct >= 70) {
+      grade = "A";
+    } else if (countdownScore >= 0.24 || pct >= 45) {
+      grade = "B";
+    } else {
+      grade = "C";
+    }
+  } else {
+    // Count-Up Mode (< 100%, early give-up):
+    // Combine completion percentage with high-volume speed & cleared block bonus
+    const adjQPerSec = qPerSec * diffMult;
+    const speedBonus = grandScore >= 60 && adjQPerSec >= 0.30 ? 12 : grandScore >= 35 && adjQPerSec >= 0.25 ? 6 : 0;
+    const effectivePct = Math.min(99, pct + completedBlocks * 1.8 + speedBonus);
+    if (effectivePct >= 90) grade = "S";
+    else if (effectivePct >= 75) grade = "A";
+    else if (effectivePct >= 50) grade = "B";
+    else grade = "C";
+  }
+
+  // 2. Determine Scope-Specific Title & Slogan
+  const regTheme = detectRegionThemeProfile();
+  const stTheme = detectStationThemeProfile();
+
+  let title = "";
+  let scopeLabel = "台灣地理";
+  if (regTheme && stTheme) {
+    const rTitle = (regTheme.titles[grade] || regTheme.scopeLabel).replace(/^[👑🌊⛰️🌾🏙️⬆️☀️🏝️🔱🚄🚆🚇🚋🌲🏮🌸✈️🎫🏆⚡🧭🌱🚶]+\s*/, "");
+    const sTitle = (stTheme.titles[grade] || stTheme.scopeLabel).replace(/^[👑🌊⛰️🌾🏙️⬆️☀️🏝️🔱🚄🚆🚇🚋🌲🏮🌸✈️🎫🏆⚡🧭🌱🚶]+\s*/, "");
+    const rShort = rTitle.split(" · ")[0];
+    const sShort = sTitle.split(" · ")[0];
+    const filterTag = state.filterStationsByRegion ? " (區域鐵道)" : "";
+    title = `${rShort} × ${sShort}`;
+    scopeLabel = `${regTheme.scopeLabel}＋${stTheme.scopeLabel}${filterTag}`;
+  } else if (stTheme) {
+    title = stTheme.titles[grade] || stTheme.titles.S;
+    scopeLabel = stTheme.scopeLabel;
+  } else if (regTheme) {
+    title = regTheme.titles[grade] || regTheme.titles.S;
+    scopeLabel = regTheme.scopeLabel;
+  } else {
+    title = "台灣地理探索旅人";
+  }
+
+  const qPerSecStr = qPerSec.toFixed(2);
+  const secPerQStr = grandScore > 0 ? secPerQ.toFixed(1) : "0.0";
+  let desc = "";
+  if (pct >= 100) {
+    desc = `100% 完美制霸【${scopeLabel}】！平均 ${secPerQStr} 秒/題 (${qPerSecStr} 題/秒) · ${clearedText}`;
+  } else if (isCountdown) {
+    const mins = Math.round(countdownLimitSec / 60);
+    desc = `限時 ${mins} 分鐘極限衝刺【${scopeLabel}】！速率 ${qPerSecStr} 題/秒 (${secPerQStr} 秒/題) · ${clearedText}`;
+  } else {
+    desc = `挑戰【${scopeLabel}】完成 ${grandScore}/${grandTotal} 題 (${pct.toFixed(1)}%) · 速率 ${qPerSecStr} 題/秒 · ${clearedText}`;
+  }
+
+  const victoryHeadline = pct >= 100
+    ? `🎉 恭喜通關！【${scopeLabel}】完全制霸`
+    : isCountdown
+    ? `⏱️ 限時挑戰完成！【${scopeLabel}】結算`
+    : `🏁 挑戰結算完成！【${scopeLabel}】`;
+
+  return { grade, title, desc, scopeLabel, victoryHeadline, qPerSecStr, secPerQStr, clearedText };
 }
 
 function getBattleOutcome(myStats, oppStats) {
@@ -785,9 +1374,11 @@ function showSettlementModal() {
     const gradeInfo = getGradeFromStats(stats);
     document.getElementById("settlement-grade").textContent = gradeInfo.grade;
     document.getElementById("settlement-grade-title").textContent = gradeInfo.title;
+    const gradeDescEl = document.getElementById("settlement-grade-desc");
+    if (gradeDescEl) gradeDescEl.textContent = gradeInfo.desc;
 
     if (titleEl) {
-      titleEl.textContent = pctNum >= 100 ? "🎉 恭喜通關！台灣全島制霸" : "挑戰結算完成！";
+      titleEl.textContent = gradeInfo.victoryHeadline || (pctNum >= 100 ? "🎉 恭喜通關！台灣全島制霸" : "挑戰結算完成！");
     }
     if (iconBox) iconBox.textContent = pctNum >= 100 ? "👑" : "🏆";
   } else {
@@ -975,11 +1566,16 @@ function showSettlementModal() {
   document.getElementById("settlement-grand-score").textContent = `${stats.grandScore} / ${stats.grandTotal} 題`;
   document.getElementById("settlement-time").textContent = formatTime(stats.elapsedSec);
   const avgSec = stats.grandScore > 0 ? (stats.elapsedSec / stats.grandScore).toFixed(1) : "0.0";
-  document.getElementById("settlement-speed").textContent = `每題 ${avgSec} 秒`;
+  const qPerSecVal = stats.elapsedSec > 0 ? (stats.grandScore / stats.elapsedSec).toFixed(2) : "0.00";
+  document.getElementById("settlement-speed").textContent = `${qPerSecVal} 題/秒 (${avgSec}秒/題)`;
   document.getElementById("settlement-acc").textContent = `${stats.accuracy}%`;
   document.getElementById("settlement-wrong").textContent = `答錯 ${stats.wrongAttempts} 次`;
   document.getElementById("settlement-streak").textContent = `${stats.maxStreak} 題`;
   document.getElementById("settlement-breakdown").textContent = `${stats.adminCurrent}區 / ${stats.unlockedStCount}站`;
+  const clearedEl = document.getElementById("settlement-cleared-blocks");
+  if (clearedEl) {
+    clearedEl.textContent = stats.clearedSummaryText || computeClearedBlocksStats().clearedSummaryText;
+  }
 
   modal.classList.remove("hidden");
   document.getElementById("btn-reopen-settlement")?.classList.add("hidden");
@@ -1170,15 +1766,18 @@ function downloadSettlementCard() {
   drawRoundedRect(ctx, 96, 486, fillW, 10, 5, "#38bdf8", null);
 
   // 5. 2x2 Metric Cards
-  const diffNames = { casual: "休閒提示", county_only: "縣市挑戰", hard_full: "困難全名", master_hierarchy: "三階宗師" };
+  const diffNames = { casual: "休閒提示", county_only: "縣市挑戰", hard_suffix: "進階後綴", hard_full: "困難全名", master_hierarchy: "三階宗師" };
   const diffLabel = diffNames[state.difficulty] || state.difficulty;
   const avgSec = stats.grandScore > 0 ? (stats.elapsedSec / stats.grandScore).toFixed(1) : "0.0";
+  const qPerSecVal = stats.elapsedSec > 0 ? (stats.grandScore / stats.elapsedSec).toFixed(2) : "0.00";
+  const gInfoForCard = getGradeFromStats(stats);
+  const clearedTextForCard = stats.clearedSummaryText || gInfoForCard.clearedText || "";
 
   const cards = [
-    { title: "⏱️ 總計耗時", val: formatTime(stats.elapsedSec), sub: `平均每題 ${avgSec} 秒`, x: 568, y: 248, color: "#ffffff" },
+    { title: "⏱️ 總耗時與速率", val: formatTime(stats.elapsedSec), sub: `${qPerSecVal} 題/秒 (每題 ${avgSec} 秒)`, x: 568, y: 248, color: "#ffffff" },
     { title: "🎯 答題正確率", val: `${stats.accuracy}%`, sub: `答對 ${stats.grandScore} · 答錯 ${stats.wrongAttempts} 次`, x: 864, y: 248, color: "#34d399" },
-    { title: "🔥 最高連對", val: `${stats.maxStreak} 題`, sub: "無間斷連續答對紀錄", x: 568, y: 396, color: "#f59e0b" },
-    { title: "🗺️ 挑戰模式", val: diffLabel, sub: state.selectedCounties.size === 22 ? "全台 368 行政區" : `自選 ${state.selectedCounties.size} 縣市`, x: 864, y: 396, color: "#38bdf8" }
+    { title: "🔥 最高連對", val: `${stats.maxStreak} 題`, sub: clearedTextForCard || "無間斷連續答對紀錄", x: 568, y: 396, color: "#f59e0b" },
+    { title: "🗺️ 挑戰範圍與難度", val: diffLabel, sub: gInfoForCard.scopeLabel || (state.selectedCounties.size === 22 ? "全台 368 行政區" : `自選 ${state.selectedCounties.size} 縣市`), x: 864, y: 396, color: "#38bdf8" }
   ];
 
   cards.forEach((c) => {
@@ -1256,15 +1855,18 @@ function formatSettlementShareText(stats, isMultiplayer, oppStats) {
     }
   } else {
     const grade = getGradeFromStats(stats);
-    resultLine = `🏆 評級稱號：【${grade.grade}】· ${grade.title}`;
+    resultLine = `🏆 評級稱號：【${grade.grade}】· ${grade.title}\n💬 評語標語：${grade.desc}`;
   }
+  const avgSec = stats.grandScore > 0 ? (stats.elapsedSec / stats.grandScore).toFixed(1) : "0.0";
+  const qPerSecVal = stats.elapsedSec > 0 ? (stats.grandScore / stats.elapsedSec).toFixed(2) : "0.00";
+  const clearedText = stats.clearedSummaryText || computeClearedBlocksStats().clearedSummaryText;
 
   return [
     `🗺️ 【Taiwan GeoMaster Pro · 台灣地理挑戰成績單】`,
     `👤 挑戰者：${stats.name}`,
     resultLine,
-    `📊 總完成度：${pctStr} (${stats.grandScore} / ${stats.grandTotal} 題)`,
-    `⏱️ 總計耗時：${formatTime(stats.elapsedSec)}`,
+    `📊 總完成度：${pctStr} (${stats.grandScore} / ${stats.grandTotal} 題 · ${clearedText})`,
+    `⏱️ 耗時與速率：${formatTime(stats.elapsedSec)} (${qPerSecVal} 題/秒 · 平均 ${avgSec} 秒/題)`,
     `🎯 答題正確率：${stats.accuracy}% (答錯 ${stats.wrongAttempts} 次)`,
     `🔥 最高連擊：${stats.maxStreak} 連對`,
     `🎮 難度模式：${diffLabel}`,

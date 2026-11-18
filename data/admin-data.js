@@ -173,7 +173,13 @@ const TAIWAN_WEST_COUNTIES = [
 ];
 const TAIWAN_WEST_COUNTY_SET = new Set(TAIWAN_WEST_COUNTIES);
 
-// 西部濱海鄉鎮 (面台灣海峽與西側海域之臨海鄉鎮市區，參考中央氣象署鄉鎮沿海預報)
+// 本島縣市所轄之海上離島鄉鎮（綠島、蘭嶼、小琉球；不歸入本島山區或本島平地/海岸線）
+const TAIWAN_MAINLAND_OFFSHORE_TOWNS = [
+  "臺東縣綠島鄉", "臺東縣蘭嶼鄉", "屏東縣琉球鄉"
+];
+const TAIWAN_MAINLAND_OFFSHORE_SET = new Set(TAIWAN_MAINLAND_OFFSHORE_TOWNS);
+
+// 西部濱海鄉鎮 (面台灣海峽與西側海域之本島臨海鄉鎮市區，參考中央氣象署鄉鎮沿海預報)
 const TAIWAN_WEST_COAST_TOWNS = [
   "新北市八里區", "新北市淡水區", "新北市三芝區", "新北市石門區", "新北市林口區",
   "桃園市蘆竹區", "桃園市大園區", "桃園市觀音區", "桃園市新屋區",
@@ -190,24 +196,24 @@ const TAIWAN_WEST_COAST_TOWNS = [
 ];
 const TAIWAN_WEST_COAST_SET = new Set(TAIWAN_WEST_COAST_TOWNS);
 
-// 東部濱海鄉鎮 (面太平洋之東部臨海鄉鎮市區，含東部離島)
+// 東部濱海鄉鎮 (面太平洋之東部本島臨海鄉鎮市區，不含綠島、蘭嶼等海上離島)
 const TAIWAN_EAST_COAST_TOWNS = [
   "宜蘭縣頭城鎮", "宜蘭縣壯圍鄉", "宜蘭縣五結鄉", "宜蘭縣蘇澳鎮", "宜蘭縣南澳鄉",
   "花蓮縣秀林鄉", "花蓮縣新城鄉", "花蓮縣花蓮市", "花蓮縣吉安鄉", "花蓮縣壽豐鄉", "花蓮縣豐濱鄉",
-  "臺東縣長濱鄉", "臺東縣成功鎮", "臺東縣東河鄉", "臺東縣卑南鄉", "臺東縣臺東市", "臺東縣太麻里鄉", "臺東縣大武鄉", "臺東縣達仁鄉", "臺東縣綠島鄉", "臺東縣蘭嶼鄉"
+  "臺東縣長濱鄉", "臺東縣成功鎮", "臺東縣東河鄉", "臺東縣卑南鄉", "臺東縣臺東市", "臺東縣太麻里鄉", "臺東縣大武鄉", "臺東縣達仁鄉"
 ];
 const TAIWAN_EAST_COAST_SET = new Set(TAIWAN_EAST_COAST_TOWNS);
 
-// 山區鄉鎮 (內政部/原民會核定 30 個山地鄉與直轄市山地原住民區 + 主要內陸山區鄉鎮)
+// 山區鄉鎮 (台灣本島 29 個山地原住民鄉區 + 主要內陸高山丘陵鄉鎮；排除海上離島蘭嶼鄉)
 const TAIWAN_MOUNTAIN_TOWNS = [
-  // 30 山地原住民區 / 山地鄉
+  // 本島 29 山地原住民區 / 山地鄉 (排除離島蘭嶼鄉)
   "新北市烏來區", "桃園市復興區", "新竹縣尖石鄉", "新竹縣五峰鄉", "苗栗縣泰安鄉",
   "臺中市和平區", "南投縣信義鄉", "南投縣仁愛鄉", "嘉義縣阿里山鄉",
   "高雄市那瑪夏區", "高雄市桃源區", "高雄市茂林區",
   "屏東縣三地門鄉", "屏東縣霧臺鄉", "屏東縣瑪家鄉", "屏東縣泰武鄉", "屏東縣來義鄉", "屏東縣春日鄉", "屏東縣獅子鄉", "屏東縣牡丹鄉",
   "宜蘭縣大同鄉", "宜蘭縣南澳鄉",
   "花蓮縣秀林鄉", "花蓮縣萬榮鄉", "花蓮縣卓溪鄉",
-  "臺東縣海端鄉", "臺東縣延平鄉", "臺東縣金峰鄉", "臺東縣達仁鄉", "臺東縣蘭嶼鄉",
+  "臺東縣海端鄉", "臺東縣延平鄉", "臺東縣金峰鄉", "臺東縣達仁鄉",
   // 主要高山與內陸丘陵山區鄉鎮
   "新北市坪林區", "新北市石碇區", "新北市平溪區", "新北市雙溪區",
   "新竹縣橫山鄉", "新竹縣北埔鄉", "新竹縣峨眉鄉",
@@ -219,14 +225,14 @@ const TAIWAN_MOUNTAIN_TOWNS = [
 ];
 const TAIWAN_MOUNTAIN_SET = new Set(TAIWAN_MOUNTAIN_TOWNS);
 
-// 西部平原 (西部 16 縣市中排除中央/雪山/阿里山山區鄉鎮之平原、台地與盆地鄉鎮)
+// 西部平原 (西部 16 縣市中排除山區鄉鎮與海上離島小琉球之平原、台地與盆地鄉鎮)
 const TAIWAN_WEST_PLAIN_TOWNS = ALL_TOWNS
-  .filter((t) => TAIWAN_WEST_COUNTY_SET.has(t.countyName) && !TAIWAN_MOUNTAIN_SET.has(t.fullCountyTown))
+  .filter((t) => TAIWAN_WEST_COUNTY_SET.has(t.countyName) && !TAIWAN_MOUNTAIN_SET.has(t.fullCountyTown) && !TAIWAN_MAINLAND_OFFSHORE_SET.has(t.fullCountyTown))
   .map((t) => t.fullCountyTown);
 const TAIWAN_WEST_PLAIN_SET = new Set(TAIWAN_WEST_PLAIN_TOWNS);
 
-// 東部平原 (宜花東三縣中排除山地鄉與蘭嶼之平原、縱谷與海岸平地鄉鎮)
+// 東部平原 (宜花東三縣中排除山區鄉鎮與海上離島綠島、蘭嶼之平原、縱谷與海岸平地鄉鎮)
 const TAIWAN_EAST_PLAIN_TOWNS = ALL_TOWNS
-  .filter((t) => ["宜蘭縣", "花蓮縣", "臺東縣"].includes(t.countyName) && !TAIWAN_MOUNTAIN_SET.has(t.fullCountyTown))
+  .filter((t) => ["宜蘭縣", "花蓮縣", "臺東縣"].includes(t.countyName) && !TAIWAN_MOUNTAIN_SET.has(t.fullCountyTown) && !TAIWAN_MAINLAND_OFFSHORE_SET.has(t.fullCountyTown))
   .map((t) => t.fullCountyTown);
 const TAIWAN_EAST_PLAIN_SET = new Set(TAIWAN_EAST_PLAIN_TOWNS);

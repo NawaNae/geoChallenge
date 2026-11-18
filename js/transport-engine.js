@@ -532,7 +532,36 @@ function snapStationsOntoOsmTracks() {
   return snappedCount;
 }
 
-function buildStationsFromLineSet(activeSet) {
+function shouldFilterStationsByRegion() {
+  if (!state.filterStationsByRegion) return false;
+  if (state.quizTargetMode === "station") return false;
+  const hasTownScope = state.selectedTownIds instanceof Set && state.selectedTownIds.size > 0;
+  const hasCountyScope = state.selectedCounties instanceof Set && state.selectedCounties.size > 0;
+  return hasTownScope || hasCountyScope;
+}
+
+function isStationInSelectedRegion(st) {
+  if (!shouldFilterStationsByRegion()) return true;
+  if (!st) return false;
+  if (state.difficulty === "county_only") {
+    if (Array.isArray(st.countyNames) && st.countyNames.length > 0) {
+      return st.countyNames.some((cn) => state.selectedCounties.has(cn));
+    }
+    return Boolean(st.countyName && state.selectedCounties.has(st.countyName));
+  }
+  if (state.selectedTownIds instanceof Set && state.selectedTownIds.size > 0) {
+    if (Array.isArray(st.townIds) && st.townIds.length > 0) {
+      return st.townIds.some((tid) => state.selectedTownIds.has(tid));
+    }
+    if (st.townId) return state.selectedTownIds.has(st.townId);
+  }
+  if (st.countyName && state.selectedCounties instanceof Set) {
+    return state.selectedCounties.has(st.countyName);
+  }
+  return true;
+}
+
+function buildStationsFromLineSet(activeSet, applyRegionFilter = false) {
   if (!activeSet || activeSet.size === 0) return [];
   const list = [];
   const byNearKey = [];
@@ -546,6 +575,10 @@ function buildStationsFromLineSet(activeSet) {
       const base = cleanStationBaseName(rawName);
       const display = getDisplayStationName(rawName);
       const isTerminus = idx === 0 || idx === line.stations.length - 1;
+      const townInfo = typeof resolveStationTownInfo === "function"
+        ? resolveStationTownInfo(line.id, rawName, base, lat, lng)
+        : { townId: null, countyName: null, fullCountyTown: null, townIds: [], countyNames: [] };
+
       // Deduplicate same station shared by lines of the same system (e.g. 竹南, 彰化, 八堵, 大橋頭, 中正紀念堂) within ~1.8km
       let existing = byNearKey.find(
         (x) => x.stKind === line.stKind && x.baseName === base && Math.hypot(x.lat - lat, x.lng - lng) < 0.018
@@ -553,6 +586,16 @@ function buildStationsFromLineSet(activeSet) {
       if (existing) {
         if (!existing.lineIds.includes(line.id)) existing.lineIds.push(line.id);
         if (isTerminus) existing.isTerminus = true;
+        if (Array.isArray(townInfo.townIds)) {
+          townInfo.townIds.forEach((tid) => {
+            if (!existing.townIds.includes(tid)) existing.townIds.push(tid);
+          });
+        }
+        if (Array.isArray(townInfo.countyNames)) {
+          townInfo.countyNames.forEach((cn) => {
+            if (!existing.countyNames.includes(cn)) existing.countyNames.push(cn);
+          });
+        }
       } else {
         const stableKey = `${line.stKind}_${base}_${Math.round(lat * 5)}_${Math.round(lng * 5)}`;
         const obj = {
@@ -569,13 +612,22 @@ function buildStationsFromLineSet(activeSet) {
           color: line.color,
           stKind: line.stKind,
           lat,
-          lng
+          lng,
+          townId: townInfo.townId,
+          countyName: townInfo.countyName,
+          fullCountyTown: townInfo.fullCountyTown,
+          townIds: Array.isArray(townInfo.townIds) ? [...townInfo.townIds] : [],
+          countyNames: Array.isArray(townInfo.countyNames) ? [...townInfo.countyNames] : []
         };
         byNearKey.push(obj);
         list.push(obj);
       }
     });
   });
+
+  if (applyRegionFilter && shouldFilterStationsByRegion()) {
+    return list.filter((st) => isStationInSelectedRegion(st));
+  }
   return list;
 }
 
@@ -588,7 +640,7 @@ function getActiveQuizStations() {
   ) {
     return [];
   }
-  return buildStationsFromLineSet(state.quizStationLines);
+  return buildStationsFromLineSet(state.quizStationLines, true);
 }
 
 function getVisualOverlayStations() {
@@ -599,7 +651,7 @@ function getVisualOverlayStations() {
     state.quizStationLines instanceof Set &&
     state.quizStationLines.size > 0;
   const activeSet = isStationQuizActive ? state.quizStationLines : state.selectedTransportLines;
-  return buildStationsFromLineSet(activeSet);
+  return buildStationsFromLineSet(activeSet, isStationQuizActive);
 }
 
 // Common station aliases (e.g. Kaohsiung Metro 2024 renamings & legacy station names)
@@ -644,9 +696,15 @@ function tryMatchAndUnlockStation(core, combined, isAutoCheck) {
   const cStripped = cleanStationBaseName(core);
   const combStripped = cleanStationBaseName(combined);
 
-  if (state.targetStationKey) {
+  if (state.playMode === "free") {
+    state.targetStationKey = null;
+  }
+
+  if ((state.playMode === "target_click" || state.playMode === "target_random") && state.targetStationKey) {
     const targetSt = activeStations.find((s) => s.key === state.targetStationKey);
-    if (targetSt && isStationMatch(targetSt, core, combined, cNorm, combNorm, cStripped, combStripped)) {
+    if (!targetSt) {
+      state.targetStationKey = null;
+    } else if (isStationMatch(targetSt, core, combined, cNorm, combNorm, cStripped, combStripped)) {
       state.unlockedStations.add(targetSt.key);
       state.lastTargetLat = targetSt.lat;
       state.lastTargetLng = targetSt.lng;
@@ -659,6 +717,8 @@ function tryMatchAndUnlockStation(core, combined, isAutoCheck) {
         updateTargetBannerUI();
       }
       return true;
+    } else {
+      return false;
     }
   }
 
@@ -816,9 +876,14 @@ function updateRoadAndRailwayTileOverlays() {
     const isOpenRailActive = state.showRawOpenRailwayTile && (mode === "lines_and_stations" || mode === "rail_only");
     const isOpenRailReady = isOpenRailActive && state.openRailLoaded;
     const hasGisBase = state.mapLayer === "vector";
+    const filterLineByReg = state.quizTargetMode !== "region" && state.stationQuizEnabled && state.quizStationLines.size > 0 && shouldFilterStationsByRegion();
+    const regionStationLineIds = filterLineByReg
+      ? new Set(getVisualOverlayStations().flatMap((s) => s.lineIds || [s.lineId]))
+      : null;
 
     TAIWAN_SELECTABLE_LINES.forEach((line) => {
       if (line.isHighway || !activeLineSet.has(line.id)) return;
+      if (regionStationLineIds && !regionStationLineIds.has(line.id)) return;
 
       if (line.stKind === "mrt" || line.stKind === "lrt") {
         if (isOpenRailReady && state.hideMrtLinesOnOpenRail) return;
@@ -908,30 +973,58 @@ function updateRoadAndRailwayTileOverlays() {
     });
 
     circleMarker.on("click", (ev) => {
-      if (!isStationQuizActive) {
-        // Pure region mode: railway layer is visual reference only; do not turn station into a quiz target
-        return;
-      }
       L.DomEvent.stopPropagation(ev);
+      const stLineIds = Array.isArray(st.lineIds) && st.lineIds.length > 0 ? st.lineIds : [st.lineId];
+      const lineSummaries = stLineIds.map((lid) => {
+        const lineObj = TAIWAN_SELECTABLE_LINES.find((l) => l.id === lid);
+        const lName = lineObj
+          ? (typeof getLineDisplayName === "function" ? getLineDisplayName(lineObj) : lineObj.name)
+          : st.lineName;
+        const lineStations = activeStations.filter((s) => (s.lineIds && s.lineIds.includes(lid)) || s.lineId === lid);
+        const uCount = lineStations.filter((s) => vState.unlockedStations.has(s.key)).length;
+        return lineStations.length > 0 ? `${lName} (${uCount}/${lineStations.length}站)` : lName;
+      });
+      const lineInfoText = lineSummaries.join("、") || st.lineName;
+
       if (state.role === "spectator") {
         setFeedback(
           isUnlocked
-            ? `👁️ 觀戰檢視：選手已解鎖車站「${st.displayName}」（${st.lineName}）`
-            : `👁️ 觀戰檢視：尚未解鎖車站（所屬路線：${st.lineName}）`,
+            ? `👁️ 觀戰檢視：選手已解鎖車站「${st.displayName}」（所屬路線：${lineInfoText}）`
+            : `👁️ 觀戰檢視：尚未解鎖車站（所屬路線：${lineInfoText}）`,
           "info"
         );
         return;
       }
+
+      // 一般自由模式 (playMode === "free") 或未啟用車站猜謎：點擊車站僅顯示所屬路線資訊，絕不鎖定目標或彈出指定視窗！
+      if (!isStationQuizActive || state.playMode === "free") {
+        state.targetStationKey = null;
+        state.highlightedLineId = state.highlightedLineId === st.lineId ? null : st.lineId;
+        updateRoadAndRailwayTileOverlays();
+        if (isUnlocked) {
+          setFeedback(`🚉 車站資訊：【${st.displayName}】· 所屬路線：${lineInfoText}`, "info");
+        } else if (state.showStationNames || (state.showStationTerminusHints && st.isTerminus)) {
+          setFeedback(`🛤️ 路線資訊：【${lineInfoText}】· 車站：${st.displayName}`, "info");
+        } else {
+          setFeedback(`🛤️ 路線資訊：此車站隸屬【${lineInfoText}】`, "info");
+        }
+        return;
+      }
+
+      // 指定點選模式 (target_click) 或隨機模式 (target_random)
       if (isUnlocked) {
-        setFeedback(`🚉 已解鎖車站：${st.displayName}（${st.lineName}）`, "info");
+        setFeedback(`🚉 已解鎖車站：【${st.displayName}】· 所屬路線：${lineInfoText}`, "info");
         return;
       }
       state.targetStationKey = st.key;
+      state.targetId = null;
       state.lastTargetLat = st.lat;
       state.lastTargetLng = st.lng;
+      state.hintLevel = 0;
       updateRoadAndRailwayTileOverlays();
+      refreshAllPolygonStyles();
       updateTargetBannerUI();
-      setFeedback(`🎯 已點選目標車站（所屬路線：${st.lineName}），請在下方輸入站名猜測！`, "warn");
+      setFeedback(`🎯 已指定目標車站（所屬路線：${lineInfoText}），請在下方輸入站名作答！`, "warn");
       const inp = document.getElementById("answer-input");
       if (inp) inp.focus({ preventScroll: true });
     });
