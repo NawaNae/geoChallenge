@@ -225,3 +225,8 @@ const TAIWAN_WEST_PLAIN_TOWNS = ALL_TOWNS
   .map((t) => t.fullCountyTown);
 const TAIWAN_WEST_PLAIN_SET = new Set(TAIWAN_WEST_PLAIN_TOWNS);
 
+// 東部平原 (宜花東三縣中排除山地鄉與蘭嶼之平原、縱谷與海岸平地鄉鎮)
+const TAIWAN_EAST_PLAIN_TOWNS = ALL_TOWNS
+  .filter((t) => ["宜蘭縣", "花蓮縣", "臺東縣"].includes(t.countyName) && !TAIWAN_MOUNTAIN_SET.has(t.fullCountyTown))
+  .map((t) => t.fullCountyTown);
+const TAIWAN_EAST_PLAIN_SET = new Set(TAIWAN_EAST_PLAIN_TOWNS);

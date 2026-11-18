@@ -734,7 +734,9 @@ function showSettlementModal() {
   const modal = document.getElementById("modal-settlement");
   if (!modal) return;
 
-  const isMultiplayer = Boolean(state.opponent.connected || state.aiRivalTimer || state.opponent.finished || state.roomCode);
+  const activeBattlePlayers = typeof getActiveBattlePlayers === "function" ? getActiveBattlePlayers() : [];
+  const isMultiplayer = Boolean(activeBattlePlayers.length >= 2 || state.aiRivalActive || state.aiRivalTimer);
+  const isInRoomSession = Boolean(state.roomCode || isMultiplayer);
   const oppStats = state.opponent.finalStats;
 
   const typeBadge = document.getElementById("settlement-type-badge");
@@ -748,7 +750,7 @@ function showSettlementModal() {
   const returnLobbyBtn = document.getElementById("btn-return-lobby-settlement");
 
   if (returnLobbyBtn) {
-    returnLobbyBtn.classList.toggle("hidden", !isMultiplayer);
+    returnLobbyBtn.classList.toggle("hidden", !isInRoomSession);
   }
 
   const diffNames = {
@@ -772,7 +774,8 @@ function showSettlementModal() {
 
   if (!isMultiplayer) {
     if (typeBadge) {
-      typeBadge.textContent = "單人挑戰成績單";
+      const specCount = typeof getSpectators === "function" ? getSpectators().length : 0;
+      typeBadge.textContent = state.roomCode && specCount > 0 ? `🎬 單人展演成績單 (${specCount}人觀戰)` : "單人挑戰成績單";
       typeBadge.className = "text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30";
     }
     if (gradeBox) gradeBox.classList.remove("hidden");
@@ -1071,7 +1074,8 @@ function downloadSettlementCard() {
   ctx.stroke();
 
   // 3. Banner (Single Player Grade or Multiplayer Win/Loss)
-  const isMultiplayer = Boolean(state.opponent.connected || state.aiRivalTimer || state.opponent.finished || state.roomCode);
+  const activeBattleForCard = typeof getActiveBattlePlayers === "function" ? getActiveBattlePlayers() : [];
+  const isMultiplayer = Boolean(activeBattleForCard.length >= 2 || state.aiRivalActive || state.aiRivalTimer);
   const oppStats = state.opponent.finalStats;
   const pctNum = stats.grandTotal > 0 ? ((stats.grandScore / stats.grandTotal) * 100) : 0;
   const pctStr = pctNum.toFixed(1) + "%";
@@ -1273,7 +1277,8 @@ function shareSettlementCard() {
   const stats = state.finalStats;
   if (!stats) return;
 
-  const isMultiplayer = Boolean(state.opponent.connected || state.aiRivalTimer || state.opponent.finished);
+  const activeBattleForShare = typeof getActiveBattlePlayers === "function" ? getActiveBattlePlayers() : [];
+  const isMultiplayer = Boolean(activeBattleForShare.length >= 2 || state.aiRivalActive || state.aiRivalTimer);
   const oppStats = state.opponent.finalStats;
   const text = formatSettlementShareText(stats, isMultiplayer, oppStats);
 

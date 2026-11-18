@@ -532,12 +532,8 @@ function snapStationsOntoOsmTracks() {
   return snappedCount;
 }
 
-function getActiveQuizStations() {
-  const activeSet = state.stationQuizEnabled && state.quizStationLines.size > 0
-    ? state.quizStationLines
-    : (state.transportMode !== "off" ? state.selectedTransportLines : new Set());
-
-  if (activeSet.size === 0) return [];
+function buildStationsFromLineSet(activeSet) {
+  if (!activeSet || activeSet.size === 0) return [];
   const list = [];
   const byNearKey = [];
 
@@ -581,6 +577,29 @@ function getActiveQuizStations() {
     });
   });
   return list;
+}
+
+function getActiveQuizStations() {
+  if (
+    state.quizTargetMode === "region" ||
+    !state.stationQuizEnabled ||
+    !(state.quizStationLines instanceof Set) ||
+    state.quizStationLines.size === 0
+  ) {
+    return [];
+  }
+  return buildStationsFromLineSet(state.quizStationLines);
+}
+
+function getVisualOverlayStations() {
+  if (state.transportMode === "off") return [];
+  const isStationQuizActive =
+    state.quizTargetMode !== "region" &&
+    state.stationQuizEnabled &&
+    state.quizStationLines instanceof Set &&
+    state.quizStationLines.size > 0;
+  const activeSet = isStationQuizActive ? state.quizStationLines : state.selectedTransportLines;
+  return buildStationsFromLineSet(activeSet);
 }
 
 // Common station aliases (e.g. Kaohsiung Metro 2024 renamings & legacy station names)
@@ -838,11 +857,18 @@ function updateRoadAndRailwayTileOverlays() {
 
   // 3. Draw Station Dots as Native Geographic L.circleMarker on railCanvasRenderer (ZERO zoom drift, 100% on the vector line!)
   const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
-  const activeStations = getActiveQuizStations();
+  const isStationQuizActive =
+    state.quizTargetMode !== "region" &&
+    state.stationQuizEnabled &&
+    state.quizStationLines instanceof Set &&
+    state.quizStationLines.size > 0;
+  const activeStations = getVisualOverlayStations();
   activeStations.forEach((st) => {
-    const isUnlocked = vState.unlockedStations.has(st.key);
-    const isMissed = (vState.isGameOver && !isUnlocked) || (vState.missedStations && vState.missedStations.has(st.key));
-    const isTarget = vState.targetStationKey === st.key;
+    const isUnlocked = isStationQuizActive && vState.unlockedStations.has(st.key);
+    const isMissed =
+      isStationQuizActive &&
+      ((vState.isGameOver && !isUnlocked) || (vState.missedStations && vState.missedStations.has(st.key)));
+    const isTarget = isStationQuizActive && vState.targetStationKey === st.key;
 
     let radius = st.stKind === "thsr" ? 4.8 : 3.8;
     let strokeColor = st.color || (st.stKind === "tra" ? "#003b73" : "#38bdf8");
@@ -882,6 +908,10 @@ function updateRoadAndRailwayTileOverlays() {
     });
 
     circleMarker.on("click", (ev) => {
+      if (!isStationQuizActive) {
+        // Pure region mode: railway layer is visual reference only; do not turn station into a quiz target
+        return;
+      }
       L.DomEvent.stopPropagation(ev);
       if (state.role === "spectator") {
         setFeedback(

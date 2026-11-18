@@ -1,5 +1,5 @@
 // ============================================================================
-// 10. P2P WEBRTC ENGINE (Multiplayer >2, Spectator View, Session & Vote Sync)
+// 10. P2P WEBRTC ENGINE (Multiplayer >2, Spectator View, Session, Host Handover & Kick/Ban)
 // ============================================================================
 function isMultiplayerActive() {
   return Boolean(
@@ -66,17 +66,44 @@ function getLocalGrandCounts() {
   };
 }
 
+function syncAllNicknameInputs(newName) {
+  const clean = (newName || "").trim() || state.nickname || "GeoMasterTW";
+  state.nickname = clean;
+  try {
+    localStorage.setItem("tw_geomaster_nickname", clean);
+  } catch (_) {}
+  ["top-nickname-input", "p2p-nickname-input", "join-entry-nickname-input"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && document.activeElement !== el) {
+      el.value = clean;
+    }
+  });
+}
+
+function updateLocalNicknameAndSync(newName) {
+  const clean = (newName || "").trim() || "玩家";
+  syncAllNicknameInputs(clean);
+  if (state.roomCode || state.aiRivalActive) {
+    ensureLocalPlayerInRoster();
+    if (state.isHost) {
+      broadcastRosterFromHost();
+    } else if (state.roomCode) {
+      sendP2PMessage("SYNC_READY_STATUS", { ready: state.isReady, name: state.nickname });
+    }
+    updateP2PLobbyUI();
+    updateOpponentUI();
+  }
+}
+
 function ensureLocalPlayerInRoster() {
   if (!state.roomCode && !state.aiRivalActive) return;
   const counts = getLocalGrandCounts();
   const myName =
-    document.getElementById("p2p-nickname-input")?.value.trim() ||
     state.nickname ||
+    document.getElementById("top-nickname-input")?.value.trim() ||
+    document.getElementById("p2p-nickname-input")?.value.trim() ||
     (state.isHost ? "房主" : "玩家");
-  state.nickname = myName;
-  try {
-    localStorage.setItem("tw_geomaster_nickname", myName);
-  } catch (_) {}
+  syncAllNicknameInputs(myName);
 
   const existing = state.players[state.localInstanceId] || {};
   state.players[state.localInstanceId] = {
@@ -128,10 +155,8 @@ function getSortedActiveBattlePlayers() {
 
 function syncPrimaryOpponentFromRoster() {
   const sorted = getSortedActiveBattlePlayers();
-  const others = sorted.filter((p) => p.id !== state.localInstanceId);
 
   if (state.role === "spectator") {
-    // Ensure spectator is watching a valid active player
     if (
       !state.spectatingPlayerId ||
       !state.players[state.spectatingPlayerId] ||
@@ -141,19 +166,26 @@ function syncPrimaryOpponentFromRoster() {
     }
   }
 
+  const referencePlayerId = state.role === "spectator" ? state.spectatingPlayerId : state.localInstanceId;
+  const others = sorted.filter((p) => p.id !== referencePlayerId);
+
   if (others.length === 0) {
-    if (!state.aiRivalActive && !state.roomCode) {
+    if (!state.aiRivalActive) {
       state.opponent.connected = false;
+      state.opponent.name = "尚無對手";
+      state.opponent.isReady = false;
+      state.opponent.score = 0;
+      state.opponent.total = 0;
+      state.opponent.stationScore = 0;
+      state.opponent.stationTotal = 0;
+      state.opponent.macroProgress = {};
+      state.opponent.finished = false;
+      state.opponent.finalStats = null;
     }
     return;
   }
 
-  // Pick the leading opponent (or 2nd place if spectating 1st place)
-  const primary =
-    state.role === "spectator" && others.length > 1 && others[0].id === state.spectatingPlayerId
-      ? others[1]
-      : others[0];
-
+  const primary = others[0];
   state.opponent.connected = true;
   state.opponent.name = primary.name || "對手";
   state.opponent.isReady = Boolean(primary.isReady);
@@ -174,8 +206,10 @@ function getHostSyncConfig(isSettingChange = false) {
     quizTargetMode: state.quizTargetMode || "region",
     showStationTerminusHints: Boolean(state.showStationTerminusHints),
     selectedCounties: Array.from(state.selectedCounties),
-    selectedTownIds: state.selectedTownIds ? Array.from(state.selectedTownIds) : ALL_TOWNS.filter(t => state.selectedCounties.has(t.countyName)).map(t => t.id),
-    quizStationLines: Array.from(state.quizStationLines),
+    selectedTownIds: state.selectedTownIds
+      ? Array.from(state.selectedTownIds)
+      : ALL_TOWNS.filter((t) => state.selectedCounties.has(t.countyName)).map((t) => t.id),
+    quizStationLines: state.quizTargetMode === "region" ? [] : Array.from(state.quizStationLines),
     difficulty: state.difficulty,
     playMode: state.playMode,
     timerMode: state.timerMode,
@@ -185,6 +219,244 @@ function getHostSyncConfig(isSettingChange = false) {
     railRule: rruleEl ? rruleEl.value : state.p2pRailRule,
     isSettingChange: Boolean(isSettingChange)
   };
+}
+
+// ============================================================================
+// CONCISE ROOM SETTINGS SUMMARY GENERATOR (Only shows selected items!)
+// ============================================================================
+function getConciseDifficultySummaryText() {
+  const diffMap = {
+    casual: "一般模式（免輸入鄉鎮市區後綴，同名一次解鎖）",
+    county_only: "縣市模式（僅猜 22 縣市與直轄市，未解鎖隱藏）",
+    hard_suffix: "進階後綴模式（免縣市前綴，需輸入鄉鎮市區單位）",
+    hard_full: "困難全名模式（需輸入完整縣市＋鄉鎮市區單位）",
+    master_hierarchy: "困難模式（需先輸入省、直轄市，精確輸入鄉鎮市區單位）"
+  };
+  const pmMap = {
+    free: "",
+    target_random: " · 隨機指定區塊",
+    target_click: " · 點選指定區塊"
+  };
+  const timerStr =
+    state.timerMode === "down"
+      ? ` · 限時 ${Math.round((state.countdownTotalSec || 300) / 60)} 分鐘`
+      : "";
+  return `${diffMap[state.difficulty] || diffMap.casual}${pmMap[state.playMode] || ""}${timerStr}`;
+}
+
+function getConciseRegionSummaryText() {
+  if (state.quizTargetMode === "station" || state.selectedCounties.size === 0) return "";
+  const townIds =
+    state.selectedTownIds instanceof Set
+      ? state.selectedTownIds
+      : new Set(ALL_TOWNS.filter((t) => state.selectedCounties.has(t.countyName)).map((t) => t.id));
+  if (townIds.size === 0) return "";
+  if (townIds.size === ALL_TOWNS.length) return "全臺";
+
+  const checkExact = (arr) => arr.length === townIds.size && arr.every((id) => townIds.has(id));
+
+  const northIds = ALL_TOWNS.filter((t) => ["臺北市", "新北市", "基隆市", "新竹市", "桃園市", "新竹縣", "宜蘭縣"].includes(t.countyName)).map((t) => t.id);
+  const centralIds = ALL_TOWNS.filter((t) => ["苗栗縣", "臺中市", "彰化縣", "南投縣", "雲林縣"].includes(t.countyName)).map((t) => t.id);
+  const southIds = ALL_TOWNS.filter((t) => ["嘉義市", "嘉義縣", "臺南市", "高雄市", "屏東縣", "澎湖縣"].includes(t.countyName)).map((t) => t.id);
+  const eastIds = ALL_TOWNS.filter((t) => ["花蓮縣", "臺東縣"].includes(t.countyName)).map((t) => t.id);
+  const islandIds = ALL_TOWNS.filter((t) => ["澎湖縣", "金門縣", "連江縣"].includes(t.countyName)).map((t) => t.id);
+  const mountainIds = ALL_TOWNS.filter((t) => TAIWAN_MOUNTAIN_SET.has(t.fullCountyTown)).map((t) => t.id);
+  const westPlainIds = ALL_TOWNS.filter((t) => TAIWAN_WEST_PLAIN_SET.has(t.fullCountyTown)).map((t) => t.id);
+  const eastPlainIds = ALL_TOWNS.filter((t) => typeof TAIWAN_EAST_PLAIN_SET !== "undefined" && TAIWAN_EAST_PLAIN_SET.has(t.fullCountyTown)).map((t) => t.id);
+  const sixIds = ALL_TOWNS.filter((t) => t.isSpecial).map((t) => t.id);
+  const westIds = ALL_TOWNS.filter((t) => TAIWAN_WEST_COUNTY_SET.has(t.countyName)).map((t) => t.id);
+
+  if (checkExact(northIds)) return "北部全";
+  if (checkExact(centralIds)) return "中部全";
+  if (checkExact(southIds)) return "南部全";
+  if (checkExact(eastIds)) return "東部全";
+  if (checkExact(islandIds)) return "外島全";
+  if (checkExact(mountainIds)) return "山區鄉鎮";
+  if (checkExact(westPlainIds)) return "西部平原";
+  if (checkExact(eastPlainIds)) return "東部平原";
+  if (checkExact(sixIds)) return "六都直轄市";
+  if (checkExact(westIds)) return "西部地區";
+
+  // Check combinations of major regions
+  const matchedLabels = [];
+  const covered = new Set();
+  const groups = [
+    { label: "北部全", ids: northIds },
+    { label: "中部全", ids: centralIds },
+    { label: "南部全", ids: southIds },
+    { label: "東部全", ids: eastIds },
+    { label: "外島", ids: islandIds },
+    { label: "山區", ids: mountainIds },
+    { label: "西部平原", ids: westPlainIds },
+    { label: "東部平原", ids: eastPlainIds }
+  ];
+  groups.forEach((g) => {
+    if (g.ids.length > 0 && g.ids.every((id) => townIds.has(id))) {
+      matchedLabels.push(g.label);
+      g.ids.forEach((id) => covered.add(id));
+    }
+  });
+  if (matchedLabels.length > 0 && covered.size === townIds.size) {
+    return matchedLabels.join("、");
+  }
+
+  // Otherwise list selected county short names
+  const countyNames = TAIWAN_ADMIN_DATA.filter((c) => state.selectedCounties.has(c.name)).map((c) => c.short || c.name);
+  return `${countyNames.join("、")}（共 ${townIds.size} 區）`;
+}
+
+function getConciseStationSummaryText() {
+  if (state.quizTargetMode === "region" || !state.quizStationLines || state.quizStationLines.size === 0) return "";
+  const sel = state.quizStationLines;
+  const allNonHw = TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway).map((l) => l.id);
+  const allMainIds = TAIWAN_SELECTABLE_LINES.filter(
+    (l) => !l.isHighway && !l.id.startsWith("gon_") && !l.id.startsWith("for_") && !l.id.startsWith("sug_")
+  ).map((l) => l.id);
+
+  if (allNonHw.every((id) => sel.has(id))) return "全臺所有車站（含鐵道、捷運、輕軌與觀光鐵道）";
+  if (allMainIds.length === sel.size && allMainIds.every((id) => sel.has(id))) {
+    return "全（不含休閒設施 纜車台車）";
+  }
+
+  const remaining = new Set(sel);
+  const labels = [];
+
+  const groupDefs = [
+    { label: "北捷", ids: ["mrt_tpe_r", "mrt_tpe_bl", "mrt_tpe_g", "mrt_tpe_o", "mrt_tpe_br", "mrt_ntpc_y"] },
+    { label: "高捷", ids: ["mrt_kh_r", "mrt_kh_o"] },
+    { label: "中捷綠線", ids: ["mrt_tc_g"] },
+    { label: "桃捷", ids: ["mrt_ty_a"] },
+    { label: "三鶯線", ids: ["mrt_ntpc_lb"] },
+    { label: "高鐵", ids: ["thsr_main"] },
+    { label: "台鐵西部主線（山海）", ids: ["tra_west_n", "tra_mountain", "tra_coast", "tra_chengzhui", "tra_west_s", "tra_pingtung"] },
+    { label: "台鐵東部主線", ids: ["tra_yilan", "tra_north_link", "tra_taitung", "tra_south_link"] },
+    { label: "台鐵支線", ids: ["tra_pingxi", "tra_neiwan", "tra_jiji", "tra_shalun"] }
+  ];
+
+  groupDefs.forEach((g) => {
+    if (g.ids.every((id) => remaining.has(id))) {
+      labels.push(g.label);
+      g.ids.forEach((id) => remaining.delete(id));
+    }
+  });
+
+  const lineShortMap = {
+    thsr_main: "高鐵",
+    tra_west_n: "台鐵縱貫北段",
+    tra_mountain: "台鐵山線",
+    tra_coast: "台鐵海線",
+    tra_chengzhui: "成追線",
+    tra_west_s: "台鐵縱貫南段",
+    tra_pingtung: "屏東線",
+    tra_south_link: "南迴線",
+    tra_taitung: "花東線",
+    tra_north_link: "北迴線",
+    tra_yilan: "宜蘭線",
+    tra_pingxi: "平溪支線",
+    tra_neiwan: "內灣支線",
+    tra_jiji: "集集支線",
+    tra_shalun: "沙崙支線",
+    mrt_tpe_r: "北捷紅線",
+    mrt_tpe_bl: "北捷藍線",
+    mrt_tpe_g: "北捷綠線",
+    mrt_tpe_o: "北捷橘線",
+    mrt_tpe_br: "北捷文湖線",
+    mrt_ntpc_y: "新北環狀線",
+    mrt_ntpc_lb: "新北三鶯線",
+    mrt_ty_a: "桃捷機場線",
+    mrt_tc_g: "中捷綠線",
+    mrt_kh_r: "高捷紅線",
+    mrt_kh_o: "高捷橘線",
+    lrt_danhai: "淡海輕軌",
+    lrt_ankeng: "安坑輕軌",
+    lrt_kaohsiung: "高雄輕軌",
+    gon_maokong: "貓空纜車",
+    gon_sunmoon: "日月潭纜車",
+    gon_wulai: "烏來纜車",
+    for_alishan: "阿里山林鐵",
+    for_taipingshan: "太平山蹦蹦車",
+    for_wulai_cart: "烏來台車",
+    sug_suantou: "蒜頭糖鐵",
+    sug_xihu: "溪湖糖鐵",
+    sug_xinying: "新營糖鐵",
+    sug_wushulin: "烏樹林糖鐵",
+    sug_qiaotou: "橋頭糖鐵",
+    sug_huwei: "虎尾糖鐵"
+  };
+
+  remaining.forEach((id) => {
+    labels.push(lineShortMap[id] || id);
+  });
+
+  return labels.join("、");
+}
+
+function renderRoomConciseSettingsSummary() {
+  const container = document.getElementById("room-concise-settings-list");
+  if (!container) return;
+  container.replaceChildren();
+
+  const rows = [];
+  // 1. Difficulty & Mode Line
+  rows.push({ label: null, text: getConciseDifficultySummaryText(), highlight: "text-amber-200 font-bold" });
+
+  // 2. Region Line (Only if selected!)
+  const regText = getConciseRegionSummaryText();
+  if (regText) {
+    rows.push({ label: "區域：", text: regText, highlight: "text-sky-200" });
+  }
+
+  // 3. Station Line (Only if selected!)
+  const stText = getConciseStationSummaryText();
+  if (stText) {
+    rows.push({ label: "車站：", text: stText, highlight: "text-pink-200" });
+  }
+
+  // 4. Interface Restriction Line (Only if restricted / non-default!)
+  const uiLimits = [];
+  if (state.showStationTerminusHints) uiLimits.push("顯示路線頭尾端點提示");
+  if (state.p2pRailRule === "ban_roads_only") uiLimits.push("禁用公路路網");
+  else if (state.p2pRailRule === "ban_rail") uiLimits.push("禁用軌道與公路路網");
+  else if (state.p2pRailRule === "force_lines") uiLimits.push("強制開啟完整路網＋車站");
+  else if (state.p2pRailRule === "force_rail_only") uiLimits.push("強制開啟純軌道路網");
+  if (uiLimits.length > 0) {
+    rows.push({ label: "介面限制：", text: uiLimits.join("、"), highlight: "text-emerald-200" });
+  }
+
+  // 5. Layer Restriction Line (Only if locked!)
+  if (state.p2pLayerRule === "locked") {
+    const layerNames = {
+      vector: "強制純淨向量底圖",
+      terrain: "強制無字山地地形",
+      satellite: "強制無字衛星影像"
+    };
+    rows.push({
+      label: "圖層限制：",
+      text: layerNames[state.p2pForcedLayer] || "強制鎖定底圖",
+      highlight: "text-rose-200"
+    });
+  }
+
+  rows.forEach((r) => {
+    const div = document.createElement("div");
+    div.className = "flex items-start gap-1";
+    if (r.label) {
+      const lbl = document.createElement("span");
+      lbl.className = "text-slate-400 font-bold shrink-0";
+      lbl.textContent = r.label;
+      const val = document.createElement("span");
+      val.className = `${r.highlight || "text-white"} font-semibold break-words`;
+      val.textContent = r.text;
+      div.appendChild(lbl);
+      div.appendChild(val);
+    } else {
+      const val = document.createElement("span");
+      val.className = `${r.highlight || "text-white"}`;
+      val.textContent = r.text;
+      div.appendChild(val);
+    }
+    container.appendChild(div);
+  });
 }
 
 // ============================================================================
@@ -201,6 +473,7 @@ function saveActiveSessionToStorage() {
   try {
     const snap = {
       deviceId: state.deviceId,
+      instanceId: state.localInstanceId,
       roomCode: state.roomCode,
       roomPassword: state.roomPassword || "",
       isHost: Boolean(state.isHost),
@@ -221,6 +494,7 @@ function saveActiveSessionToStorage() {
       targetStationKey: state.targetStationKey || null,
       stats: { ...state.stats },
       config: getHostSyncConfig(false),
+      bannedDevices: Array.from(state.bannedDevices || []),
       playersSnapshot: state.isHost ? state.players : null,
       savedAt: Date.now()
     };
@@ -234,7 +508,6 @@ function loadSavedSessionFromStorage() {
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (!data || !data.roomCode) return null;
-    // Expire after 6 hours
     if (Date.now() - (data.savedAt || 0) > 6 * 3600 * 1000) {
       localStorage.removeItem(getSessionStorageKey());
       return null;
@@ -283,14 +556,15 @@ function resumeSavedRoomSession(saved) {
   if (!saved || !saved.roomCode) return;
   document.getElementById("session-restore-banner")?.classList.add("hidden");
   if (saved.nickname) {
-    state.nickname = saved.nickname;
-    const nickInput = document.getElementById("p2p-nickname-input");
-    if (nickInput) nickInput.value = saved.nickname;
+    syncAllNicknameInputs(saved.nickname);
   }
   const passInput = document.getElementById("p2p-password-input");
   if (passInput && saved.roomPassword) passInput.value = saved.roomPassword;
   const hostPassInput = document.getElementById("p2p-host-password-input");
   if (hostPassInput && saved.roomPassword) hostPassInput.value = saved.roomPassword;
+  if (Array.isArray(saved.bannedDevices)) {
+    state.bannedDevices = new Set(saved.bannedDevices);
+  }
 
   if (saved.isHost) {
     if (saved.config) applyRemoteSyncConfig(saved.config, true, true);
@@ -298,7 +572,7 @@ function resumeSavedRoomSession(saved) {
     state.matchInProgress = Boolean(saved.matchInProgress);
     restoreLocalSessionProgress(saved);
     broadcastRosterFromHost();
-    setFeedback(`🔄 已使用裝置 ID (${state.deviceId.slice(0, 12)}) 恢復房主房間【${saved.roomCode}】與答題進度！`, "tier");
+    setFeedback(`🔄 已恢復房主房間【${saved.roomCode}】與答題進度！`, "tier");
   } else {
     const chkSpec = document.getElementById("chk-p2p-join-spectate");
     if (chkSpec) chkSpec.checked = saved.role === "spectator";
@@ -310,10 +584,153 @@ function resumeSavedRoomSession(saved) {
   }
 }
 
-function leaveP2PRoom() {
-  if (state.roomCode) {
-    sendP2PMessage("LOBBY_LEAVE", { name: state.nickname });
+// ============================================================================
+// HOST HANDOVER, KICK & BAN DEVICE MANAGEMENT
+// ============================================================================
+function kickPlayerFromRoom(targetPlayerId) {
+  if (!state.isHost || !state.roomCode || !targetPlayerId || targetPlayerId === state.localInstanceId) return;
+  const target = state.players[targetPlayerId];
+  const targetName = target ? target.name : "成員";
+  sendP2PMessage("PLAYER_KICKED", { targetId: targetPlayerId, reason: "KICKED" }, targetPlayerId);
+  const conn = state.peers && state.peers.get(targetPlayerId);
+  if (conn) {
+    setTimeout(() => {
+      try { conn.close(); } catch (_) {}
+    }, 180);
+    state.peers.delete(targetPlayerId);
   }
+  delete state.players[targetPlayerId];
+  syncPrimaryOpponentFromRoster();
+  broadcastRosterFromHost();
+  updateP2PLobbyUI();
+  updateOpponentUI();
+  setFeedback(`🚪 已將【${targetName}】移出房間`, "warn");
+}
+
+function banDeviceFromRoom(targetPlayerId) {
+  if (!state.isHost || !state.roomCode || !targetPlayerId || targetPlayerId === state.localInstanceId) return;
+  const target = state.players[targetPlayerId];
+  if (!target) return;
+  const devId = target.deviceId || targetPlayerId;
+  state.bannedDevices.add(devId);
+  const targetName = target.name || "成員";
+  sendP2PMessage("PLAYER_BANNED", { targetId: targetPlayerId, deviceId: devId, reason: "BANNED" }, targetPlayerId);
+  const conn = state.peers && state.peers.get(targetPlayerId);
+  if (conn) {
+    setTimeout(() => {
+      try { conn.close(); } catch (_) {}
+    }, 180);
+    state.peers.delete(targetPlayerId);
+  }
+  // Remove all entries sharing this banned deviceId
+  Object.keys(state.players).forEach((pid) => {
+    if (pid !== state.localInstanceId && (state.players[pid]?.deviceId === devId || pid === targetPlayerId)) {
+      delete state.players[pid];
+    }
+  });
+  saveActiveSessionToStorage();
+  syncPrimaryOpponentFromRoster();
+  broadcastRosterFromHost();
+  updateP2PLobbyUI();
+  updateOpponentUI();
+  setFeedback(`🚫 已封鎖【${targetName}】的裝置 (${devId.slice(-6)})，本房間禁止再次加入！`, "error");
+}
+
+function promoteLocalClientToNewHost(handoverPayload) {
+  const code = state.roomCode;
+  if (!code) return;
+  state.isHost = true;
+  state.role = "host";
+  state.isReady = true;
+  if (handoverPayload?.roomPassword !== undefined) {
+    state.roomPassword = handoverPayload.roomPassword;
+  }
+  if (Array.isArray(handoverPayload?.bannedDevices)) {
+    state.bannedDevices = new Set(handoverPayload.bannedDevices);
+  }
+  if (handoverPayload?.players) {
+    state.players = handoverPayload.players;
+  }
+  if (handoverPayload?.oldHostId && state.players[handoverPayload.oldHostId]) {
+    delete state.players[handoverPayload.oldHostId];
+  }
+  if (state.players[state.localInstanceId]) {
+    state.players[state.localInstanceId].role = "host";
+    state.players[state.localInstanceId].isReady = true;
+  }
+
+  ensureLocalPlayerInRoster();
+  syncPrimaryOpponentFromRoster();
+
+  // Re-bind PeerJS host ID so WebRTC peers can connect to the new host
+  try {
+    if (typeof Peer !== "undefined") {
+      if (state.peer) {
+        try { state.peer.destroy(); } catch (_) {}
+      }
+      state.peers = new Map();
+      setTimeout(() => {
+        if (!state.isHost || !state.roomCode) return;
+        try {
+          state.peer = new Peer(`tw-geomaster-${code}`);
+          state.peer.on("connection", (conn) => {
+            setupPeerConnectionHandlers(conn);
+          });
+        } catch (_) {}
+      }, 300);
+    }
+  } catch (_) {}
+
+  broadcastRosterFromHost();
+  updateP2PPanelVisibility();
+  updateP2PLobbyUI();
+  updateOpponentUI();
+  setFeedback(`👑 原房主已離開，你已接任房間【${code}】的新房主！`, "tier");
+  playTone("tier");
+}
+
+function leaveP2PRoom(silentReason = null) {
+  const wasInRoom = Boolean(state.roomCode || state.aiRivalActive);
+  if (state.roomCode && !silentReason) {
+    if (state.isHost) {
+      // Find remaining connected human members to hand over host role!
+      const remainingClients = getParticipantList().filter(
+        (p) => p.id !== state.localInstanceId && p.id !== "ai_rival" && !p.disconnected
+      );
+      if (remainingClients.length > 0) {
+        // Prefer an active player over a spectator when handing over host
+        const nextHost = remainingClients.find((p) => p.role === "player") || remainingClients[0];
+        const nextPlayers = { ...state.players };
+        delete nextPlayers[state.localInstanceId];
+        if (nextPlayers[nextHost.id]) {
+          nextPlayers[nextHost.id].role = "host";
+          nextPlayers[nextHost.id].isReady = true;
+        }
+        sendP2PMessage("HOST_HANDOVER", {
+          oldHostId: state.localInstanceId,
+          oldHostName: state.nickname,
+          newHostId: nextHost.id,
+          newHostName: nextHost.name,
+          roomPassword: state.roomPassword || "",
+          bannedDevices: Array.from(state.bannedDevices || []),
+          players: nextPlayers,
+          config: getHostSyncConfig(false)
+        });
+      } else {
+        // Everyone left -> close room completely
+        sendP2PMessage("ROOM_CLOSED", { reason: "ALL_LEFT" });
+      }
+    } else {
+      sendP2PMessage("LOBBY_LEAVE", { name: state.nickname });
+    }
+  }
+
+  if (state.aiRivalTimer) {
+    clearInterval(state.aiRivalTimer);
+    state.aiRivalTimer = null;
+  }
+  state.aiRivalActive = false;
+
   if (state.peer) {
     try { state.peer.destroy(); } catch (_) {}
     state.peer = null;
@@ -323,6 +740,8 @@ function leaveP2PRoom() {
   state.players = {};
   state.roomCode = "";
   state.roomPassword = "";
+  state.roomHasPassword = false;
+  state.bannedDevices = new Set();
   state.isHost = false;
   state.role = "solo";
   state.spectatingPlayerId = null;
@@ -334,16 +753,31 @@ function leaveP2PRoom() {
   state.opponent.isReady = false;
   clearSavedSessionFromStorage();
 
+  // Clear ?room= query parameter from address bar so refreshing doesn't re-trigger link join
+  try {
+    if (window.location.search.includes("room=")) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  } catch (_) {}
+
   document.getElementById("modal-config-vote")?.classList.add("hidden");
-  const dot = document.getElementById("p2p-status-dot");
-  if (dot) dot.className = "w-2 h-2 rounded-full bg-slate-500";
+  document.getElementById("modal-room")?.classList.add("hidden");
+  document.getElementById("modal-join-entry")?.classList.add("hidden");
+
   applyP2PLayerRule("free", state.mapLayer || "vector", "free");
   updateP2PPanelVisibility();
   updateP2PLobbyUI();
   refreshAllPolygonStyles();
   updateRoadAndRailwayTileOverlays();
   updateScoreAndProgressUI();
-  setFeedback("🚪 已離開多人房間，切回單人模式", "info");
+  if (typeof syncModalBodyScrollLock === "function") syncModalBodyScrollLock();
+
+  if (silentReason) {
+    setFeedback(silentReason, "error");
+  } else if (wasInRoom) {
+    setFeedback("🚪 已退出房間，回到單人模式", "info");
+  }
 }
 
 // ============================================================================
@@ -419,15 +853,15 @@ function applySpectatorInputLock() {
       updateSpectatorPlayerSelectUI();
       if (bannerText) {
         const watched = state.spectatingPlayerId ? state.players[state.spectatingPlayerId] : null;
-        const wName = watched ? `正在觀看【${watched.name}】` : "觀戰模式中";
+        const wName = watched ? `觀看【${watched.name}】` : "觀戰模式中";
         bannerText.textContent = isSpectator
-          ? `👁️ ${wName}：可自由切換圖層（不受禁用限制，僅影響自己畫面）`
-          : `🏁 你已完賽（${wName}）：可自由切換觀看其他選手作答進度`;
+          ? `👁️ ${wName}：可自由切換圖層`
+          : `🏁 已完賽（${wName}）：可切換觀看其他選手`;
       }
       if (joinBtn) {
         joinBtn.classList.toggle("hidden", !isSpectator);
         joinBtn.disabled = state.matchInProgress;
-        joinBtn.textContent = state.matchInProgress ? "⏳ 下局可參賽" : "🎮 切換為參賽選手";
+        joinBtn.textContent = state.matchInProgress ? "⏳ 下局可參賽" : "🎮 切換參賽";
         joinBtn.classList.toggle("opacity-50", state.matchInProgress);
         joinBtn.classList.toggle("cursor-not-allowed", state.matchInProgress);
       }
@@ -440,9 +874,9 @@ function applySpectatorInputLock() {
     answerInput.disabled = isSpectator;
     if (isSpectator) {
       answerInput.value = "";
-      answerInput.placeholder = "👁️ 觀戰模式中（可點上方選單或右側排行切換觀看選手地圖，點擊「切換參賽」即可作答）";
+      answerInput.placeholder = "👁️ 觀戰模式中（點擊「切換參賽」即可作答）";
     } else if (answerInput.placeholder.includes("觀戰模式")) {
-      answerInput.placeholder = "輸入行政區（注音選字Enter完成後自動判定，不中斷虛線）";
+      answerInput.placeholder = "輸入行政區或車站名稱（注音選字Enter完成後自動判定）";
     }
   }
 }
@@ -456,16 +890,16 @@ function toggleSpectatorRole() {
   const nextRole = state.role === "spectator" ? "player" : "spectator";
   state.role = nextRole;
   state.isReady = false;
+  ensureLocalPlayerInRoster();
   if (nextRole === "player") {
     state.spectatingPlayerId = null;
-    // Re-apply room layer locks when switching from spectator to player
     applyP2PLayerRule(state.p2pLayerRule, state.p2pForcedLayer, state.p2pRailRule);
   } else {
     const sorted = getSortedActiveBattlePlayers();
     state.spectatingPlayerId = sorted[0]?.id || null;
     applyP2PLayerRule(state.p2pLayerRule, state.p2pForcedLayer, state.p2pRailRule);
   }
-  ensureLocalPlayerInRoster();
+  syncPrimaryOpponentFromRoster();
   sendP2PMessage("SYNC_ROLE_CHANGE", {
     role: nextRole,
     name: state.nickname,
@@ -480,22 +914,45 @@ function toggleSpectatorRole() {
   setFeedback(
     nextRole === "spectator"
       ? "👁️ 已切換為觀戰模式（可自由切換圖層與檢視各選手地圖）"
-      : "🎮 已切換為參賽選手！請確認下方設定後點擊「準備 (Ready)」",
+      : "🎮 已切換為參賽選手！請確認設定後點擊「準備 (Ready)」",
     "info"
   );
 }
 
+function updateTopBarRoomControlsUI() {
+  const inRoom = Boolean(state.roomCode || state.aiRivalActive);
+  const btnCreate = document.getElementById("btn-top-create-room");
+  const btnOpenRoom = document.getElementById("btn-top-open-room");
+  const btnLeaveRoom = document.getElementById("btn-top-leave-room");
+  const roomLabel = document.getElementById("top-room-btn-label");
+  const dot = document.getElementById("p2p-status-dot");
+
+  // Strict Rule: Must exit room before showing Create Room; when in room, show Room Status + Leave Room!
+  if (btnCreate) btnCreate.classList.toggle("hidden", inRoom);
+  if (btnOpenRoom) btnOpenRoom.classList.toggle("hidden", !inRoom);
+  if (btnLeaveRoom) btnLeaveRoom.classList.toggle("hidden", !inRoom);
+
+  if (inRoom && roomLabel) {
+    const count = Math.max(1, getParticipantList().filter((p) => !p.disconnected).length);
+    const codeStr = state.roomCode || "AI對戰";
+    roomLabel.textContent = `${codeStr} (${count}人)`;
+  }
+  if (dot) {
+    dot.className = inRoom
+      ? "w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"
+      : "w-2 h-2 rounded-full bg-slate-500 shrink-0";
+  }
+}
+
 function updateP2PPanelVisibility() {
   const panel = document.getElementById("p2p-live-panel");
-  if (!panel) return;
   const shouldShow = Boolean(state.roomCode || state.aiRivalActive || state.opponent.connected);
-  panel.classList.toggle("hidden", !shouldShow);
+  if (panel) panel.classList.toggle("hidden", !shouldShow);
+  updateTopBarRoomControlsUI();
   applySpectatorInputLock();
 }
 
 function syncSpectatorInitialLayers(rule, forcedLayer, railRule) {
-  // Set spectator's initial default map layer and rail mode to match the players,
-  // but do NOT lock the spectator's controls afterward.
   const defaultBase = forcedLayer || "vector";
   setMapBaseLayer(defaultBase, true);
   if (railRule === "ban_rail") {
@@ -519,7 +976,6 @@ function applyP2PLayerRule(rule, forcedLayer, railRule) {
   const railBtn = document.getElementById("btn-toggle-rail");
   const cfgBtn = document.getElementById("btn-open-transport-cfg");
 
-  // Spectator rule: initial layer matches players, then 100% free local layer switching!
   if (state.role === "spectator" && state.roomCode) {
     if (!state.spectatorLayerInitialized) {
       syncSpectatorInitialLayers(state.p2pLayerRule, state.p2pForcedLayer, state.p2pRailRule);
@@ -527,7 +983,7 @@ function applyP2PLayerRule(rule, forcedLayer, railRule) {
     if (badge) {
       badge.classList.remove("hidden");
       badge.className = "apple-glass-pill px-2.5 py-1 rounded-xl text-[11px] font-bold text-amber-300 border border-amber-500/40 pointer-events-auto";
-      badge.textContent = "👁️ 觀戰自由圖層 (僅影響自己畫面)";
+      badge.textContent = "👁️ 觀戰自由圖層";
     }
     if (switcher) switcher.classList.remove("opacity-60", "pointer-events-none");
     if (railBtn) railBtn.classList.remove("pointer-events-none", "opacity-50", "opacity-60");
@@ -559,13 +1015,13 @@ function applyP2PLayerRule(rule, forcedLayer, railRule) {
       badge.textContent =
         state.p2pRailRule === "ban_rail"
           ? hasStations
-            ? "🚫 對戰已禁用路網 (僅允許開關車站點)"
-            : "🚫 對戰已禁用(Ban)所有路網與車站"
+            ? "🚫 已禁路網 (僅顯示車站點)"
+            : "🚫 已禁用所有路網"
           : state.p2pRailRule === "ban_roads_only"
-          ? "🛑 對戰已禁用公路網 (保留軌道線+車站)"
+          ? "🛑 已禁用公路網"
           : state.p2pRailRule === "force_rail_only"
-          ? "🚄 對戰強制純軌道路網"
-          : "🛤️ 對戰強制完整路網";
+          ? "🚄 強制純軌道路網"
+          : "🛤️ 強制完整路網";
     }
     updateRoadAndRailwayTileOverlays();
     if (railBtn) {
@@ -594,11 +1050,11 @@ function applyP2PLayerRule(rule, forcedLayer, railRule) {
 // ============================================================================
 function describeConfigDiff(patch) {
   const diffNames = {
-    casual: "🟢 一般/休閒難度",
-    county_only: "🔵 縣市模式 (22縣市)",
+    casual: "🟢 休閒難度",
+    county_only: "🔵 22縣市模式",
     hard_suffix: "🟡 進階後綴模式",
     hard_full: "🟠 困難全名模式",
-    master_hierarchy: "🔥 最難：三階解鎖"
+    master_hierarchy: "🔥 三階困難模式"
   };
   const pmNames = {
     free: "✍️ 自由默寫",
@@ -606,9 +1062,9 @@ function describeConfigDiff(patch) {
     target_click: "👆 點選指定區塊"
   };
   const qmNames = {
-    region: "🗺️ 地區模式",
-    station: "🚉 車站模式",
-    mixed: "🔀 混合模式"
+    region: "🗺️ 區",
+    station: "🚉 車站",
+    mixed: "🔀 混合"
   };
 
   const lines = [];
@@ -616,7 +1072,7 @@ function describeConfigDiff(patch) {
     lines.push(`挑戰難度：${diffNames[state.difficulty] || state.difficulty} ➔ ${diffNames[patch.difficulty] || patch.difficulty}`);
   }
   if (patch.quizTargetMode && patch.quizTargetMode !== state.quizTargetMode) {
-    lines.push(`挑戰主模式：${qmNames[state.quizTargetMode] || state.quizTargetMode} ➔ ${qmNames[patch.quizTargetMode] || patch.quizTargetMode}`);
+    lines.push(`挑戰類型：${qmNames[state.quizTargetMode] || state.quizTargetMode} ➔ ${qmNames[patch.quizTargetMode] || patch.quizTargetMode}`);
   }
   if (patch.playMode && patch.playMode !== state.playMode) {
     lines.push(`出題方式：${pmNames[state.playMode] || state.playMode} ➔ ${pmNames[patch.playMode] || patch.playMode}`);
@@ -635,7 +1091,7 @@ function describeConfigDiff(patch) {
     lines.push(`計時規則變更為：${newTimerDesc}`);
   }
   if (patch.layerRule || patch.forcedLayer || patch.railRule) {
-    lines.push(`底圖/路網規則變更`);
+    lines.push(`底圖/路網限制變更`);
   }
   if (lines.length === 0) {
     lines.push("更新房間題庫與比賽設定");
@@ -664,14 +1120,15 @@ function buildProposedConfigFromPatch(patch) {
     base.quizStationLines = [];
   } else if (base.quizTargetMode === "station") {
     base.selectedCounties = [];
+    base.selectedTownIds = [];
   }
   return base;
 }
 
 function requestOrApplyConfigChange(patch, changeLabel = "比賽設定") {
-  // 1. Security Guard: Non-host in a multiplayer room CANNOT change difficulty or rules!
+  // Security Guard: Non-host in a multiplayer room CANNOT change difficulty or rules or broadcast!
   if (!canLocalModifyGameConfig()) {
-    setFeedback("🔒 防作弊保護：僅房主可發起難度與題庫變更（且須經全體參賽玩家同意）！", "error");
+    setFeedback("🔒 僅房主可調整房間題目設定！", "error");
     playTone("error");
     renderScopeModalGrid();
     return false;
@@ -680,7 +1137,7 @@ function requestOrApplyConfigChange(patch, changeLabel = "比賽設定") {
   const proposedCfg = buildProposedConfigFromPatch(patch);
   const contestingClients = state.isHost && state.roomCode ? getNonHostBattlePlayers() : [];
 
-  // 2. If in Solo mode OR Host has 0 contesting human players in room -> apply immediately!
+  // In Solo mode OR Host with 0 contesting human players -> apply immediately (never broadcast if solo!)
   if (!state.roomCode || contestingClients.length === 0) {
     applyRemoteSyncConfig(proposedCfg, false, true);
     if (state.isHost && state.roomCode) {
@@ -691,7 +1148,7 @@ function requestOrApplyConfigChange(patch, changeLabel = "比賽設定") {
     return true;
   }
 
-  // 3. Host has >=1 contesting human players -> Require Unanimous Consent Vote!
+  // Host has >=1 contesting human players -> Require Unanimous Consent Vote!
   const diffDescriptions = describeConfigDiff(patch);
   const proposal = {
     proposalId: "vote_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
@@ -704,11 +1161,10 @@ function requestOrApplyConfigChange(patch, changeLabel = "比賽設定") {
   };
   state.pendingConfigProposal = proposal;
 
-  // Keep Host UI showing current state until vote passes
   renderScopeModalGrid();
   renderConfigVoteModalUI(proposal);
   sendP2PMessage("CONFIG_CHANGE_PROPOSAL", proposal);
-  setFeedback(`🗳️ 已向全體參賽玩家 (${contestingClients.length} 人) 發起「${changeLabel}」變更投票，全體同意後即生效！`, "warn");
+  setFeedback(`🗳️ 已向全體參賽玩家 (${contestingClients.length} 人) 發起「${changeLabel}」變更投票！`, "warn");
   return false;
 }
 
@@ -726,11 +1182,11 @@ function renderConfigVoteModalUI(proposal) {
 
   if (titleEl) {
     titleEl.textContent = state.isHost
-      ? `⏳ 等待全體參賽玩家同意變更「${proposal.changeLabel}」`
+      ? `⏳ 等待參賽玩家同意變更「${proposal.changeLabel}」`
       : `👑 房主【${proposal.hostName || "房主"}】申請變更「${proposal.changeLabel}」`;
   }
   if (descEl) {
-    descEl.textContent = "為確保公平競技，難度與題庫變更須經房內全體參賽選手同意才會生效。";
+    descEl.textContent = "須經房內全體參賽選手同意才會生效。";
   }
 
   if (diffListEl) {
@@ -826,7 +1282,6 @@ function handleIncomingConfigVoteOnHost(payload, senderId) {
   prop.votes[senderId] = Boolean(payload.approved);
 
   if (!payload.approved) {
-    // Rejected by a contesting player -> abort proposal immediately!
     const rejecter = payload.voterName || state.players[senderId]?.name || "參賽玩家";
     state.pendingConfigProposal = null;
     document.getElementById("modal-config-vote")?.classList.add("hidden");
@@ -837,12 +1292,11 @@ function handleIncomingConfigVoteOnHost(payload, senderId) {
       rejectedBy: rejecter,
       changeLabel: prop.changeLabel
     });
-    setFeedback(`❌ 參賽玩家【${rejecter}】不同意變更「${prop.changeLabel}」，已維持原設定！`, "error");
+    setFeedback(`❌ 參賽玩家【${rejecter}】不同意變更「${prop.changeLabel}」，維持原設定！`, "error");
     playTone("error");
     return;
   }
 
-  // Check if all required contesting players have approved
   const allApproved = prop.requiredVoters.every((v) => prop.votes[v.id] === true || state.players[v.id]?.disconnected);
   if (allApproved) {
     const finalCfg = prop.proposedConfig;
@@ -862,7 +1316,7 @@ function handleIncomingConfigVoteOnHost(payload, senderId) {
     });
     broadcastRosterFromHost();
     updateP2PLobbyUI();
-    setFeedback(`✅ 全體參賽玩家同意！已正式套用「${label}」變更。`, "tier");
+    setFeedback(`✅ 全體參賽玩家同意！已套用「${label}」變更。`, "tier");
     playTone("tier");
   } else {
     renderConfigVoteModalUI(prop);
@@ -874,15 +1328,18 @@ function handleIncomingConfigVoteOnHost(payload, senderId) {
 }
 
 // ============================================================================
-// P2P MESSAGE TRANSPORT & DISPATCHER
+// P2P MESSAGE TRANSPORT & DISPATCHER (Strict Solo Isolation!)
 // ============================================================================
-function sendP2PMessage(type, payload, targetId = null, excludeSenderId = null) {
-  if (!state.roomCode && !state.aiRivalActive) return;
+function sendP2PMessage(type, payload, targetId = null, excludeSenderId = null, explicitRoomCode = null) {
+  const activeRoom = explicitRoomCode || state.roomCode;
+  // Strict Guard: Individual / Solo mode NEVER broadcasts anything!
+  if (!activeRoom && !state.aiRivalActive) return;
+
   const envelope = {
     type,
     payload,
     targetId: targetId || null,
-    roomCode: state.roomCode || "",
+    roomCode: activeRoom || "",
     senderId: state.localInstanceId
   };
 
@@ -904,7 +1361,7 @@ function sendP2PMessage(type, payload, targetId = null, excludeSenderId = null) 
     }
   }
 
-  if (state.bcChannel && state.roomCode) {
+  if (state.bcChannel && activeRoom) {
     try { state.bcChannel.postMessage(envelope); } catch (e) {}
   }
 }
@@ -921,8 +1378,57 @@ function broadcastRosterFromHost() {
 function dispatchP2PMessage(msg, sourceConn = null) {
   if (!msg || !msg.type) return;
   if (msg.senderId && msg.senderId === state.localInstanceId) return;
-  // Strict guard: never process messages when local user is not in a room or in a different room!
-  if (!state.roomCode || !msg.roomCode || msg.roomCode !== state.roomCode) return;
+
+  // Handle ROOM_PROBE & ROOM_INFO before joining room (so client entry modal knows if password is required)
+  if (msg.type === "ROOM_PROBE") {
+    if (!state.isHost || !state.roomCode || msg.roomCode !== state.roomCode) return;
+    const isBanned = Boolean(msg.payload?.deviceId && state.bannedDevices && state.bannedDevices.has(msg.payload.deviceId));
+    const infoPayload = {
+      roomCode: state.roomCode,
+      hasPassword: Boolean(state.roomPassword),
+      hostName: state.nickname || "房主",
+      memberCount: getParticipantList().filter((p) => !p.disconnected).length,
+      isBanned
+    };
+    if (sourceConn && sourceConn.open) {
+      try {
+        sourceConn.send({
+          type: "ROOM_INFO",
+          payload: infoPayload,
+          targetId: msg.senderId,
+          roomCode: state.roomCode,
+          senderId: state.localInstanceId
+        });
+      } catch (_) {}
+    }
+    sendP2PMessage("ROOM_INFO", infoPayload, msg.senderId, null, state.roomCode);
+    return;
+  }
+
+  if (msg.type === "ROOM_INFO") {
+    if (msg.targetId && msg.targetId !== state.localInstanceId) return;
+    if (!state.pendingJoinRoomCode || msg.roomCode !== state.pendingJoinRoomCode) return;
+    state.roomHasPassword = Boolean(msg.payload?.hasPassword);
+    const pwWrap = document.getElementById("join-entry-password-wrap");
+    if (pwWrap) {
+      pwWrap.classList.toggle("hidden", !state.roomHasPassword);
+    }
+    const errBox = document.getElementById("join-entry-error");
+    const errTxt = document.getElementById("join-entry-error-text");
+    const submitBtn = document.getElementById("btn-join-entry-submit");
+    if (msg.payload?.isBanned) {
+      if (errBox && errTxt) {
+        errTxt.textContent = "🚫 你的裝置已被房主封鎖，無法加入此房間！";
+        errBox.classList.remove("hidden");
+      }
+      if (submitBtn) submitBtn.disabled = true;
+    }
+    return;
+  }
+
+  // Strict guard for all in-room messages
+  const activeOrPendingRoom = state.roomCode || state.pendingJoinRoomCode;
+  if (!activeOrPendingRoom || !msg.roomCode || msg.roomCode !== activeOrPendingRoom) return;
   if (msg.targetId && msg.targetId !== state.localInstanceId) return;
 
   if (state.isHost && sourceConn && msg.senderId && msg.type !== "LOBBY_JOIN") {
@@ -931,6 +1437,29 @@ function dispatchP2PMessage(msg, sourceConn = null) {
 
   if (msg.type === "LOBBY_JOIN") {
     if (!state.isHost) return;
+    const clientDevId = msg.payload?.deviceId || msg.senderId;
+
+    // 1. Check Device Ban List
+    if (state.bannedDevices && state.bannedDevices.has(clientDevId)) {
+      const rejectPayload = { reason: "DEVICE_BANNED" };
+      if (sourceConn && sourceConn.open) {
+        try {
+          sourceConn.send({
+            type: "JOIN_REJECTED",
+            payload: rejectPayload,
+            targetId: msg.senderId,
+            roomCode: state.roomCode,
+            senderId: state.localInstanceId
+          });
+          setTimeout(() => { try { sourceConn.close(); } catch (_) {} }, 250);
+        } catch (e) {}
+      } else {
+        sendP2PMessage("JOIN_REJECTED", rejectPayload, msg.senderId);
+      }
+      return;
+    }
+
+    // 2. Check Room Password
     const reqPass = msg.payload?.password || "";
     if (state.roomPassword && reqPass !== state.roomPassword) {
       const rejectPayload = { reason: reqPass ? "WRONG_PASSWORD" : "PASSWORD_REQUIRED" };
@@ -952,16 +1481,30 @@ function dispatchP2PMessage(msg, sourceConn = null) {
     }
 
     if (sourceConn && msg.senderId) state.peers.set(msg.senderId, sourceConn);
-    const existing = state.players[msg.senderId];
-    const isReturningSession = Boolean(existing);
+    let existing = state.players[msg.senderId];
+    if (!existing && msg.payload?.deviceId) {
+      const prevDisconnected = Object.values(state.players).find(
+        (p) =>
+          p.deviceId === msg.payload.deviceId &&
+          (p.disconnected || msg.payload?.isReconnect) &&
+          p.role !== "host" &&
+          p.id !== state.localInstanceId
+      );
+      if (prevDisconnected) {
+        existing = prevDisconnected;
+        if (prevDisconnected.id !== msg.senderId) {
+          delete state.players[prevDisconnected.id];
+          if (state.peers) state.peers.delete(prevDisconnected.id);
+        }
+      }
+    }
+    const isReturningSession = Boolean(existing && existing.role !== "host");
 
-    // Issue 3: Join room as Spectator first by default unless reconnecting to an existing Player session
-    // or explicitly joining via the Player invite link when match is not in progress.
     let assignedRole = "spectator";
-    if (isReturningSession && existing.role && (msg.payload?.isReconnect || state.matchInProgress)) {
+    if (msg.payload?.isReconnect && isReturningSession && existing.role) {
       assignedRole = existing.role;
     } else if (state.matchInProgress) {
-      assignedRole = "spectator";
+      assignedRole = isReturningSession && existing.role === "player" && msg.payload?.wantSpectate === false ? "player" : "spectator";
     } else if (msg.payload?.wantSpectate === false) {
       assignedRole = "player";
     } else {
@@ -973,7 +1516,7 @@ function dispatchP2PMessage(msg, sourceConn = null) {
 
     state.players[msg.senderId] = {
       id: msg.senderId,
-      deviceId: msg.payload?.deviceId || msg.senderId,
+      deviceId: clientDevId,
       name: msg.payload?.name || existing?.name || "玩家",
       role: assignedRole,
       isReady: isReturningSession && assignedRole === existing?.role ? Boolean(existing.isReady) : false,
@@ -1020,7 +1563,7 @@ function dispatchP2PMessage(msg, sourceConn = null) {
     const roleLabel = assignedRole === "spectator" ? "觀戰者" : "參賽選手";
     setFeedback(
       isReturningSession
-        ? `🔄 ${roleLabel}【${state.players[msg.senderId].name}】已透過裝置 ID 重新連回房間！`
+        ? `🔄 ${roleLabel}【${state.players[msg.senderId].name}】已重新連回房間！`
         : `🎮 ${roleLabel}【${state.players[msg.senderId].name}】已進入房間！`,
       "tier"
     );
@@ -1033,38 +1576,98 @@ function dispatchP2PMessage(msg, sourceConn = null) {
       setFeedback(`🚪 成員【${leftName}】已離開房間`, "warn");
       syncPrimaryOpponentFromRoster();
       if (state.isHost) broadcastRosterFromHost();
+      updateP2PPanelVisibility();
       updateP2PLobbyUI();
       updateOpponentUI();
       checkIfLocalIsLastPlayer();
     }
+  } else if (msg.type === "HOST_HANDOVER") {
+    if (msg.payload?.newHostId === state.localInstanceId) {
+      promoteLocalClientToNewHost(msg.payload);
+    } else {
+      if (msg.payload?.players) {
+        state.players = msg.payload.players;
+        Object.values(state.players).forEach((p) => { p._viewSets = null; });
+      }
+      syncPrimaryOpponentFromRoster();
+      updateP2PLobbyUI();
+      updateOpponentUI();
+      setFeedback(`👑 原房主已離開，房主權限已移交給【${msg.payload?.newHostName || "新房主"}】！`, "info");
+    }
+  } else if (msg.type === "ROOM_CLOSED") {
+    leaveP2PRoom("🚪 所有成員皆已退出，房間已關閉");
+  } else if (msg.type === "PLAYER_KICKED") {
+    if (!msg.payload?.targetId || msg.payload.targetId === state.localInstanceId) {
+      leaveP2PRoom("🚪 你已被房主移出房間");
+      playTone("error");
+    }
+  } else if (msg.type === "PLAYER_BANNED") {
+    if (
+      msg.payload?.targetId === state.localInstanceId ||
+      (msg.payload?.deviceId && msg.payload.deviceId === state.deviceId)
+    ) {
+      leaveP2PRoom("🚫 你的裝置已被房主封鎖，無法待在此房間！");
+      playTone("error");
+    }
   } else if (msg.type === "JOIN_REJECTED") {
     const reason = msg.payload?.reason;
-    const statusEl = document.getElementById("p2p-modal-status");
-    const passInput = document.getElementById("p2p-password-input");
-    openGameHubModal("join");
+    const entryModal = document.getElementById("modal-join-entry");
+    const isEntryModalOpen = entryModal && !entryModal.classList.contains("hidden");
+
     const errMsg =
-      reason === "PASSWORD_REQUIRED"
-        ? "🔒 此房間設有密碼，請在左側輸入房間密碼後再點「連線入房」"
-        : "❌ 房間密碼錯誤，請重新確認密碼後再試！";
-    if (statusEl) statusEl.textContent = errMsg;
-    if (passInput) {
-      passInput.classList.add("border-rose-500");
-      passInput.focus();
+      reason === "DEVICE_BANNED"
+        ? "🚫 此裝置已被房主封鎖，禁止加入本房間！"
+        : reason === "PASSWORD_REQUIRED"
+        ? "🔒 此房間設有密碼，請輸入房間密碼後再點加入！"
+        : "❌ 密碼輸入錯誤，請確認房間密碼後再試！";
+
+    if (isEntryModalOpen) {
+      const pwWrap = document.getElementById("join-entry-password-wrap");
+      const pwInput = document.getElementById("join-entry-password-input");
+      const errBox = document.getElementById("join-entry-error");
+      const errTxt = document.getElementById("join-entry-error-text");
+      if (reason === "PASSWORD_REQUIRED" || reason === "WRONG_PASSWORD") {
+        state.roomHasPassword = true;
+        if (pwWrap) pwWrap.classList.remove("hidden");
+        if (pwInput) {
+          pwInput.classList.add("border-rose-500", "animate-shake");
+          setTimeout(() => pwInput.classList.remove("animate-shake"), 350);
+          pwInput.focus();
+        }
+      }
+      if (errBox && errTxt) {
+        errTxt.textContent = errMsg;
+        errBox.classList.remove("hidden");
+      }
+    } else {
+      const statusEl = document.getElementById("p2p-modal-status");
+      const passInput = document.getElementById("p2p-password-input");
+      if (typeof openRoomModal === "function") openRoomModal();
+      if (statusEl) {
+        statusEl.textContent = errMsg;
+        statusEl.className = "text-[11px] text-rose-400 font-bold block px-1";
+      }
+      if (passInput) {
+        passInput.classList.add("border-rose-500", "animate-shake");
+        setTimeout(() => passInput.classList.remove("animate-shake"), 350);
+        passInput.focus();
+      }
     }
+
     state.roomCode = "";
     state.role = "solo";
     state.opponent.connected = false;
     updateP2PPanelVisibility();
     updateP2PLobbyUI();
-    setFeedback(errMsg, reason === "PASSWORD_REQUIRED" ? "warn" : "error");
-    if (reason === "WRONG_PASSWORD") playTone("error");
+    setFeedback(errMsg, "error");
+    playTone("error");
   } else if (msg.type === "LOBBY_WELCOME") {
     if (state.isHost) return;
     if (state._joinTimeoutTimer) {
       clearTimeout(state._joinTimeoutTimer);
       state._joinTimeoutTimer = null;
     }
-    state.opponent.connected = true;
+    state.pendingJoinRoomCode = "";
     state.role = msg.payload?.assignedRole || "spectator";
     state.matchInProgress = Boolean(msg.payload?.matchInProgress);
     state.spectatorLayerInitialized = false;
@@ -1080,6 +1683,13 @@ function dispatchP2PMessage(msg, sourceConn = null) {
       restoreLocalSessionProgress(msg.payload.restoredSession);
     }
 
+    // Close URL Client Entry Modal and open the simplified Room Lobby Modal!
+    document.getElementById("modal-join-entry")?.classList.add("hidden");
+    document.getElementById("join-entry-error")?.classList.add("hidden");
+    if (!state.matchInProgress && typeof openRoomModal === "function") {
+      openRoomModal();
+    }
+
     ensureLocalPlayerInRoster();
     syncPrimaryOpponentFromRoster();
     updateP2PPanelVisibility();
@@ -1090,12 +1700,15 @@ function dispatchP2PMessage(msg, sourceConn = null) {
     updateScoreAndProgressUI();
 
     const msgText = msg.payload?.isReconnected
-      ? `🔄 已透過裝置 ID 恢復你在房間 ${state.roomCode} 的連線與進度！`
+      ? `🔄 已恢復你在房間 ${state.roomCode} 的連線與進度！`
       : state.role === "spectator"
-      ? `👁️ 已以「觀戰模式」進入房間 ${state.roomCode}！可隨時查看各選手地圖或點擊「切換為參賽選手」`
-      : `🎮 已以「參賽選手」加入房間 ${state.roomCode}！請確認下方設定後點擊準備`;
+      ? `👁️ 已以「觀戰模式」進入房間 ${state.roomCode}！`
+      : `🎮 已以「參賽選手」加入房間 ${state.roomCode}！請確認設定並點擊準備`;
     const statusEl = document.getElementById("p2p-modal-status");
-    if (statusEl) statusEl.textContent = msgText;
+    if (statusEl) {
+      statusEl.textContent = msgText;
+      statusEl.className = "text-[11px] text-emerald-400 font-medium block px-1";
+    }
     setFeedback(msgText, "info");
     playTone("unlock");
   } else if (msg.type === "ROOM_ROSTER") {
@@ -1136,7 +1749,6 @@ function dispatchP2PMessage(msg, sourceConn = null) {
   } else if (msg.type === "SYNC_STATE") {
     handleIncomingP2PData(msg.payload, msg.senderId);
     if (state.isHost) {
-      // Relay to all other clients & spectators (excluding original sender)
       sendP2PMessage("SYNC_STATE", { ...msg.payload, senderId: msg.senderId }, null, msg.senderId);
     }
   } else if (msg.type === "SYNC_START") {
@@ -1151,9 +1763,9 @@ function dispatchP2PMessage(msg, sourceConn = null) {
     if (state.role === "player") {
       renderConfigVoteModalUI(msg.payload);
       playTone("tier");
-      setFeedback(`🗳️ 房主申請變更「${msg.payload?.changeLabel || "難度/設定"}」，請在彈窗中投票表決！`, "warn");
+      setFeedback(`🗳️ 房主申請變更「${msg.payload?.changeLabel || "設定"}」，請在彈窗中投票表決！`, "warn");
     } else {
-      setFeedback(`⏳ 房主發起「${msg.payload?.changeLabel || "難度/設定"}」變更投票，等待全體參賽選手同意中...`, "info");
+      setFeedback(`⏳ 房主發起「${msg.payload?.changeLabel || "設定"}」變更投票，等待參賽選手同意中...`, "info");
     }
   } else if (msg.type === "CONFIG_CHANGE_VOTE") {
     handleIncomingConfigVoteOnHost(msg.payload, msg.senderId);
@@ -1173,25 +1785,29 @@ function dispatchP2PMessage(msg, sourceConn = null) {
       renderScopeModalGrid();
       const reason = msg.payload?.cancelledByHost
         ? "🚫 房主已撤回設定變更申請，維持原設定"
-        : `❌ 參賽玩家【${msg.payload?.rejectedBy || "選手"}】不同意變更，維持原難度與題庫設定！`;
+        : `❌ 參賽玩家【${msg.payload?.rejectedBy || "選手"}】不同意變更，維持原設定！`;
       setFeedback(reason, "warn");
     }
   } else if (msg.type === "SYNC_READY_STATUS") {
     const targetId = msg.senderId;
     if (state.players[targetId]) {
+      const prevReady = state.players[targetId].isReady;
       if (msg.payload?.name) state.players[targetId].name = msg.payload.name;
       state.players[targetId].isReady = Boolean(msg.payload?.ready);
+      if (state.isHost && prevReady !== state.players[targetId].isReady) {
+        playTone(msg.payload?.ready ? "unlock" : "error");
+        setFeedback(
+          `玩家【${msg.payload?.name || "對手"}】${msg.payload?.ready ? "已準備完成！" : "取消了準備"}`,
+          msg.payload?.ready ? "tier" : "warn"
+        );
+      }
     }
     syncPrimaryOpponentFromRoster();
     if (state.isHost) {
       broadcastRosterFromHost();
-      playTone(msg.payload?.ready ? "unlock" : "error");
-      setFeedback(
-        `玩家【${msg.payload?.name || "對手"}】${msg.payload?.ready ? "已準備完成！" : "取消了準備"}`,
-        msg.payload?.ready ? "tier" : "warn"
-      );
     }
     updateP2PLobbyUI();
+    updateOpponentUI();
   } else if (msg.type === "SYNC_PLAYER_FINISHED") {
     handleOpponentFinished(msg.payload, msg.senderId);
     if (state.isHost) {
@@ -1206,7 +1822,7 @@ function dispatchP2PMessage(msg, sourceConn = null) {
     handleRematchDeclined(msg.payload);
   } else if (msg.type === "RETURN_TO_LOBBY_REQUEST") {
     if (state.isHost) {
-      setFeedback(`玩家【${msg.payload?.sender || "對手"}】請求回到大廳重新設定`, "info");
+      setFeedback(`玩家【${msg.payload?.sender || "對手"}】請求回到房間重新設定`, "info");
       executeReturnToLobby();
     }
   } else if (msg.type === "RETURN_TO_LOBBY") {
@@ -1215,7 +1831,7 @@ function dispatchP2PMessage(msg, sourceConn = null) {
 }
 
 // ============================================================================
-// MVC LOBBY & ROSTER RENDERING (Using <template> DOM Cloning)
+// MVC LOBBY & ROSTER RENDERING (With Host Kick ✕ and Ban 🚫 Buttons)
 // ============================================================================
 function renderMultiplayerLobbyRoster() {
   const rosterWrap = document.getElementById("p2p-multiplayer-roster");
@@ -1225,16 +1841,14 @@ function renderMultiplayerLobbyRoster() {
 
   const list = getParticipantList();
   if (!state.roomCode && !state.aiRivalActive) {
-    rosterWrap.classList.add("hidden");
     rosterList.replaceChildren();
     return;
   }
 
-  rosterWrap.classList.remove("hidden");
   const activeCount = getActiveBattlePlayers().length;
   const specCount = getSpectators().length;
   if (rosterTitle) {
-    rosterTitle.textContent = `房間完整名單 (共 ${list.length} 人：參賽 ${activeCount} · 觀戰 ${specCount})`;
+    rosterTitle.textContent = `👥 房間成員 (${list.length}人：參賽 ${activeCount}${specCount > 0 ? ` · 觀戰 ${specCount}` : ""})`;
   }
 
   rosterList.replaceChildren();
@@ -1243,30 +1857,49 @@ function renderMultiplayerLobbyRoster() {
     if (!tpl || !tpl.content) return;
     const row = tpl.content.firstElementChild.cloneNode(true);
     const isMe = p.id === state.localInstanceId;
+    const roleIconEl = row.querySelector(".roster-role-icon");
     const nameEl = row.querySelector(".roster-name");
     const devEl = row.querySelector(".roster-dev");
     const badgeEl = row.querySelector(".roster-badge");
+    const kickBtn = row.querySelector(".roster-kick-btn");
+    const banBtn = row.querySelector(".roster-ban-btn");
 
+    if (roleIconEl) {
+      roleIconEl.textContent = p.role === "host" ? "👑" : p.role === "spectator" ? "👁️" : "🎮";
+    }
     if (nameEl) nameEl.textContent = `${p.name}${isMe ? " (你)" : ""}`;
-    if (devEl) devEl.textContent = p.disconnected ? "[斷線待重連]" : `#${(p.deviceId || p.id || "").slice(-4)}`;
+    if (devEl) devEl.textContent = p.disconnected ? "[斷線]" : `#${(p.deviceId || p.id || "").slice(-4)}`;
     if (badgeEl) {
       if (p.disconnected) {
-        badgeEl.className = "roster-badge px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold shrink-0";
-        badgeEl.textContent = "🔌 斷線保留中";
+        badgeEl.className = "roster-badge px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-300 text-[11px] font-bold shrink-0";
+        badgeEl.textContent = "🔌 斷線";
       } else if (p.role === "host") {
-        badgeEl.className = "roster-badge px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[10px] font-bold shrink-0";
-        badgeEl.textContent = "👑 房主";
+        badgeEl.className = "roster-badge px-2 py-0.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/30 text-[11px] font-bold shrink-0";
+        badgeEl.textContent = "房主 · 已準備";
       } else if (p.role === "spectator") {
-        badgeEl.className = "roster-badge px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold shrink-0";
-        badgeEl.textContent = "👁️ 觀戰";
+        badgeEl.className = "roster-badge px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold shrink-0";
+        badgeEl.textContent = "觀戰中";
       } else if (p.isReady) {
-        badgeEl.className = "roster-badge px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold shrink-0";
+        badgeEl.className = "roster-badge px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold shrink-0";
         badgeEl.textContent = "✓ 已準備";
       } else {
-        badgeEl.className = "roster-badge px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 text-[10px] font-bold shrink-0";
-        badgeEl.textContent = "⏳ 準備中";
+        badgeEl.className = "roster-badge px-2 py-0.5 rounded-lg bg-slate-800 text-amber-300 border border-slate-700 text-[11px] font-bold shrink-0";
+        badgeEl.textContent = "⏳ 未準備";
       }
     }
+
+    // Host Kick (✕) and Ban (Ban) buttons for non-host members
+    if (state.isHost && !isMe && p.id !== "ai_rival") {
+      if (kickBtn) {
+        kickBtn.classList.remove("hidden");
+        kickBtn.addEventListener("click", () => kickPlayerFromRoom(p.id));
+      }
+      if (banBtn) {
+        banBtn.classList.remove("hidden");
+        banBtn.addEventListener("click", () => banDeviceFromRoom(p.id));
+      }
+    }
+
     rosterList.appendChild(row);
   });
 }
@@ -1299,32 +1932,32 @@ function updateRoomShareLinksUI() {
 function updateP2PLobbyUI() {
   const devBadge = document.getElementById("device-id-badge");
   if (devBadge) {
-    devBadge.textContent = `裝置ID: ${state.deviceId.slice(0, 12)}`;
+    devBadge.textContent = `ID:${state.deviceId.slice(-6)}`;
   }
-
-  const myName =
-    document.getElementById("p2p-nickname-input")?.value.trim() ||
-    state.nickname ||
-    "GeoMasterTW";
-  state.nickname = myName;
 
   ensureLocalPlayerInRoster();
   updateRoomShareLinksUI();
-  if (typeof syncP2PRoomAccordionUI === "function") syncP2PRoomAccordionUI();
+  updateTopBarRoomControlsUI();
+  renderRoomConciseSettingsSummary();
+
+  const inRoom = Boolean(state.roomCode || state.aiRivalActive);
+  const connectView = document.getElementById("room-connect-view");
+  const activeView = document.getElementById("room-active-view");
+  const roomFooter = document.getElementById("room-modal-footer");
+  const roomModalTitle = document.getElementById("room-modal-title");
+  const hostRestrictPanel = document.getElementById("host-room-restrictions-panel");
+  const openModeBtnText = document.getElementById("room-open-mode-btn-text");
+
+  if (connectView) connectView.classList.toggle("hidden", inRoom);
+  if (activeView) activeView.classList.toggle("hidden", !inRoom);
+  if (roomFooter) roomFooter.classList.toggle("hidden", !inRoom);
+  if (hostRestrictPanel) hostRestrictPanel.classList.toggle("hidden", !state.isHost);
 
   const roleIndicator = document.getElementById("p2p-role-indicator");
-  const myAvatar = document.getElementById("p2p-my-avatar");
-  const myNameDisp = document.getElementById("p2p-my-name-display");
-  const myRoleBadge = document.getElementById("p2p-my-role-badge");
-  const myReadyBadge = document.getElementById("p2p-my-ready-badge");
   const myReadyBtn = document.getElementById("btn-p2p-toggle-ready");
   const myReadyIcon = document.getElementById("p2p-ready-btn-icon");
   const myReadyText = document.getElementById("p2p-ready-btn-text");
 
-  const oppNameDisp = document.getElementById("p2p-opp-name-display");
-  const oppRoleBadge = document.getElementById("p2p-opp-role-badge");
-  const oppReadyBadge = document.getElementById("p2p-opp-ready-badge");
-  const oppAvatar = document.getElementById("p2p-opp-avatar");
   const lobbyCountEl = document.getElementById("p2p-lobby-count");
   const startBtn = document.getElementById("btn-p2p-sync-start");
   const startBtnIcon = document.getElementById("p2p-start-btn-icon");
@@ -1335,69 +1968,32 @@ function updateP2PLobbyUI() {
   const layerRuleSelect = document.getElementById("p2p-layer-rule-select");
   const forcedLayerSelect = document.getElementById("p2p-forced-layer-select");
   const railRuleSelect = document.getElementById("p2p-rail-rule-select");
-  const guestSettingsNote = document.getElementById("p2p-guest-settings-note");
   const roleSwitchBar = document.getElementById("p2p-role-switch-bar");
   const roleSwitchBtn = document.getElementById("btn-p2p-switch-role");
   const specStatusText = document.getElementById("p2p-spectator-status-text");
 
   const settingsFieldset = document.getElementById("unified-settings-fieldset");
   const guestReadonlyBanner = document.getElementById("guest-readonly-banner");
-  const guestReadonlySummary = document.getElementById("guest-readonly-summary");
   const applyScopeBtn = document.getElementById("btn-apply-scope");
 
-  if (myNameDisp) myNameDisp.textContent = myName;
-  if (leaveBtn) leaveBtn.classList.toggle("hidden", !state.roomCode && !state.aiRivalActive);
+  if (leaveBtn) leaveBtn.classList.toggle("hidden", !inRoom);
 
   // =========================================================================
-  // CASE 1: NOT IN ANY ROOM YET (Solo / Standby — Fixes Phantom Host/Client!)
+  // CASE 1: NOT IN ANY ROOM YET (Solo Mode)
   // =========================================================================
-  if (!state.roomCode && !state.aiRivalActive) {
+  if (!inRoom) {
+    if (roomModalTitle) roomModalTitle.textContent = "建立或加入多人房間";
+    if (roleIndicator) {
+      roleIndicator.textContent = "👤 單人未入房";
+      roleIndicator.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700";
+    }
     if (roleSwitchBar) roleSwitchBar.classList.add("hidden");
     if (myReadyBtn) myReadyBtn.classList.add("hidden");
     if (startBtn) startBtn.classList.add("hidden");
     if (warningBanner) warningBanner.classList.add("hidden");
     if (guestReadonlyBanner) guestReadonlyBanner.classList.add("hidden");
     if (settingsFieldset) settingsFieldset.disabled = false;
-
-    if (roleIndicator) {
-      roleIndicator.textContent =
-        state.hubEntryTab === "host"
-          ? "👑 準備建立多人房間"
-          : state.hubEntryTab === "join"
-          ? "👁️ 準備加入房間 / 觀戰"
-          : "👤 單人挑戰模式";
-      roleIndicator.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30";
-    }
-    if (myAvatar) myAvatar.textContent = "👤";
-    if (myRoleBadge) {
-      myRoleBadge.textContent = "⚪ 尚未進入房間 (單人模式)";
-      myRoleBadge.className = "text-[10px] font-bold text-slate-400";
-    }
-    if (myReadyBadge) {
-      myReadyBadge.textContent = "單人待機";
-      myReadyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 shrink-0";
-    }
-    if (oppAvatar) oppAvatar.textContent = "⏳";
-    if (oppNameDisp) {
-      oppNameDisp.textContent = "尚未連線其他玩家";
-      oppNameDisp.className = "font-extrabold text-slate-400 text-xs truncate max-w-[140px]";
-    }
-    if (oppRoleBadge) {
-      oppRoleBadge.textContent = "⚪ 點擊上方「建立新房間」或輸入房號加入";
-      oppRoleBadge.className = "text-[10px] font-bold text-slate-500";
-    }
-    if (oppReadyBadge) {
-      oppReadyBadge.textContent = "未開房";
-      oppReadyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-500 border border-slate-700 shrink-0";
-    }
-    if (lobbyCountEl) lobbyCountEl.textContent = "尚未建立或加入房間";
-
-    if (layerRuleSelect) layerRuleSelect.disabled = false;
-    if (forcedLayerSelect) forcedLayerSelect.disabled = false;
-    if (railRuleSelect) railRuleSelect.disabled = false;
-    if (guestSettingsNote) guestSettingsNote.classList.add("hidden");
-    if (applyScopeBtn) applyScopeBtn.textContent = "🚀 確認設定並開始單人挑戰";
-
+    if (applyScopeBtn) applyScopeBtn.textContent = "🚀 確認套用設定";
     renderMultiplayerLobbyRoster();
     return;
   }
@@ -1407,141 +2003,96 @@ function updateP2PLobbyUI() {
   // =========================================================================
   const nonHostPlayers = getNonHostBattlePlayers();
   const spectators = getSpectators();
+  const totalConnected = getParticipantList().filter((p) => !p.disconnected).length;
+  const readyCount = nonHostPlayers.filter((p) => p.isReady).length;
+  const hasOpponents = nonHostPlayers.length > 0 || state.aiRivalActive;
   const allNonHostReady =
     (nonHostPlayers.length > 0 && nonHostPlayers.every((p) => p.isReady)) ||
     (state.aiRivalActive && state.opponent.isReady);
+
+  if (roomModalTitle) {
+    roomModalTitle.textContent = `房間 ${state.roomCode || "AI陪練"}`;
+  }
 
   if (state.isHost) {
     if (roleSwitchBar) roleSwitchBar.classList.add("hidden");
     if (guestReadonlyBanner) guestReadonlyBanner.classList.add("hidden");
     if (settingsFieldset) settingsFieldset.disabled = false;
+    if (openModeBtnText) openModeBtnText.textContent = "⚙️ 修改模式與題庫設定（簡易 / 進階）";
 
     if (roleIndicator) {
-      roleIndicator.textContent = `👑 房主主控台 (${state.roomCode || "AI陪練"})`;
+      roleIndicator.textContent = `👑 房主`;
       roleIndicator.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30";
-    }
-    if (myAvatar) myAvatar.textContent = "👑";
-    if (myRoleBadge) {
-      myRoleBadge.textContent = "👑 房主 (Host)";
-      myRoleBadge.className = "text-[10px] font-bold text-sky-400";
-    }
-    if (myReadyBadge) {
-      myReadyBadge.textContent = "👑 房主就緒";
-      myReadyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 shrink-0";
     }
     if (myReadyBtn) myReadyBtn.classList.add("hidden");
     if (warningBanner) warningBanner.classList.add("hidden");
 
-    const readyCount = nonHostPlayers.filter((p) => p.isReady).length;
-    const hasOpponents = nonHostPlayers.length > 0 || state.aiRivalActive;
-
-    if (oppAvatar) oppAvatar.textContent = hasOpponents ? "👥" : spectators.length > 0 ? "👁️" : "⏳";
-    if (oppNameDisp) {
-      if (state.aiRivalActive) oppNameDisp.textContent = state.opponent.name;
-      else if (nonHostPlayers.length === 1) oppNameDisp.textContent = nonHostPlayers[0].name;
-      else if (nonHostPlayers.length > 1) oppNameDisp.textContent = `${nonHostPlayers.length} 位參賽選手`;
-      else if (spectators.length > 0) oppNameDisp.textContent = `${spectators.length} 位觀戰者 (尚無參賽選手)`;
-      else oppNameDisp.textContent = "等待玩家或觀戰者加入...";
-    }
-    if (oppRoleBadge) {
-      oppRoleBadge.textContent =
-        spectators.length > 0
-          ? `🎮 參賽 ${nonHostPlayers.length} 人 · 👁️ 觀戰 ${spectators.length} 人`
-          : hasOpponents
-          ? `🎮 參賽選手 (${nonHostPlayers.length} 人)`
-          : "⚪ 等待連線";
-    }
-    if (oppReadyBadge) {
-      if (!hasOpponents) {
-        oppReadyBadge.textContent = spectators.length > 0 ? `👁️ 觀戰 ${spectators.length} 人` : "⏳ 等待加入";
-        oppReadyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 shrink-0";
-      } else if (allNonHostReady) {
-        oppReadyBadge.textContent = `✓ 全員已準備 (${state.aiRivalActive ? 1 : readyCount}/${state.aiRivalActive ? 1 : nonHostPlayers.length})`;
-        oppReadyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse shrink-0";
-      } else {
-        oppReadyBadge.textContent = `⏳ 準備中 (${readyCount}/${nonHostPlayers.length})`;
-        oppReadyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0";
-      }
-    }
-
     if (lobbyCountEl) {
-      if (!hasOpponents) lobbyCountEl.textContent = spectators.length > 0 ? `觀戰 ${spectators.length} 人 · 等待選手` : "等待玩家加入";
-      else if (allNonHostReady) lobbyCountEl.textContent = "全員準備就緒！";
-      else lobbyCountEl.textContent = `等待準備 (${readyCount}/${nonHostPlayers.length})`;
+      if (!hasOpponents) {
+        lobbyCountEl.textContent = spectators.length > 0 ? `${totalConnected}人在房 (觀戰 ${spectators.length})` : `${totalConnected}人在房 · 等待加入`;
+      } else if (allNonHostReady) {
+        lobbyCountEl.textContent = `${totalConnected}人在房 · 全員已準備！`;
+      } else {
+        lobbyCountEl.textContent = `${totalConnected}人在房 · 準備 ${readyCount}/${nonHostPlayers.length}`;
+      }
     }
 
     if (layerRuleSelect) layerRuleSelect.disabled = false;
     if (forcedLayerSelect) forcedLayerSelect.disabled = false;
     if (railRuleSelect) railRuleSelect.disabled = false;
-    if (guestSettingsNote) guestSettingsNote.classList.add("hidden");
 
     if (startBtn) {
       startBtn.classList.remove("hidden");
       if (allNonHostReady) {
         startBtn.disabled = false;
         if (startBtnIcon) startBtnIcon.textContent = "🚀";
-        if (startBtnText) startBtnText.textContent = "全員已準備，立即同步開局！";
-        startBtn.className = "w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm transition shadow-lg shadow-emerald-500/25 cursor-pointer flex items-center justify-center gap-2";
+        if (startBtnText) startBtnText.textContent = "全員已準備，立即開始對戰 (Start)！";
+        startBtn.className = "w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm sm:text-base transition shadow-lg shadow-emerald-500/25 cursor-pointer flex items-center justify-center gap-2";
+      } else if (!hasOpponents && spectators.length > 0) {
+        startBtn.disabled = false;
+        if (startBtnIcon) startBtnIcon.textContent = "🎬";
+        if (startBtnText) startBtnText.textContent = `開始單人展演 (${spectators.length} 人觀戰中)`;
+        startBtn.className = "w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-400 to-indigo-500 hover:from-sky-300 hover:to-indigo-400 text-slate-950 font-black text-sm sm:text-base transition shadow-lg shadow-sky-500/25 cursor-pointer flex items-center justify-center gap-2";
       } else if (!hasOpponents) {
         startBtn.disabled = true;
         if (startBtnIcon) startBtnIcon.textContent = "⏳";
-        if (startBtnText) startBtnText.textContent = "等待至少 1 位參賽選手準備...";
-        startBtn.className = "w-full py-2.5 px-4 rounded-2xl bg-slate-800 text-slate-500 font-black text-sm transition cursor-not-allowed border border-slate-700 flex items-center justify-center gap-2";
+        if (startBtnText) startBtnText.textContent = "等待其他玩家加入並準備...";
+        startBtn.className = "w-full py-3 px-4 rounded-2xl bg-slate-800 text-slate-500 font-black text-sm sm:text-base transition cursor-not-allowed border border-slate-700 flex items-center justify-center gap-2";
       } else {
         startBtn.disabled = true;
         if (startBtnIcon) startBtnIcon.textContent = "⏳";
-        if (startBtnText) startBtnText.textContent = `等待所有參賽選手準備 (${readyCount}/${nonHostPlayers.length})...`;
-        startBtn.className = "w-full py-2.5 px-4 rounded-2xl bg-slate-800 text-amber-300/90 font-black text-sm transition cursor-not-allowed border border-amber-500/30 flex items-center justify-center gap-2";
+        if (startBtnText) startBtnText.textContent = `等待參賽玩家準備 (${readyCount}/${nonHostPlayers.length})...`;
+        startBtn.className = "w-full py-3 px-4 rounded-2xl bg-slate-800 text-amber-300/90 font-black text-sm sm:text-base transition cursor-not-allowed border border-amber-500/30 flex items-center justify-center gap-2";
       }
     }
     if (applyScopeBtn) {
-      applyScopeBtn.textContent = nonHostPlayers.length > 0 ? "🗳️ 變更設定並送交全體參賽者表決" : "✅ 確認設定並返回房間地圖";
+      applyScopeBtn.textContent = nonHostPlayers.length > 0 ? "🗳️ 變更設定並送交表決" : "✅ 確認設定並返回房間";
     }
   } else {
     // =========================================================================
-    // CASE 3: CLIENT PLAYER OR SPECTATOR IN ACTIVE ROOM (Read-Only Settings!)
+    // CASE 3: CLIENT PLAYER OR SPECTATOR IN ACTIVE ROOM
     // =========================================================================
     const isSpec = state.role === "spectator";
     if (settingsFieldset) settingsFieldset.disabled = true;
-    if (guestReadonlyBanner) {
-      guestReadonlyBanner.classList.remove("hidden");
-      if (guestReadonlySummary) {
-        guestReadonlySummary.textContent = document.getElementById("scope-summary-label")?.textContent || "";
-      }
-    }
+    if (guestReadonlyBanner) guestReadonlyBanner.classList.remove("hidden");
+    if (openModeBtnText) openModeBtnText.textContent = "🔍 檢視詳細題庫設定";
 
     if (roleSwitchBar && state.roomCode) {
       roleSwitchBar.classList.remove("hidden");
       if (specStatusText) {
-        specStatusText.textContent = isSpec ? "👁️ 目前為觀戰模式 (免準備，可自由切圖層)" : "🎮 目前為參賽選手";
+        specStatusText.textContent = isSpec ? "👁️ 觀戰模式 (免準備)" : "🎮 參賽選手模式";
       }
       if (roleSwitchBtn) {
-        roleSwitchBtn.textContent = isSpec ? "🎮 切換為參賽選手" : "👁️ 切換為觀戰模式";
+        roleSwitchBtn.textContent = isSpec ? "🎮 切換為參賽選手" : "👁️ 切換為觀戰";
         roleSwitchBtn.disabled = state.matchInProgress && isSpec;
       }
     }
 
     if (roleIndicator) {
-      roleIndicator.textContent = isSpec ? `👁️ 觀戰模式 (${state.roomCode})` : `🎮 參賽選手 (${state.roomCode})`;
+      roleIndicator.textContent = isSpec ? `👁️ 觀戰者` : `🎮 參賽選手`;
       roleIndicator.className = isSpec
         ? "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30"
         : "text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30";
-    }
-    if (myAvatar) myAvatar.textContent = isSpec ? "👁️" : "🎮";
-    if (myRoleBadge) {
-      myRoleBadge.textContent = isSpec ? "👁️ 觀戰者 (Spectator)" : "🎮 參賽選手 (Player)";
-      myRoleBadge.className = isSpec ? "text-[10px] font-bold text-amber-400" : "text-[10px] font-bold text-indigo-400";
-    }
-    if (myReadyBadge) {
-      if (isSpec) {
-        myReadyBadge.textContent = "👁️ 觀戰中";
-        myReadyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0";
-      } else {
-        myReadyBadge.textContent = state.isReady ? "✓ 我已準備" : "⏳ 尚未準備";
-        myReadyBadge.className = state.isReady
-          ? "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0"
-          : "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse shrink-0";
-      }
     }
 
     if (myReadyBtn) {
@@ -1551,50 +2102,28 @@ function updateP2PLobbyUI() {
         myReadyBtn.classList.remove("hidden");
         if (state.isReady) {
           if (myReadyIcon) myReadyIcon.textContent = "✅";
-          if (myReadyText) myReadyText.textContent = "已準備完成！等待房主開局 (點擊取消)";
-          myReadyBtn.className = "w-full py-2.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 font-black text-sm transition cursor-pointer flex items-center justify-center gap-2";
+          if (myReadyText) myReadyText.textContent = "已準備完成！等待房主開始 (點擊取消)";
+          myReadyBtn.className = "w-full py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 font-black text-sm sm:text-base transition cursor-pointer flex items-center justify-center gap-2";
         } else {
           if (myReadyIcon) myReadyIcon.textContent = "⚡";
-          if (myReadyText) myReadyText.textContent = "我已確認設定，點擊準備 (Ready)";
-          myReadyBtn.className = "w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 transition cursor-pointer animate-pulse flex items-center justify-center gap-2";
+          if (myReadyText) myReadyText.textContent = "準備 (Ready)";
+          myReadyBtn.className = "w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-sm sm:text-base shadow-lg shadow-amber-500/25 transition cursor-pointer animate-pulse flex items-center justify-center gap-2";
         }
       }
     }
 
     if (startBtn) startBtn.classList.add("hidden");
 
-    const hostPlayer = getParticipantList().find((p) => p.role === "host");
-    if (oppAvatar) oppAvatar.textContent = "👑";
-    if (oppNameDisp) {
-      oppNameDisp.textContent = hostPlayer ? `${hostPlayer.name} (房主)` : "連線至房主中...";
-      oppNameDisp.className = "font-extrabold text-white text-xs truncate max-w-[140px]";
-    }
-    if (oppRoleBadge) {
-      oppRoleBadge.textContent = `👑 房主 · 參賽 ${getActiveBattlePlayers().length} 人 · 觀戰 ${spectators.length} 人`;
-      oppRoleBadge.className = "text-[10px] font-bold text-sky-400";
-    }
-    if (oppReadyBadge) {
-      oppReadyBadge.textContent = state.matchInProgress ? "⚔️ 對戰進行中" : "👑 主持房間中";
-      oppReadyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 shrink-0";
-    }
-
     if (lobbyCountEl) {
       lobbyCountEl.textContent = isSpec
-        ? state.matchInProgress
-          ? "👁️ 觀戰中（對戰進行中）"
-          : "👁️ 觀戰模式 · 可隨時切換參賽"
+        ? `${totalConnected}人在房 · 👁️ 觀戰中`
         : state.isReady
-        ? "已準備完成，等待開局"
-        : "請確認設定後點擊準備";
+        ? `${totalConnected}人在房 · ✓ 已準備`
+        : `${totalConnected}人在房 · ⏳ 請點準備`;
     }
 
-    if (layerRuleSelect) layerRuleSelect.disabled = true;
-    if (forcedLayerSelect) forcedLayerSelect.disabled = true;
-    if (railRuleSelect) railRuleSelect.disabled = true;
-    if (guestSettingsNote) guestSettingsNote.classList.remove("hidden");
-
     if (applyScopeBtn) {
-      applyScopeBtn.textContent = isSpec ? "👁️ 進入觀戰地圖視角" : "🗺️ 關閉面板返回地圖";
+      applyScopeBtn.textContent = "關閉設定視窗";
     }
   }
 
@@ -1608,7 +2137,6 @@ function updateP2PLobbyUI() {
 function toggleP2PReady() {
   if (!state.roomCode || state.isHost || state.role === "spectator") return;
   state.isReady = !state.isReady;
-  state.nickname = document.getElementById("p2p-nickname-input")?.value.trim() || state.nickname || "玩家";
   document.getElementById("p2p-re-ready-warning")?.classList.add("hidden");
   ensureLocalPlayerInRoster();
   sendP2PMessage("SYNC_READY_STATUS", { ready: state.isReady, name: state.nickname });
@@ -1637,7 +2165,7 @@ function checkIfLocalIsLastPlayer() {
     const modal = document.getElementById("modal-opponent-finished");
     const desc = document.getElementById("opp-finish-desc");
     if (modal && desc) {
-      desc.textContent = `其他所有對戰玩家（共 ${otherPlayers.length} 位）都已比你早結束了！你是最後一個還在作答的玩家，要繼續玩完嗎？`;
+      desc.textContent = `其他對戰玩家（共 ${otherPlayers.length} 位）都已完賽！要繼續作答還是立即結算？`;
       modal.classList.remove("hidden");
       playTone("tier");
     }
@@ -1696,7 +2224,7 @@ function handleOpponentFinished(payload, senderIdFromMsg = null) {
       const modal = document.getElementById("modal-opponent-finished");
       const desc = document.getElementById("opp-finish-desc");
       if (modal && desc) {
-        desc.textContent = `其他對戰玩家【${payload.name || "對手"}】已結束本局（${payload.grandScore} / ${payload.grandTotal} · ${oppPct}%），你是最後一個還在作答的玩家，要繼續玩完嗎？`;
+        desc.textContent = `對手【${payload.name || "對手"}】已結束本局（${payload.grandScore} / ${payload.grandTotal} · ${oppPct}%），要繼續作答嗎？`;
         modal.classList.remove("hidden");
         playTone("tier");
       }
@@ -1707,17 +2235,21 @@ function handleOpponentFinished(payload, senderIdFromMsg = null) {
 }
 
 function requestP2PRematch() {
-  const isMultiplayer = Boolean(state.roomCode || state.aiRivalTimer || getActiveBattlePlayers().length > 1);
-  if (!isMultiplayer) {
-    resetGame();
+  const hasBattleOpponent = Boolean(getActiveBattlePlayers().length >= 2 || state.aiRivalTimer || state.aiRivalActive);
+  if (!hasBattleOpponent) {
     document.getElementById("modal-settlement")?.classList.add("hidden");
+    if (state.isHost && state.roomCode && getSpectators().length > 0) {
+      startSynchronizedP2PCountdown(getHostSyncConfig(false), true);
+    } else {
+      resetGame();
+    }
     return;
   }
 
   const rematchBtn = document.getElementById("btn-rematch-settlement");
   const rematchText = document.getElementById("rematch-btn-text");
   if (rematchBtn) rematchBtn.disabled = true;
-  if (rematchText) rematchText.textContent = "⏳ 已發送重開邀請，等待同意...";
+  if (rematchText) rematchText.textContent = "⏳ 等待同意...";
 
   if (state.aiRivalTimer || state.aiRivalActive) {
     setTimeout(() => {
@@ -1769,7 +2301,7 @@ function handleRematchDeclined(payload) {
   const rematchBtn = document.getElementById("btn-rematch-settlement");
   const rematchText = document.getElementById("rematch-btn-text");
   if (rematchBtn) rematchBtn.disabled = false;
-  if (rematchText) rematchText.textContent = "發起重開對戰";
+  if (rematchText) rematchText.textContent = "再玩一局";
   setFeedback(`玩家【${payload?.sender || "對手"}】婉拒了重新開局邀請`, "warn");
 }
 
@@ -1786,7 +2318,7 @@ function requestReturnToLobby() {
   const returnBtn = document.getElementById("btn-return-lobby-settlement");
   const returnText = document.getElementById("return-lobby-btn-text");
   if (returnBtn) returnBtn.disabled = true;
-  if (returnText) returnText.textContent = "⏳ 返回大廳中...";
+  if (returnText) returnText.textContent = "⏳ 返回中...";
 
   if (state.aiRivalTimer || state.aiRivalActive) {
     executeReturnToLobby();
@@ -1797,7 +2329,7 @@ function requestReturnToLobby() {
     executeReturnToLobby();
   } else {
     sendP2PMessage("RETURN_TO_LOBBY_REQUEST", { sender: state.nickname });
-    setFeedback("⏳ 已向房主發送回到大廳重新設定請求...", "info");
+    setFeedback("⏳ 已向房主發送回到房間設定請求...", "info");
   }
 }
 
@@ -1846,24 +2378,120 @@ function executeReturnToLobby() {
   const returnBtn = document.getElementById("btn-return-lobby-settlement");
   const returnText = document.getElementById("return-lobby-btn-text");
   if (returnBtn) returnBtn.disabled = false;
-  if (returnText) returnText.textContent = "回到房間重新設定";
+  if (returnText) returnText.textContent = "回到房間設定";
 
   updateP2PLobbyUI();
   updateOpponentUI();
-  if (typeof openGameHubModal === "function") {
-    openGameHubModal();
+  if (typeof openRoomModal === "function") {
+    openRoomModal();
   }
 
-  setFeedback("🔄 全體回到大廳，準備狀態已歸零，可重新調整比賽設定！", "tier");
+  setFeedback("🔄 全體回到房間準備畫面，準備狀態已歸零！", "tier");
   playTone("tier");
+}
+
+// ============================================================================
+// URL CLIENT ENTRY MODAL (#modal-join-entry) & ROOM PROBING
+// ============================================================================
+function openUrlClientJoinEntryModal(roomCode, preferredRole = "spectator") {
+  const code = (roomCode || "").trim().toUpperCase();
+  if (!code) return;
+  state.pendingJoinRoomCode = code;
+  state.pendingJoinRole = preferredRole;
+  state.roomHasPassword = false;
+
+  syncAllNicknameInputs(state.nickname);
+
+  const roomLbl = document.getElementById("join-entry-room-label");
+  if (roomLbl) {
+    roomLbl.textContent = `房號：${code}（${preferredRole === "player" ? "參賽連結" : "觀戰連結"}）`;
+  }
+  const pwWrap = document.getElementById("join-entry-password-wrap");
+  if (pwWrap) pwWrap.classList.add("hidden");
+  const pwInput = document.getElementById("join-entry-password-input");
+  if (pwInput) {
+    pwInput.value = "";
+    pwInput.classList.remove("border-rose-500");
+  }
+  const errBox = document.getElementById("join-entry-error");
+  if (errBox) errBox.classList.add("hidden");
+  const submitBtn = document.getElementById("btn-join-entry-submit");
+  if (submitBtn) submitBtn.disabled = false;
+
+  // Hide other modals so #modal-join-entry is cleanly on top
+  document.getElementById("modal-scope")?.classList.add("hidden");
+  document.getElementById("modal-room")?.classList.add("hidden");
+  const entryModal = document.getElementById("modal-join-entry");
+  if (entryModal) entryModal.classList.remove("hidden");
+  if (typeof syncModalBodyScrollLock === "function") syncModalBodyScrollLock();
+
+  // Probe host via BroadcastChannel and PeerJS to check if room requires a password
+  sendP2PMessage("ROOM_PROBE", { deviceId: state.deviceId }, null, null, code);
+  try {
+    if (typeof Peer !== "undefined") {
+      if (state.peer) state.peer.destroy();
+      state.peer = new Peer();
+      state.peer.on("open", () => {
+        if (!state.pendingJoinRoomCode || state.roomCode) return;
+        const probeConn = state.peer.connect(`tw-geomaster-${code}`);
+        probeConn.on("open", () => {
+          try {
+            probeConn.send({
+              type: "ROOM_PROBE",
+              payload: { deviceId: state.deviceId },
+              roomCode: code,
+              senderId: state.localInstanceId
+            });
+          } catch (_) {}
+        });
+        probeConn.on("data", (msg) => dispatchP2PMessage(msg, probeConn));
+      });
+    }
+  } catch (_) {}
+
+  setTimeout(() => {
+    document.getElementById("join-entry-nickname-input")?.focus();
+  }, 60);
+}
+
+function submitUrlClientJoinEntry() {
+  const code = state.pendingJoinRoomCode || document.getElementById("p2p-room-code-input")?.value.trim().toUpperCase();
+  if (!code) return;
+  const nickEl = document.getElementById("join-entry-nickname-input");
+  const pwEl = document.getElementById("join-entry-password-input");
+  const errBox = document.getElementById("join-entry-error");
+  const errTxt = document.getElementById("join-entry-error-text");
+
+  const nick = (nickEl?.value || "").trim() || "玩家";
+  syncAllNicknameInputs(nick);
+  const pwd = (pwEl?.value || "").trim();
+
+  if (state.roomHasPassword && !pwd) {
+    if (errBox && errTxt) {
+      errTxt.textContent = "🔒 此房間設有密碼，請先輸入密碼再按加入！";
+      errBox.classList.remove("hidden");
+    }
+    if (pwEl) {
+      pwEl.classList.add("border-rose-500", "animate-shake");
+      setTimeout(() => pwEl.classList.remove("animate-shake"), 350);
+      pwEl.focus();
+    }
+    playTone("error");
+    return;
+  }
+
+  if (errBox) errBox.classList.add("hidden");
+  joinP2PRoom(code, {
+    password: pwd,
+    preferredRole: state.pendingJoinRole || "spectator"
+  });
 }
 
 // ============================================================================
 // P2P INITIALIZATION, ROOM HOSTING & ROOM JOINING
 // ============================================================================
 function initP2PEngine() {
-  const nickInput = document.getElementById("p2p-nickname-input");
-  if (nickInput && state.nickname) nickInput.value = state.nickname;
+  syncAllNicknameInputs(state.nickname);
 
   try {
     state.bcChannel = new BroadcastChannel("taiwan_geomaster_p2p_sync");
@@ -1879,33 +2507,22 @@ function initP2PEngine() {
 
   const savedSession = loadSavedSessionFromStorage();
 
-  // Case A: Opened via a Room Link (?room=XXXXXX)
+  // Case A: Opened via a Room Link (?room=XXXXXX) -> Confirmed Client Entry!
+  // Show Top-Level Nickname + Password Modal (#modal-join-entry) first!
   if (urlRoom) {
     const roomInput = document.getElementById("p2p-room-code-input");
     if (roomInput) roomInput.value = urlRoom;
 
-    // Check if this Device ID already has an active session in this exact room!
-    if (savedSession && savedSession.roomCode === urlRoom) {
-      openGameHubModal(savedSession.isHost ? "host" : "join");
-      resumeSavedRoomSession(savedSession);
-      return;
-    }
-
-    // Issue 3 & 6: Opening someone else's room link defaults to Spectator mode unless ?mode=player is explicitly used
     const joinAsSpectator = urlMode !== "player" && urlMode !== "play" && urlMode !== "client";
     const chkSpec = document.getElementById("chk-p2p-join-spectate");
     if (chkSpec) chkSpec.checked = joinAsSpectator;
 
-    openGameHubModal("join");
-    joinP2PRoom(urlRoom, {
-      preferredRole: joinAsSpectator ? "spectator" : "player",
-      isAutoUrlJoin: true
-    });
+    openUrlClientJoinEntryModal(urlRoom, joinAsSpectator ? "spectator" : "player");
+    updateP2PLobbyUI();
     return;
   }
 
-  // Case B: Normal Entry (No ?room= in URL) -> Open Unified Entry Hub in Solo Mode!
-  // Never auto-connect as a mysterious client!
+  // Case B: Normal Solo Entry (No ?room= in URL) -> Open Mode Settings Modal in Simple Tab!
   state.roomCode = "";
   state.isHost = false;
   state.role = "solo";
@@ -1916,23 +2533,34 @@ function initP2PEngine() {
     const txt = document.getElementById("session-restore-text");
     if (banner && txt) {
       const roleName = savedSession.isHost ? "👑 房主" : savedSession.role === "spectator" ? "👁️ 觀戰者" : "🎮 參賽選手";
-      txt.textContent = `偵測到您的裝置 (${state.deviceId.slice(0, 10)}) 在房間【${savedSession.roomCode}】有未結束紀錄（身分：${roleName}），可一鍵重連恢復 Session！`;
+      txt.textContent = `偵測到在房間【${savedSession.roomCode}】有未結束紀錄（${roleName}），是否恢復連線？`;
       banner.classList.remove("hidden");
     }
   }
 
-  openGameHubModal("solo");
+  if (typeof openGameHubModal === "function") {
+    openGameHubModal("solo");
+  }
   updateP2PLobbyUI();
 }
 
 function hostP2PRoom(existingCode = "", existingPassword = null, restoredPlayers = null) {
+  if (state.roomCode && !existingCode) {
+    setFeedback("⚠️ 你已經在房間內，請先退出房間才能建立新房間！", "warn");
+    return;
+  }
   const code = existingCode || "TW" + Math.random().toString(36).substring(2, 6).toUpperCase();
   const hostPassInput = document.getElementById("p2p-host-password-input");
   const pwd =
     existingPassword !== null
       ? existingPassword
-      : (hostPassInput?.value.trim() || document.getElementById("p2p-password-input")?.value.trim() || "");
+      : (hostPassInput?.value.trim() || "");
   if (hostPassInput && pwd) hostPassInput.value = pwd;
+
+  const nickInput = document.getElementById("p2p-nickname-input");
+  if (nickInput && nickInput.value.trim()) {
+    syncAllNicknameInputs(nickInput.value.trim());
+  }
 
   state.roomCode = code;
   state.roomPassword = pwd;
@@ -1944,6 +2572,7 @@ function hostP2PRoom(existingCode = "", existingPassword = null, restoredPlayers
   state.matchInProgress = false;
   state.promptedLastPlayer = false;
   state.isReady = true;
+  if (!existingCode) state.bannedDevices = new Set();
   state.peers = new Map();
   state.players = restoredPlayers && typeof restoredPlayers === "object" ? restoredPlayers : {};
   state.opponent.connected = false;
@@ -1961,12 +2590,11 @@ function hostP2PRoom(existingCode = "", existingPassword = null, restoredPlayers
   if (roomInput) roomInput.value = code;
   const roomTag = document.getElementById("p2p-room-tag");
   if (roomTag) roomTag.textContent = `房號: ${code} (Host${pwd ? " 🔒" : ""})`;
-  const dot = document.getElementById("p2p-status-dot");
-  if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
 
   const statusEl = document.getElementById("p2p-modal-status");
   if (statusEl) {
-    statusEl.textContent = `已建立房間 ${code}${pwd ? "（已設密碼保護）" : ""}！可複製下方「觀戰連結」或「參賽連結」邀請好友`;
+    statusEl.textContent = `已建立房間 ${code}${pwd ? "（密碼保護）" : ""}！可複製上方連結邀請好友`;
+    statusEl.className = "text-[11px] text-emerald-400 font-medium block px-1";
   }
 
   updateP2PPanelVisibility();
@@ -2002,6 +2630,11 @@ function joinP2PRoom(codeInput, opts = {}) {
       ? Boolean(chkSpec.checked)
       : true;
 
+  const nickInput = document.getElementById("p2p-nickname-input");
+  if (nickInput && nickInput.value.trim()) {
+    syncAllNicknameInputs(nickInput.value.trim());
+  }
+
   state.roomCode = code;
   state.roomPassword = pwd;
   state.isHost = false;
@@ -2011,22 +2644,18 @@ function joinP2PRoom(codeInput, opts = {}) {
   state.promptedLastPlayer = false;
   state.spectatorLayerInitialized = false;
   state.players = {};
-  // Do NOT set state.opponent.connected = true until LOBBY_WELCOME arrives!
   state.opponent.connected = false;
 
   const roomTag = document.getElementById("p2p-room-tag");
   if (roomTag) roomTag.textContent = `房號: ${code} (連線中...)`;
-  const dot = document.getElementById("p2p-status-dot");
-  if (dot) dot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
   const statusEl = document.getElementById("p2p-modal-status");
   if (statusEl) {
-    statusEl.textContent = `正在以「${wantSpectate ? "👁️ 觀戰模式" : "🎮 參賽選手"}」連線至房間 ${code}...`;
+    statusEl.textContent = `正在連線至房間 ${code}...`;
+    statusEl.className = "text-[11px] text-amber-300 font-medium block px-1";
   }
 
   updateP2PPanelVisibility();
   updateP2PLobbyUI();
-
-  state.nickname = document.getElementById("p2p-nickname-input")?.value.trim() || state.nickname || "玩家";
 
   const joinPayload = {
     name: state.nickname,
@@ -2048,15 +2677,13 @@ function joinP2PRoom(codeInput, opts = {}) {
     }
   } catch (e) {}
 
-  // Also broadcast on local BroadcastChannel for same-browser multi-tab testing
   sendP2PMessage("LOBBY_JOIN", joinPayload);
 }
 
 function setupPeerConnectionHandlers(conn, customJoinPayload = null) {
   conn.on("open", () => {
-    state.nickname = document.getElementById("p2p-nickname-input")?.value.trim() || state.nickname || "玩家";
     if (!state.isHost) {
-      const pwd = document.getElementById("p2p-password-input")?.value.trim() || state.roomPassword || "";
+      const pwd = state.roomPassword || document.getElementById("p2p-password-input")?.value.trim() || "";
       const wantSpectate = state.role === "spectator";
       const payload = customJoinPayload || {
         name: state.nickname,
@@ -2086,10 +2713,9 @@ function setupPeerConnectionHandlers(conn, customJoinPayload = null) {
         if (c === conn) {
           state.peers.delete(sid);
           if (state.players[sid]) {
-            // Preserve player session by Device ID so reconnecting restores their role and progress!
             state.players[sid].disconnected = true;
             state.players[sid].disconnectedAt = Date.now();
-            setFeedback(`🔌 成員【${state.players[sid].name}】連線中斷，已保留其裝置 Session 供重連恢復`, "warn");
+            setFeedback(`🔌 成員【${state.players[sid].name}】連線中斷，已保留其裝置紀錄`, "warn");
           }
         }
       }
@@ -2103,9 +2729,10 @@ function setupPeerConnectionHandlers(conn, customJoinPayload = null) {
 }
 
 // ============================================================================
-// REAL-TIME STATE BROADCAST & LIVE LEADERBOARD (Supports >2 Players & Spectating)
+// REAL-TIME STATE BROADCAST & LIVE LEADERBOARD
 // ============================================================================
 function broadcastP2PState(lastItemName) {
+  // Strict Guard: Never broadcast in Solo mode!
   if (!state.roomCode && !state.aiRivalActive) return;
   if (state.role === "spectator") return;
 
@@ -2115,7 +2742,7 @@ function broadcastP2PState(lastItemName) {
   const payload = {
     senderId: state.localInstanceId,
     deviceId: state.deviceId,
-    name: document.getElementById("p2p-nickname-input")?.value.trim() || state.nickname || "玩家",
+    name: state.nickname || "玩家",
     role: state.isHost ? "host" : "player",
     score: counts.regionCurrent,
     total: counts.regionTotal,
@@ -2150,7 +2777,6 @@ function handleIncomingP2PData(payload, senderIdFromMsg = null) {
 
   if (sid) {
     const existing = state.players[sid] || { id: sid, role: payload.role || "player" };
-    // Authoritative score validation from unlocked sets if provided
     const uTowns = Array.isArray(payload.unlockedTowns) ? payload.unlockedTowns : existing.unlockedTowns || [];
     const uCounties = Array.isArray(payload.unlockedCounties) ? payload.unlockedCounties : existing.unlockedCounties || [];
     const uStations = Array.isArray(payload.unlockedStations) ? payload.unlockedStations : existing.unlockedStations || [];
@@ -2165,18 +2791,40 @@ function handleIncomingP2PData(payload, senderIdFromMsg = null) {
             }).length
         : payload.score || 0;
 
+    const resolvedRole =
+      existing && existing.role
+        ? existing.role
+        : payload.role === "spectator"
+        ? "spectator"
+        : payload.role === "host"
+        ? "host"
+        : "player";
+    const validStationScore =
+      authCounts.stationTotal > 0
+        ? Array.isArray(payload.unlockedStations)
+          ? uStations.length
+          : payload.stationScore || 0
+        : 0;
+    const rawMacro = payload.macroProgress || existing.macroProgress || {};
+    const validMacro =
+      authCounts.stationTotal > 0
+        ? rawMacro
+        : rawMacro["地區"]
+        ? { "地區": rawMacro["地區"] }
+        : {};
+
     state.players[sid] = {
       ...existing,
       id: sid,
       deviceId: payload.deviceId || existing.deviceId || sid,
       name: payload.name || existing.name || "對手",
-      role: payload.role || existing.role || "player",
+      role: resolvedRole,
       disconnected: false,
       score: verifiedScore,
       total: authCounts.regionTotal,
-      stationScore: Array.isArray(payload.unlockedStations) ? uStations.length : payload.stationScore || 0,
+      stationScore: validStationScore,
       stationTotal: authCounts.stationTotal,
-      macroProgress: payload.macroProgress || existing.macroProgress || {},
+      macroProgress: validMacro,
       finished: Boolean(payload.finished || existing.finished),
       finishReason: payload.finishReason || existing.finishReason || null,
       unlockedTowns: uTowns,
@@ -2197,7 +2845,6 @@ function handleIncomingP2PData(payload, senderIdFromMsg = null) {
   updateP2PPanelVisibility();
   updateOpponentUI();
 
-  // If local user is spectating this player, live-refresh map polygons, stations, labels & dashboard!
   if ((state.role === "spectator" || state.finished) && sid === state.spectatingPlayerId) {
     refreshAllPolygonStyles();
     updateRoadAndRailwayTileOverlays();
@@ -2214,7 +2861,6 @@ function updateOpponentUI() {
   const vState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
   const watchedPlayer = vState.spectatingPlayer || state.players[state.localInstanceId];
 
-  // Update Left Card in #p2p-live-panel (Me or Currently Watched Player)
   const localNameEl = document.getElementById("local-player-name");
   const localScoreEl = document.getElementById("local-p2p-score");
   const localPctEl = document.getElementById("local-p2p-pct");
@@ -2235,53 +2881,93 @@ function updateOpponentUI() {
   if (localPctEl) localPctEl.textContent = `${leftPct}%`;
   if (localBarEl) localBarEl.style.width = `${Math.min(100, parseFloat(leftPct))}%`;
 
-  // Update Right Card in #p2p-live-panel (Leading Opponent)
-  const regionScore = state.opponent.score || 0;
-  const regionTotal = state.opponent.total || 0;
-  const stScore = state.opponent.stationScore || 0;
-  const stTotal = state.opponent.stationTotal || 0;
-  const grandCur = regionScore + stScore;
-  const grandTot = regionTotal + stTotal;
-  const grandPct = grandTot > 0 ? ((grandCur / grandTot) * 100).toFixed(1) : "0.0";
+  const sorted = getSortedActiveBattlePlayers();
+  const spectators = getSpectators();
+  const hasBattleOpponent = sorted.length >= 2 || Boolean(state.aiRivalActive);
+  const isThreePlus = sorted.length >= 3;
+
+  const livePanelEl = document.getElementById("p2p-live-panel");
+  const livePanelTitle = livePanelEl ? livePanelEl.querySelector("h3") : null;
+  const roomTagEl = document.getElementById("p2p-room-tag");
+  if (livePanelTitle) {
+    livePanelTitle.textContent = hasBattleOpponent
+      ? "⚔️ 即時對戰進度看板"
+      : spectators.length > 0
+      ? "👁️ 單人展演 · 即時觀戰看板"
+      : "🏠 多人房間 · 等待選手加入";
+  }
+  if (roomTagEl && state.roomCode) {
+    roomTagEl.textContent = hasBattleOpponent
+      ? `房號: ${state.roomCode} (${sorted.length}人對戰${spectators.length > 0 ? ` · ${spectators.length}觀戰` : ""})`
+      : spectators.length > 0
+      ? `房號: ${state.roomCode} (1人展演 · ${spectators.length}人觀戰)`
+      : `房號: ${state.roomCode} (等待加入)`;
+  }
 
   const remoteNameEl = document.getElementById("remote-player-name");
   const remoteScoreEl = document.getElementById("remote-p2p-score");
   const remotePctEl = document.getElementById("remote-p2p-pct");
   const remoteBarEl = document.getElementById("remote-p2p-bar");
-  if (remoteNameEl) remoteNameEl.textContent = state.opponent.name + (state.opponent.finished ? " (已結束)" : "");
-  if (remoteScoreEl) remoteScoreEl.textContent = `${grandCur} / ${grandTot}`;
-  if (remotePctEl) remotePctEl.textContent = `${grandPct}%`;
-  if (remoteBarEl) remoteBarEl.style.width = `${Math.min(100, parseFloat(grandPct))}%`;
-
-  const diff = leftCur - grandCur;
   const lastEl = document.getElementById("remote-p2p-last");
-  if (lastEl) {
-    if (state.opponent.finished) {
-      const rText = state.opponent.finalStats?.reason === "victory" ? "👑 已100%通關" : "🏁 已提早結束";
-      lastEl.textContent = `${rText} (${grandCur}/${grandTot})`;
-      lastEl.className = "text-[10px] text-amber-300 font-bold truncate";
-    } else if (diff > 0) {
-      lastEl.textContent = `🔥 領先 ${diff} 題！`;
-      lastEl.className = "text-[10px] text-emerald-400 font-bold truncate";
-    } else if (diff < 0) {
-      lastEl.textContent = `⚠️ 落後 ${Math.abs(diff)} 題！`;
-      lastEl.className = "text-[10px] text-amber-400 font-bold truncate";
+
+  if (!hasBattleOpponent) {
+    if (spectators.length > 0) {
+      if (remoteNameEl) remoteNameEl.textContent = "👁️ 觀戰席";
+      if (remotePctEl) remotePctEl.textContent = `${spectators.length} 人觀戰`;
+      if (remoteScoreEl) remoteScoreEl.textContent = spectators.map((s) => s.name).join("、");
+      if (remoteBarEl) remoteBarEl.style.width = "0%";
+      if (lastEl) {
+        lastEl.textContent = "純觀戰模式";
+        lastEl.className = "text-[10px] text-amber-300 font-bold truncate";
+      }
     } else {
-      lastEl.textContent = `⚖️ 雙方平手勢均力敵！`;
-      lastEl.className = "text-[10px] text-sky-400 font-bold truncate";
+      if (remoteNameEl) remoteNameEl.textContent = "⏳ 等待加入";
+      if (remotePctEl) remotePctEl.textContent = "尚無對手";
+      if (remoteScoreEl) remoteScoreEl.textContent = "等待連線";
+      if (remoteBarEl) remoteBarEl.style.width = "0%";
+      if (lastEl) {
+        lastEl.textContent = "可邀請好友加入";
+        lastEl.className = "text-[10px] text-slate-400 truncate";
+      }
+    }
+  } else {
+    const regionScore = state.opponent.score || 0;
+    const regionTotal = state.opponent.total || 0;
+    const stScore = state.opponent.stationScore || 0;
+    const stTotal = state.opponent.stationTotal || 0;
+    const grandCur = regionScore + stScore;
+    const grandTot = regionTotal + stTotal;
+    const grandPct = grandTot > 0 ? ((grandCur / grandTot) * 100).toFixed(1) : "0.0";
+
+    if (remoteNameEl) remoteNameEl.textContent = state.opponent.name + (state.opponent.finished ? " (已結束)" : "");
+    if (remoteScoreEl) remoteScoreEl.textContent = `${grandCur} / ${grandTot}`;
+    if (remotePctEl) remotePctEl.textContent = `${grandPct}%`;
+    if (remoteBarEl) remoteBarEl.style.width = `${Math.min(100, parseFloat(grandPct))}%`;
+
+    const diff = leftCur - grandCur;
+    if (lastEl) {
+      if (state.opponent.finished) {
+        const rText = state.opponent.finalStats?.reason === "victory" ? "👑 已100%通關" : "🏁 已結束";
+        lastEl.textContent = `${rText} (${grandCur}/${grandTot})`;
+        lastEl.className = "text-[10px] text-amber-300 font-bold truncate";
+      } else if (diff > 0) {
+        lastEl.textContent = `🔥 領先 ${diff} 題！`;
+        lastEl.className = "text-[10px] text-emerald-400 font-bold truncate";
+      } else if (diff < 0) {
+        lastEl.textContent = `⚠️ 落後 ${Math.abs(diff)} 題！`;
+        lastEl.className = "text-[10px] text-amber-400 font-bold truncate";
+      } else {
+        lastEl.textContent = `⚖️ 雙方平手！`;
+        lastEl.className = "text-[10px] text-sky-400 font-bold truncate";
+      }
     }
   }
 
-  // Render Multi-player Live Leaderboard & Click-to-Spectate List
   const multiList = document.getElementById("p2p-multiplayer-live-list");
   const rankTitle = document.getElementById("p2p-live-rank-title");
   const specCountEl = document.getElementById("p2p-live-spectator-count");
   const rowsContainer = document.getElementById("p2p-live-rank-rows");
   const dualCards = document.getElementById("p2p-dual-cards");
-
-  const sorted = getSortedActiveBattlePlayers();
-  const spectators = getSpectators();
-  const isThreePlus = sorted.length >= 3;
 
   if (dualCards) {
     dualCards.classList.toggle("hidden", isThreePlus);
@@ -2293,8 +2979,8 @@ function updateOpponentUI() {
       const canClickToSpectate = state.role === "spectator" || state.finished;
       if (rankTitle) {
         rankTitle.textContent = canClickToSpectate
-          ? `⚔️ 即時戰況排行 (${sorted.length}人 · 點擊選手切換觀看地圖)`
-          : `⚔️ 即時戰況排行 (${sorted.length} 人參賽)`;
+          ? `⚔️ 即時排行 (${sorted.length}人 · 點擊切換觀看)`
+          : `⚔️ 即時排行 (${sorted.length} 人參賽)`;
       }
       if (specCountEl) {
         specCountEl.textContent = spectators.length > 0 ? `👁️ 觀戰 ${spectators.length} 人` : "";
@@ -2358,13 +3044,12 @@ function updateOpponentUI() {
 
   updateSpectatorPlayerSelectUI();
 
-  // Macro Progress Bars (Using <template id="tpl-p2p-macro-bar">)
   const compWrap = document.getElementById("p2p-macro-bars-container");
   const barsEl = document.getElementById("p2p-macro-bars");
   if (compWrap && barsEl) {
     const mp = state.opponent.macroProgress || {};
     const macroKeys = Object.keys(mp);
-    if (!isThreePlus && macroKeys.length > 0) {
+    if (!isThreePlus && hasBattleOpponent && macroKeys.length > 0) {
       compWrap.classList.remove("hidden");
       const macroLabels = {
         "地區": "🗺️ 行政區",
@@ -2453,6 +3138,8 @@ function startSynchronizedP2PCountdown(cfg, isHost) {
   }
 
   document.getElementById("modal-scope")?.classList.add("hidden");
+  document.getElementById("modal-room")?.classList.add("hidden");
+  document.getElementById("modal-join-entry")?.classList.add("hidden");
   document.getElementById("modal-config-vote")?.classList.add("hidden");
 
   if (cfg) {
@@ -2463,6 +3150,7 @@ function startSynchronizedP2PCountdown(cfg, isHost) {
   applySpectatorInputLock();
 
   const isSpec = state.role === "spectator";
+  const isSoloShowcase = getActiveBattlePlayers().length <= 1 && !state.aiRivalActive;
   const overlay = document.getElementById("p2p-countdown-overlay");
   const badgeEl = document.getElementById("p2p-cd-badge");
   const numEl = document.getElementById("p2p-cd-number");
@@ -2470,7 +3158,11 @@ function startSynchronizedP2PCountdown(cfg, isHost) {
 
   if (overlay) {
     if (badgeEl) {
-      badgeEl.textContent = isSpec ? "👁️ SPECTATOR MODE · 觀戰模式" : "⚔️ MULTIPLAYER BATTLE · 即時連線對戰";
+      badgeEl.textContent = isSpec
+        ? "👁️ SPECTATOR MODE · 觀戰模式"
+        : isSoloShowcase
+        ? "🎬 SOLO SHOWCASE · 單人展演（觀戰同步）"
+        : "⚔️ MULTIPLAYER BATTLE · 即時連線對戰";
     }
     if (numEl) {
       numEl.textContent = "3";
@@ -2513,7 +3205,14 @@ function startSynchronizedP2PCountdown(cfg, isHost) {
       clearInterval(interval);
       if (overlay) overlay.classList.add("hidden");
       startTimer();
-      setFeedback(isSpec ? "👁️ 觀戰開始！點擊右側排行可切換選手視角" : "⚔️ 對戰正式開始！全員同步計時，衝向 100% 吧！", "tier");
+      setFeedback(
+        isSpec
+          ? "👁️ 觀戰開始！正在即時同步觀看選手作答"
+          : isSoloShowcase
+          ? "🎬 單人展演開始！觀戰者正在即時觀看你的地圖與進度！"
+          : "⚔️ 對戰正式開始！全員同步計時，衝向 100% 吧！",
+        "tier"
+      );
       if (typeof startAiRivalLoop === "function") {
         startAiRivalLoop();
       }
@@ -2542,7 +3241,7 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   if (Array.isArray(cfg.selectedTownIds)) {
     state.selectedTownIds = new Set(cfg.selectedTownIds);
   } else if (Array.isArray(cfg.selectedCounties)) {
-    state.selectedTownIds = new Set(ALL_TOWNS.filter(t => state.selectedCounties.has(t.countyName)).map(t => t.id));
+    state.selectedTownIds = new Set(ALL_TOWNS.filter((t) => state.selectedCounties.has(t.countyName)).map((t) => t.id));
   }
   if (Array.isArray(cfg.quizStationLines)) {
     state.quizStationLines = new Set(cfg.quizStationLines);
@@ -2588,14 +3287,14 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   const activeSt = getActiveQuizStations();
   let summaryLabel = "";
   if (state.selectedCounties.size === 0 && activeSt.length > 0) {
-    summaryLabel = `純猜車站 (${state.quizStationLines.size}線·${activeSt.length}站)`;
+    summaryLabel = `純車站 (${activeSt.length}站)`;
   } else {
     const adminStr =
-      state.selectedCounties.size === 22
+      totalTowns === 368
         ? "全台 368 區"
         : state.selectedCounties.size === 1
         ? `${Array.from(state.selectedCounties)[0]} (${totalTowns}區)`
-        : `自選 ${state.selectedCounties.size} 縣市 (${totalTowns}區)`;
+        : `${totalTowns} 區`;
     summaryLabel = activeSt.length > 0 ? `${adminStr} + ${activeSt.length}站` : adminStr;
   }
   const summaryEl = document.getElementById("scope-summary-label");
@@ -2635,49 +3334,6 @@ function onHostSettingChange(name = "") {
   setFeedback(`已更新${name ? `「${name}」` : "房間設定"}，已同步所有成員畫面！`, "warn");
 }
 
-function applyScopePreset(presetKey) {
-  if (!canLocalModifyGameConfig()) {
-    setFeedback("🔒 多人連線模式下，僅房主可發起題庫與難度變更！", "warn");
-    return;
-  }
-  const patch = {};
-  if (presetKey === "all") {
-    patch.quizTargetMode = "region";
-    patch.selectedCounties = TAIWAN_ADMIN_DATA.map((c) => c.name);
-    patch.quizStationLines = [];
-  } else if (presetKey === "six_cities") {
-    patch.quizTargetMode = "region";
-    patch.selectedCounties = TAIWAN_ADMIN_DATA.filter((c) => c.isSpecial).map((c) => c.name);
-    patch.quizStationLines = [];
-  } else if (presetKey === "north") {
-    patch.quizTargetMode = "region";
-    patch.selectedCounties = TAIWAN_ADMIN_DATA.filter((c) => c.region === "north").map((c) => c.name);
-    patch.quizStationLines = [];
-  } else if (presetKey === "central") {
-    patch.quizTargetMode = "region";
-    patch.selectedCounties = TAIWAN_ADMIN_DATA.filter((c) => c.region === "central").map((c) => c.name);
-    patch.quizStationLines = [];
-  } else if (presetKey === "south") {
-    patch.quizTargetMode = "region";
-    patch.selectedCounties = TAIWAN_ADMIN_DATA.filter((c) => c.region === "south").map((c) => c.name);
-    patch.quizStationLines = [];
-  } else if (presetKey === "east_islands") {
-    patch.quizTargetMode = "region";
-    patch.selectedCounties = TAIWAN_ADMIN_DATA.filter((c) => c.region === "east" || ["澎湖縣", "金門縣", "連江縣"].includes(c.name)).map((c) => c.name);
-    patch.quizStationLines = [];
-  } else if (presetKey === "stations_only") {
-    patch.quizTargetMode = "station";
-    patch.selectedCounties = [];
-    patch.selectedTownIds = [];
-    patch.quizStationLines = TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway).map((l) => l.id);
-  }
-  if (Array.isArray(patch.selectedCounties) && !patch.selectedTownIds) {
-    const cSet = new Set(patch.selectedCounties);
-    patch.selectedTownIds = ALL_TOWNS.filter(t => cSet.has(t.countyName)).map(t => t.id);
-  }
-  requestOrApplyConfigChange(patch, "題庫範圍");
-}
-
 function toggleAiRivalSimulation() {
   const btn = document.getElementById("btn-quick-sim-rival");
   if (state.aiRivalTimer || state.aiRivalActive) {
@@ -2691,7 +3347,7 @@ function toggleAiRivalSimulation() {
       state.opponent.isReady = false;
     }
     delete state.players["ai_rival"];
-    if (btn) btn.textContent = "🤖 開啟 AI 虛擬對手陪練";
+    if (btn) btn.textContent = "🤖 開啟 AI 對手陪練";
     updateP2PPanelVisibility();
     updateP2PLobbyUI();
     setFeedback("已關閉 AI 虛擬對手陪練", "info");
@@ -2731,7 +3387,7 @@ function toggleAiRivalSimulation() {
   updateP2PPanelVisibility();
   updateP2PLobbyUI();
   updateOpponentUI();
-  setFeedback("🤖 AI 虛擬對手已就緒！點擊下方「全員已準備，立即同步開局」即可開始對戰！", "tier");
+  setFeedback("🤖 AI 虛擬對手已就緒！點擊下方「立即開始對戰」即可開局！", "tier");
 }
 
 function startAiRivalLoop() {

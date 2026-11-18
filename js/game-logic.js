@@ -230,9 +230,10 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
   }
 
   // CASE 0: PURE STATION QUIZ MODE (0 counties selected) OR TARGETED STATION DOT OR "站" SUFFIX
-  const isPureStationQuiz = state.selectedCounties.size === 0 && getActiveQuizStations().length > 0;
+  const isStationQuizActive = state.quizTargetMode !== "region" && state.stationQuizEnabled && state.quizStationLines.size > 0;
+  const isPureStationQuiz = state.selectedCounties.size === 0 && isStationQuizActive;
   if (
-    (state.transportMode !== "off" || state.stationQuizEnabled) &&
+    isStationQuizActive &&
     (isPureStationQuiz || state.targetStationKey || core.endsWith("站") || suffix === "站")
   ) {
     if (tryMatchAndUnlockStation(core, combined, isAutoCheck)) {
@@ -488,7 +489,7 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
       onSuccessfulUnlock(labelStr, matched[0].fullCountyTown, false);
       return true;
     }
-    if (state.transportMode !== "off" && tryMatchAndUnlockStation(core, combined, isAutoCheck)) {
+    if (isStationQuizActive && tryMatchAndUnlockStation(core, combined, isAutoCheck)) {
       return true;
     }
     if (!isAutoCheck) {
@@ -551,7 +552,7 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
       );
       return true;
     }
-    if (state.transportMode !== "off" && tryMatchAndUnlockStation(core, combined, isAutoCheck)) {
+    if (isStationQuizActive && tryMatchAndUnlockStation(core, combined, isAutoCheck)) {
       return true;
     }
     if (!isAutoCheck) {
@@ -591,9 +592,9 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
       state.unlockedTowns.add(t.id);
       state.unlockedCounties.add(t.countyName);
     });
-    // If station overlay is active and this name also matches an active station (e.g. 板橋, 苗栗, 瑞芳), unlock that station too!
+    // If station quiz is active and this name also matches an active station (e.g. 板橋, 苗栗, 瑞芳), unlock that station too!
     let stationBonus = "";
-    if (state.transportMode !== "off") {
+    if (isStationQuizActive) {
       const activeStations = getActiveQuizStations();
       const cStripped = cleanStationBaseName(core);
       const bonusSt = activeStations.filter((st) => !state.unlockedStations.has(st.key) && st.baseName === cStripped);
@@ -612,7 +613,7 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
   }
 
   // Check if input matches any active Station (e.g. 內壢, 大橋頭, 十分, 內灣, 奮起湖, 美麗島, etc.)
-  if (state.transportMode !== "off" && tryMatchAndUnlockStation(core, combined, isAutoCheck)) {
+  if (isStationQuizActive && tryMatchAndUnlockStation(core, combined, isAutoCheck)) {
     return true;
   }
 

@@ -72,6 +72,21 @@ function getOrCreateStableDeviceId() {
 
 const STABLE_DEVICE_ID = getOrCreateStableDeviceId();
 
+function getOrCreateTabInstanceId(baseDeviceId) {
+  try {
+    let tabId = sessionStorage.getItem("tw_geomaster_tab_instance_id") || "";
+    if (!tabId) {
+      tabId = baseDeviceId + "_" + Math.random().toString(36).slice(2, 6);
+      sessionStorage.setItem("tw_geomaster_tab_instance_id", tabId);
+    }
+    return tabId;
+  } catch (_) {
+    return baseDeviceId;
+  }
+}
+
+const TAB_INSTANCE_ID = getOrCreateTabInstanceId(STABLE_DEVICE_ID);
+
 const state = {
   difficulty: "casual",       // 'casual' | 'county_only' | 'hard_suffix' | 'hard_full' | 'master_hierarchy'
   playMode: "free",           // 'free' | 'target_random' | 'target_click'
@@ -103,6 +118,7 @@ const state = {
   targetStationKey: null,
   stationQuizEnabled: false,
   quizTargetMode: "region", // 'region' | 'station' | 'mixed'
+  settingsTab: "simple",    // 'simple' | 'advanced' (Default 'simple' per user spec)
   showRawOpenRailwayTile: false,
   showStationTerminusHints: false, // 軌道猜謎下預設不顯示路線頭尾端點站提示 (防劇透, 可手動開啟)
   useAlgorithmicCleanRailTile: false,
@@ -120,7 +136,7 @@ const state = {
   soundEnabled: false,
   enableLegacyStationOnlyMode: false,
   deviceId: STABLE_DEVICE_ID,
-  localInstanceId: STABLE_DEVICE_ID,
+  localInstanceId: TAB_INSTANCE_ID,
   nickname: (function () {
     try {
       return localStorage.getItem("tw_geomaster_nickname") || "GeoMasterTW";
@@ -129,13 +145,17 @@ const state = {
     }
   })(),
   hubEntryTab: "solo",        // 'solo' | 'host' | 'join'
-  p2pPanelExpanded: false,    // Whether the Multiplayer Room accordion is expanded in #modal-scope
+  p2pPanelExpanded: false,    // Legacy flag kept for compatibility
   roomCode: "",
   roomPassword: "",
+  roomHasPassword: false,     // Whether target room requires a password (checked on link entry)
+  bannedDevices: new Set(),   // Host-side banned deviceIds for this game room
+  pendingJoinRoomCode: "",    // Room code being joined via URL or client entry modal
+  pendingJoinRole: "spectator",
   peer: null,
   conn: null,
   peers: new Map(),           // Host-side: senderId -> DataConnection (prevents multi-player overwrite)
-  players: {},                // Roster: senderId -> { id, name, role, isReady, finished, finishReason, score, total, stationScore, stationTotal, macroProgress, finalStats, unlockedTowns, unlockedCounties, unlockedProvinces, missedTowns, unlockedStations, missedStations, targetId, targetStationKey, stats }
+  players: {},                // Roster: senderId -> { id, deviceId, name, role, isReady, finished, ... }
   bcChannel: null,
   isHost: false,
   role: "solo",               // 'solo' | 'host' | 'player' | 'spectator'
@@ -175,6 +195,7 @@ const state = {
 state.selectedTransportLines = new Set(TAIWAN_SELECTABLE_LINES.map((l) => l.id));
 
 // Returns whether local user is allowed to change game difficulty/scope/rules
+// In Solo mode: true (local only, never broadcast). In Multiplayer room: ONLY Host!
 function canLocalModifyGameConfig() {
   if (!state.roomCode && !state.aiRivalActive) return true;
   return Boolean(state.isHost);
@@ -211,7 +232,7 @@ function getActiveViewState() {
     unlockedTowns: p._viewSets.unlockedTowns,
     unlockedCounties: p._viewSets.unlockedCounties,
     unlockedProvinces: p._viewSets.unlockedProvinces,
-    missedTowns: p._viewSets.missedTowns,
+    missedTowns: p._viewSets.unlockedTowns && p._viewSets.missedTowns ? p._viewSets.missedTowns : new Set(),
     unlockedStations: p._viewSets.unlockedStations,
     missedStations: p._viewSets.missedStations,
     targetId: p.targetId || null,
