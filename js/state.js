@@ -116,8 +116,16 @@ const state = {
   unlockedStations: new Set(),
   missedStations: new Set(),
   targetStationKey: null,
+  unlockedPois: new Set(),
+  missedPois: new Set(),
+  targetPoiId: null,
+  regionQuizEnabled: true,
   stationQuizEnabled: false,
-  quizTargetMode: "region", // 'region' | 'station' | 'mixed'
+  airportQuizEnabled: false,
+  portQuizEnabled: false,
+  airportSubTypes: new Set(["intl", "domestic", "military"]),
+  portSubTypes: new Set(["intl_commercial", "intl_aux", "fishery_cat1"]),
+  quizTargetMode: "region", // Derived legacy mode: 'region' | 'station' | 'mixed'
   settingsTab: "simple",    // 'simple' | 'advanced' (Default 'simple' per user spec)
   showRawOpenRailwayTile: false,
   showStationTerminusHints: false,
@@ -198,6 +206,23 @@ const state = {
 // Initialize default selected transport lines from data/transport-data.js
 state.selectedTransportLines = new Set(TAIWAN_SELECTABLE_LINES.map((l) => l.id));
 
+// Keeps legacy state.quizTargetMode synchronized with multi-select topic toggles
+function syncLegacyQuizTargetMode() {
+  const hasR = Boolean(state.regionQuizEnabled);
+  const hasS = Boolean(state.stationQuizEnabled && state.quizStationLines && state.quizStationLines.size > 0);
+  const hasA = Boolean(state.airportQuizEnabled && state.airportSubTypes && state.airportSubTypes.size > 0);
+  const hasP = Boolean(state.portQuizEnabled && state.portSubTypes && state.portSubTypes.size > 0);
+  const activeCount = (hasR ? 1 : 0) + (hasS ? 1 : 0) + (hasA ? 1 : 0) + (hasP ? 1 : 0);
+  if (activeCount === 1 && hasR) {
+    state.quizTargetMode = "region";
+  } else if (activeCount === 1 && hasS) {
+    state.quizTargetMode = "station";
+  } else {
+    state.quizTargetMode = "mixed";
+  }
+  return state.quizTargetMode;
+}
+
 // Returns whether local user is allowed to change game difficulty/scope/rules
 // In Solo mode: true (local only, never broadcast). In Multiplayer room: ONLY Host!
 function canLocalModifyGameConfig() {
@@ -228,7 +253,9 @@ function getActiveViewState() {
       unlockedProvinces: new Set(Array.isArray(p.unlockedProvinces) ? p.unlockedProvinces : []),
       missedTowns: new Set(Array.isArray(p.missedTowns) ? p.missedTowns : []),
       unlockedStations: new Set(Array.isArray(p.unlockedStations) ? p.unlockedStations : []),
-      missedStations: new Set(Array.isArray(p.missedStations) ? p.missedStations : [])
+      missedStations: new Set(Array.isArray(p.missedStations) ? p.missedStations : []),
+      unlockedPois: new Set(Array.isArray(p.unlockedPois) ? p.unlockedPois : []),
+      missedPois: new Set(Array.isArray(p.missedPois) ? p.missedPois : [])
     };
   }
 
@@ -239,8 +266,11 @@ function getActiveViewState() {
     missedTowns: p._viewSets.unlockedTowns && p._viewSets.missedTowns ? p._viewSets.missedTowns : new Set(),
     unlockedStations: p._viewSets.unlockedStations,
     missedStations: p._viewSets.missedStations,
+    unlockedPois: p._viewSets.unlockedPois || new Set(),
+    missedPois: p._viewSets.missedPois || new Set(),
     targetId: p.targetId || null,
     targetStationKey: p.targetStationKey || null,
+    targetPoiId: p.targetPoiId || null,
     isGameOver: Boolean(p.finished),
     spectatingPlayer: p
   };

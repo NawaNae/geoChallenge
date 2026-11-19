@@ -828,33 +828,49 @@
         <div id="unified-settings-panel" class="space-y-3.5">
           <fieldset id="unified-settings-fieldset" class="space-y-3.5">
 
-            <!-- Shared Step 0: Main Quiz Mode (區 / 車站 / 混合) -->
+            <!-- Shared Step 0: Multi-Select Quiz Topics (區 / 車站 / 機場 / 港口) -->
             <div class="p-3 rounded-2xl bg-slate-900/90 border border-sky-500/30">
-              <div class="flex items-center justify-between mb-2">
-                <label class="text-xs font-extrabold text-sky-300">挑戰類型</label>
-                <span class="text-[11px] text-slate-400">選擇猜行政區、猜車站或兩者混合</span>
+              <div class="flex flex-wrap items-center justify-between gap-1 mb-2">
+                <label class="text-xs font-extrabold text-sky-300">挑戰題庫（可單選或複選混合）</label>
+                <span class="text-[11px] text-slate-400">點亮項目後下方自動展開範圍設定</span>
               </div>
-              <div class="grid grid-cols-3 gap-2">
-                <button type="button" data-qmode="region" class="qmode-btn p-2.5 rounded-xl border transition bg-sky-500/25 border-sky-400 text-white text-center sm:text-left" data-tip="專注猜台灣縣市與鄉鎮市區">
-                  <div class="text-xs sm:text-sm font-extrabold">🗺️ 區</div>
-                  <div class="text-[10px] text-slate-300 hidden sm:block mt-0.5">台灣行政區</div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button type="button" data-topic="region" class="topic-chip-btn p-2.5 rounded-xl border transition bg-sky-500/25 border-sky-400 text-white text-left shadow-md" data-tip="猜台灣縣市與鄉鎮市區">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-xs sm:text-sm font-extrabold">🗺️ 行政區</span>
+                    <span class="topic-check text-[10px] font-black px-1.5 py-0.5 rounded-md bg-sky-400/25 text-sky-200">ON</span>
+                  </div>
+                  <div class="text-[10px] text-slate-300 mt-0.5">22 縣市 / 368 區</div>
                 </button>
-                <button type="button" data-qmode="station" class="qmode-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-center sm:text-left" data-tip="專注猜台鐵、高鐵、捷運與輕軌車站">
-                  <div class="text-xs sm:text-sm font-extrabold text-pink-300">🚉 車站</div>
-                  <div class="text-[10px] text-slate-400 hidden sm:block mt-0.5">軌道系統車站</div>
+                <button type="button" data-topic="station" class="topic-chip-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left" data-tip="猜台鐵、高鐵、捷運與輕軌車站">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-xs sm:text-sm font-extrabold text-pink-300">🚉 車站</span>
+                    <span class="topic-check text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400">OFF</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">台鐵 / 高鐵 / 捷運</div>
                 </button>
-                <button type="button" data-qmode="mixed" class="qmode-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-center sm:text-left" data-tip="同時猜行政區與軌道車站並分項統計">
-                  <div class="text-xs sm:text-sm font-extrabold text-amber-300">🔀 混合</div>
-                  <div class="text-[10px] text-slate-400 hidden sm:block mt-0.5">行政區＋車站</div>
+                <button type="button" data-topic="airport" class="topic-chip-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left" data-tip="猜台灣國際、國內與軍用機場（軍民合用自動去重）">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-xs sm:text-sm font-extrabold text-sky-300">✈️ 機場</span>
+                    <span class="topic-check text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400">OFF</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">國際 / 國內 / 軍用</div>
+                </button>
+                <button type="button" data-topic="port" class="topic-chip-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left" data-tip="猜台灣商港、國際輔助港與漁港（進階可選小漁港與工業/天然氣港）">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-xs sm:text-sm font-extrabold text-teal-300">⚓ 港口</span>
+                    <span class="topic-check text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400">OFF</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">商港 / 輔助 / 漁港</div>
                 </button>
               </div>
               <div id="mixed-region-rail-switch-bar" class="hidden mt-2.5 pt-2.5 border-t border-slate-800/90 flex flex-wrap items-center justify-between gap-2">
-                <label class="inline-flex items-center gap-2 text-xs font-extrabold text-amber-200 cursor-pointer select-none" data-tip="開啟後，在混合模式下僅會出題位於目前已選行政區（如北部、西部濱海、山區、單一縣市）境內的鐵道與捷運車站">
+                <label class="inline-flex items-center gap-2 text-xs font-extrabold text-amber-200 cursor-pointer select-none" data-tip="開啟後，僅會出題位於目前已選行政區（如北部、西部濱海、山區、單一縣市）境內的車站、機場與港口">
                   <input id="chk-mixed-filter-station-region" type="checkbox" class="w-4 h-4 rounded bg-slate-950 border-amber-400 text-amber-500 accent-amber-400 cursor-pointer" />
-                  <span>📍 僅猜所選區域內的鐵道車站</span>
+                  <span>📍 僅猜所選區域內的車站與地標</span>
                 </label>
                 <span id="mixed-filter-station-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">
-                  目前：所選路線全線車站
+                  目前：出題所選全範圍
                 </span>
               </div>
             </div>
@@ -1019,6 +1035,61 @@
                   </button>
                 </div>
               </div>
+
+              <!-- Simple Airport Box -->
+              <div id="simple-airport-box" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-sky-500/30 space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-1.5">
+                  <label class="text-xs sm:text-sm font-extrabold text-sky-300">✈️ 選擇機場分類</label>
+                  <span id="simple-airport-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-sky-500/15 text-sky-200 border border-sky-400/40 font-mono-num">
+                    去重總計：24 座
+                  </span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <button type="button" data-poi-cat="airport" data-poi-sub="intl" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="桃園、松山、臺中清泉崗、高雄國際機場">
+                    <span>🌐 國際</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">4</span>
+                  </button>
+                  <button type="button" data-poi-cat="airport" data-poi-sub="domestic" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="含本島與離島民航國內航站（含軍民合用）">
+                    <span>🏠 國內</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">16</span>
+                  </button>
+                  <button type="button" data-poi-cat="airport" data-poi-sub="military" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="含空軍基地、陸航基地與軍民合用機場（總數自動去重）">
+                    <span>🎖️ 軍機場</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">15</span>
+                  </button>
+                </div>
+                <div class="text-[11px] text-slate-400">軍民合用機場於各子項各自計入，但總題數自動去重僅計 1 次。</div>
+              </div>
+
+              <!-- Simple Port Box -->
+              <div id="simple-port-box" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-teal-500/30 space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-1.5">
+                  <label class="text-xs sm:text-sm font-extrabold text-teal-300">⚓ 選擇港口分類（預設）</label>
+                  <span id="simple-port-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-teal-500/15 text-teal-200 border border-teal-400/40 font-mono-num">
+                    去重總計：16 座
+                  </span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button type="button" data-poi-cat="port" data-poi-sub="intl_commercial" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="基隆港、臺中港、高雄港、花蓮港">
+                    <span>🚢 國際商港</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">4</span>
+                  </button>
+                  <button type="button" data-poi-cat="port" data-poi-sub="intl_aux" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="臺北港、蘇澳港、安平港（已排除石化天然氣與工業港）">
+                    <span>⚓ 國際輔助港</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">3</span>
+                  </button>
+                  <button type="button" data-poi-cat="port" data-poi-sub="fishery_cat1" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="漁業署官方 9 座第一類大型漁港">
+                    <span>🐟 第一類漁港(大)</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">9</span>
+                  </button>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-slate-400">
+                  <span id="simple-port-adv-hint">如需第二類漁港(小)、工業港、石化天然氣港，可至進階設定勾選</span>
+                  <button id="btn-jump-port-advanced" type="button" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 font-bold border border-teal-500/30 transition">
+                    🛠️ 開啟進階港類 ➔
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- =============================================================== -->
@@ -1101,8 +1172,71 @@
 
                 <div id="scope-stations-grid" class="space-y-2 pt-1"></div>
               </div>
-            </div>
 
+              <!-- Advanced Airport Section -->
+              <div id="scope-airport-section" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-sky-500/30 space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <label class="text-xs font-bold text-sky-300">✈️ 機場分類細選（軍民合用自動去重）</label>
+                  <span id="adv-airport-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-sky-500/15 text-sky-200 border border-sky-400/40 font-mono-num">
+                    去重總計：24 座
+                  </span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <button type="button" data-poi-cat="airport" data-poi-sub="intl" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
+                    <span>🌐 國際</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">4</span>
+                  </button>
+                  <button type="button" data-poi-cat="airport" data-poi-sub="domestic" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
+                    <span>🏠 國內</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">16</span>
+                  </button>
+                  <button type="button" data-poi-cat="airport" data-poi-sub="military" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
+                    <span>🎖️ 軍機場</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">15</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Advanced Port Section -->
+              <div id="scope-port-section" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-teal-500/30 space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <label class="text-xs font-bold text-teal-300">⚓ 港口分類細選（預設＋進階港類，雙屬性自動去重）</label>
+                  <span id="adv-port-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-teal-500/15 text-teal-200 border border-teal-400/40 font-mono-num">
+                    去重總計：16 座
+                  </span>
+                </div>
+                <div class="text-[11px] font-bold text-slate-400">預設港類</div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button type="button" data-poi-cat="port" data-poi-sub="intl_commercial" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
+                    <span>🚢 國際商港</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">4</span>
+                  </button>
+                  <button type="button" data-poi-cat="port" data-poi-sub="intl_aux" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
+                    <span>⚓ 國際輔助港</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">3</span>
+                  </button>
+                  <button type="button" data-poi-cat="port" data-poi-sub="fishery_cat1" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
+                    <span>🐟 第一類漁港(大)</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">9</span>
+                  </button>
+                </div>
+                <div class="text-[11px] font-bold text-amber-300 pt-1">進階港類（預設關閉）</div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button type="button" data-poi-cat="port" data-poi-sub="fishery_cat2" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="全台本島與離島代表性知名第二類漁港">
+                    <span>🎣 第二類漁港(小)</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">24</span>
+                  </button>
+                  <button type="button" data-poi-cat="port" data-poi-sub="industrial" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="和平工業專用港、麥寮工業專用港">
+                    <span>🏭 工業港</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">2</span>
+                  </button>
+                  <button type="button" data-poi-cat="port" data-poi-sub="petro_lng" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="永安、臺中、觀塘液化天然氣接收港及麥寮石化工業港（與工業港自動去重）">
+                    <span>⛽ 石化天然氣港</span>
+                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">4</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </fieldset>
         </div>
       </div>
@@ -1715,13 +1849,15 @@
   <script src="data/admin-data.js"></script>
   <script src="data/railisland-shapes.js"></script>
   <script src="data/transport-data.js"></script>
+  <script src="data/poi-data.js"></script>
 
   <!-- 2. Core Application State & Audio Engine -->
   <script src="js/state.js"></script>
 
-  <!-- 3. Map, Transport/OSM Vector & Viewport-Culled Label Engines -->
+  <!-- 3. Map, Transport/OSM Vector, POI & Viewport-Culled Label Engines -->
   <script src="js/map-engine.js"></script>
   <script src="js/transport-engine.js"></script>
+  <script src="js/poi-engine.js"></script>
   <script src="js/label-engine.js"></script>
 
   <!-- 4. Game Logic, Target Mode, Progress Dashboard & P2P Multiplayer -->

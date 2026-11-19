@@ -2,6 +2,7 @@
 // 6. GAME LOGIC: SPOILER-FREE PREFIXES, SMART SUFFIX OVERRIDE & WINDOWS IME FIX
 // =========================================================================
 function getScopeTowns() {
+  if (!state.regionQuizEnabled) return [];
   if (state.selectedTownIds instanceof Set) {
     return ALL_TOWNS.filter((t) => state.selectedTownIds.has(t.id));
   }
@@ -9,6 +10,7 @@ function getScopeTowns() {
 }
 
 function getScopeCounties() {
+  if (!state.regionQuizEnabled) return [];
   return TAIWAN_ADMIN_DATA.filter((c) => state.selectedCounties.has(c.name));
 }
 
@@ -232,11 +234,54 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
   if (state.playMode === "free") {
     state.targetStationKey = null;
     state.targetId = null;
+    state.targetPoiId = null;
+  }
+
+  // CASE -1: POI QUIZ (Airports & Ports) — Targeted POI, Pure POI Mode, or explicit Airport/Port suffix/alias
+  const isPoiQuizActive = typeof hasAnyPoiQuizActive === "function" && hasAnyPoiQuizActive();
+  const isStationQuizActive = Boolean(state.stationQuizEnabled && state.quizStationLines && state.quizStationLines.size > 0);
+  const isPurePoiQuiz = isPoiQuizActive && !state.regionQuizEnabled && !isStationQuizActive;
+  const isTargetingPoi = (state.playMode === "target_click" || state.playMode === "target_random") && Boolean(state.targetPoiId);
+  const looksLikePoiInput = /(機場|基地|航空站|桃機|松機|清泉崗|漁港|商港|工業港|天然氣港|接收港|接收站|港|一接|二接|三接)$/.test(core) || /^[A-Za-z]{3,4}$/.test(core);
+
+  if (isPoiQuizActive && (isTargetingPoi || isPurePoiQuiz || looksLikePoiInput)) {
+    const poiRes = tryMatchAndUnlockPoi(core, isAutoCheck);
+    if (poiRes && poiRes.matched) {
+      if (poiRes.alreadyUnlocked) {
+        if (!isAutoCheck) setFeedback(`已經解鎖過「${poiRes.poi.name}」囉！`, "warn");
+        return false;
+      }
+      const p = poiRes.poi;
+      const catMeta = POI_CATEGORY_META[p.category] || { icon: "📍", label: "地標" };
+      state.lastTargetLat = p.lat;
+      state.lastTargetLng = p.lng;
+      if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
+      onSuccessfulUnlock(`${catMeta.icon} 解鎖${catMeta.label}：${p.name}（${p.countyName}${p.townName}）`, p.shortName, Boolean(isTargetingPoi));
+      if (isTargetingPoi) {
+        if (state.playMode === "target_random") {
+          pickNextTargetRegion();
+        } else {
+          state.targetPoiId = null;
+          updateTargetBannerUI();
+          if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
+        }
+      }
+      return true;
+    }
+    if (isTargetingPoi || isPurePoiQuiz) {
+      if (!isAutoCheck) {
+        triggerWrongFeedback(
+          isTargetingPoi
+            ? `與指定目標地標不符：「${combined}」`
+            : `找不到或已解鎖地標：「${combined}」`
+        );
+      }
+      return false;
+    }
   }
 
   // CASE 0: PURE STATION QUIZ MODE (0 counties selected) OR TARGETED STATION DOT (only in target modes) OR "站" SUFFIX
-  const isStationQuizActive = state.quizTargetMode !== "region" && state.stationQuizEnabled && state.quizStationLines.size > 0;
-  const isPureStationQuiz = state.selectedCounties.size === 0 && isStationQuizActive;
+  const isPureStationQuiz = !state.regionQuizEnabled && !isPoiQuizActive && isStationQuizActive;
   const isTargetingStation = (state.playMode === "target_click" || state.playMode === "target_random") && Boolean(state.targetStationKey);
   if (
     isStationQuizActive &&
@@ -259,8 +304,8 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
 
   // CASE A: TARGET QUIZ MODE
   if (state.playMode === "target_random" || state.playMode === "target_click") {
-    if (!state.targetId && !state.targetStationKey) {
-      if (!isAutoCheck) setFeedback("請先在地圖上點選一個目標區塊或車站，或使用上方目標控制按鈕！", "warn");
+    if (!state.targetId && !state.targetStationKey && !state.targetPoiId) {
+      if (!isAutoCheck) setFeedback("請先在地圖上點選一個目標區塊、車站或地標，或使用上方目標控制按鈕！", "warn");
       return false;
     }
 
@@ -701,23 +746,51 @@ function setFeedback(text, level = "info") {
 function pickNextTargetRegion() {
   state.hintLevel = 0;
   const remainingStations = getActiveQuizStations().filter((s) => !state.unlockedStations.has(s.key));
+  const remainingPois = typeof getActiveQuizPois === "function"
+    ? getActiveQuizPois().filter((p) => !state.unlockedPois.has(p.id))
+    : [];
   const scopeTowns = getScopeTowns();
+  const regionDone =
+    scopeTowns.length === 0 ||
+    (state.difficulty === "county_only"
+      ? getScopeCounties().every((c) => state.unlockedCounties.has(c.name))
+      : scopeTowns.every((t) => state.unlockedTowns.has(t.id)));
+
+  // If region is done (or off) and POIs remain (and no stations left, or pure POI mode)
+  if (regionDone && remainingPois.length > 0 && (remainingStations.length === 0 || Math.random() < 0.5)) {
+    const pickPoi = remainingPois[Math.floor(Math.random() * remainingPois.length)];
+    state.targetId = null;
+    state.targetStationKey = null;
+    state.targetPoiId = pickPoi.id;
+    state.lastTargetLat = pickPoi.lat;
+    state.lastTargetLng = pickPoi.lng;
+    focusMapOnLatLng(pickPoi.lat, pickPoi.lng, 10);
+    if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
+    updateTargetBannerUI();
+    refreshAllPolygonStyles();
+    if (state.roomCode && typeof broadcastP2PState === "function") broadcastP2PState();
+    return;
+  }
 
   // If in Pure Station Mode (0 counties selected) OR all townships done while stations remain
-  if ((scopeTowns.length === 0 || scopeTowns.every((t) => state.unlockedTowns.has(t.id))) && remainingStations.length > 0) {
+  if (regionDone && remainingStations.length > 0) {
     const pickSt = remainingStations[Math.floor(Math.random() * remainingStations.length)];
     state.targetId = null;
+    state.targetPoiId = null;
     state.targetStationKey = pickSt.key;
     state.lastTargetLat = pickSt.lat;
     state.lastTargetLng = pickSt.lng;
     focusMapOnLatLng(pickSt.lat, pickSt.lng, 12);
     updateRoadAndRailwayTileOverlays();
+    if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
     updateTargetBannerUI();
     refreshAllPolygonStyles();
+    if (state.roomCode && typeof broadcastP2PState === "function") broadcastP2PState();
     return;
   }
 
   state.targetStationKey = null;
+  state.targetPoiId = null;
   if (state.difficulty === "county_only") {
     const remaining = getScopeCounties().filter((c) => !state.unlockedCounties.has(c.name));
     if (remaining.length === 0) {
@@ -752,6 +825,7 @@ function pickNextTargetRegion() {
 function exitTargetQuizMode() {
   state.targetId = null;
   state.targetStationKey = null;
+  state.targetPoiId = null;
   state.hintLevel = 0;
   if (canLocalModifyGameConfig()) {
     if (state.isHost && state.roomCode && state.playMode !== "free") {
@@ -767,6 +841,7 @@ function exitTargetQuizMode() {
   updateTargetBannerUI();
   if (typeof updateRoadAndRailwayTileOverlays === "function") updateRoadAndRailwayTileOverlays();
   refreshAllPolygonStyles();
+  if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
   if (typeof renderRoomConciseSettingsSummary === "function") renderRoomConciseSettingsSummary();
   setFeedback("已退出指定/隨機目標視窗，切回一般自由輸入模式！", "info");
   const inp = document.getElementById("answer-input");

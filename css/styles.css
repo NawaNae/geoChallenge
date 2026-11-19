@@ -734,3 +734,108 @@ input, select {
   pointer-events: none;
   box-shadow: 0 16px 36px rgba(2, 6, 23, 0.72);
 }
+
+/* ============================================================================
+   POI MARKERS (AIRPORTS & PORTS) & MULTI-SELECT TOPIC CHIPS
+   ============================================================================ */
+.topic-chip-btn,
+.poi-subtype-btn {
+  touch-action: manipulation;
+  transition: transform 110ms ease-out, background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.topic-chip-btn:active,
+.poi-subtype-btn:active {
+  transform: scale(0.97);
+}
+
+.tw-poi-icon-host {
+  background: transparent !important;
+  border: none !important;
+  overflow: visible !important;
+}
+
+.tw-poi-pin {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(2, 6, 23, 0.72);
+  transition: transform 140ms ease-out, box-shadow 140ms ease-out;
+}
+.tw-poi-pin:hover {
+  transform: scale(1.18);
+  z-index: 20;
+}
+
+/* Airport: Diamond badge (sky accent) */
+.tw-poi-airport {
+  border-radius: 6px;
+  transform: rotate(45deg);
+  border: 2px solid #38bdf8;
+  background: rgba(15, 23, 42, 0.92);
+  color: #bae6fd;
+}
+.tw-poi-airport:hover {
+  transform: rotate(45deg) scale(1.18);
+}
+.tw-poi-airport .tw-poi-glyph {
+  transform: rotate(-45deg);
+  display: inline-block;
+}
+.tw-poi-airport .tw-poi-tag {
+  transform: rotate(-45deg) translate(16px, -6px);
+}
+
+/* Port: Rounded square anchor badge (teal accent) */
+.tw-poi-port {
+  border-radius: 8px;
+  border: 2px solid #2dd4bf;
+  background: rgba(15, 23, 42, 0.92);
+  color: #99f6e4;
+}
+
+/* States */
+.tw-poi-state-unlocked {
+  border-color: #34d399 !important;
+  background: rgba(6, 78, 59, 0.95) !important;
+  color: #ecfdf5 !important;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.35), 0 2px 10px rgba(2, 6, 23, 0.8);
+}
+.tw-poi-state-missed {
+  border-color: #fb7185 !important;
+  background: rgba(136, 19, 55, 0.95) !important;
+  color: #ffe4e6 !important;
+}
+.tw-poi-state-target {
+  border-color: #fbbf24 !important;
+  background: rgba(180, 83, 9, 0.96) !important;
+  color: #fef3c7 !important;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.45), 0 2px 12px rgba(251, 191, 36, 0.65);
+}
+
+.tw-poi-tag {
+  position: absolute;
+  left: 26px;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(2, 6, 23, 0.65);
+}
+.tw-poi-state-missed .tw-poi-tag {
+  border-color: rgba(251, 113, 133, 0.65);
+  color: #fecdd3;
+}

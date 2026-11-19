@@ -41,6 +41,9 @@ function getLocalGrandCounts() {
   const activeSt = getActiveQuizStations();
   const stationTotal = activeSt.length;
   const stationCurrent = activeSt.filter((s) => state.unlockedStations.has(s.key)).length;
+  const activePois = typeof getActiveQuizPois === "function" ? getActiveQuizPois() : [];
+  const poiTotal = activePois.length;
+  const poiCurrent = activePois.filter((p) => state.unlockedPois.has(p.id)).length;
   const macroProgress = {};
   if (regionTotal > 0) {
     macroProgress["地區"] = { cur: regionCurrent, tot: regionTotal };
@@ -54,14 +57,30 @@ function getLocalGrandCounts() {
       };
     }
   });
+  const activeAirports = activePois.filter((p) => p.category === "airport");
+  if (activeAirports.length > 0) {
+    macroProgress["機場"] = {
+      cur: activeAirports.filter((p) => state.unlockedPois.has(p.id)).length,
+      tot: activeAirports.length
+    };
+  }
+  const activePorts = activePois.filter((p) => p.category === "port");
+  if (activePorts.length > 0) {
+    macroProgress["港口"] = {
+      cur: activePorts.filter((p) => state.unlockedPois.has(p.id)).length,
+      tot: activePorts.length
+    };
+  }
 
   return {
     regionCurrent,
     regionTotal,
     stationCurrent,
     stationTotal,
-    grandCurrent: regionCurrent + stationCurrent,
-    grandTotal: regionTotal + stationTotal,
+    poiCurrent,
+    poiTotal,
+    grandCurrent: regionCurrent + stationCurrent + poiCurrent,
+    grandTotal: regionTotal + stationTotal + poiTotal,
     macroProgress
   };
 }
@@ -128,8 +147,11 @@ function ensureLocalPlayerInRoster() {
     missedTowns: Array.from(state.missedTowns),
     unlockedStations: Array.from(state.unlockedStations),
     missedStations: Array.from(state.missedStations),
-    targetId: state.targetId || null,
-    targetStationKey: state.targetStationKey || null,
+    unlockedPois: Array.from(state.unlockedPois || []),
+    missedPois: Array.from(state.missedPois || []),
+    targetId: state.targetId,
+    targetStationKey: state.targetStationKey,
+    targetPoiId: state.targetPoiId,
     elapsedSec: state.elapsedSec || 0,
     stats: { ...state.stats },
     _viewSets: null
@@ -203,15 +225,23 @@ function getHostSyncConfig(isSettingChange = false, changeLabel = "", changeDeta
   const flayerEl = document.getElementById("p2p-forced-layer-select");
   const rruleEl = document.getElementById("p2p-rail-rule-select");
   return {
-    quizTargetMode: state.quizTargetMode || "region",
+    quizTargetMode: typeof syncLegacyQuizTargetMode === "function" ? syncLegacyQuizTargetMode() : (state.quizTargetMode || "region"),
+    regionQuizEnabled: Boolean(state.regionQuizEnabled),
+    stationQuizEnabled: Boolean(state.stationQuizEnabled),
+    airportQuizEnabled: Boolean(state.airportQuizEnabled),
+    portQuizEnabled: Boolean(state.portQuizEnabled),
+    airportSubTypes: Array.from(state.airportSubTypes || []),
+    portSubTypes: Array.from(state.portSubTypes || []),
     showStationTerminusHints: Boolean(state.showStationTerminusHints),
     filterStationsByRegion: Boolean(state.filterStationsByRegion),
     allowTargetHints: Boolean(state.allowTargetHints),
-    selectedCounties: Array.from(state.selectedCounties),
-    selectedTownIds: state.selectedTownIds
-      ? Array.from(state.selectedTownIds)
-      : ALL_TOWNS.filter((t) => state.selectedCounties.has(t.countyName)).map((t) => t.id),
-    quizStationLines: state.quizTargetMode === "region" ? [] : Array.from(state.quizStationLines),
+    selectedCounties: state.regionQuizEnabled ? Array.from(state.selectedCounties) : [],
+    selectedTownIds: state.regionQuizEnabled
+      ? (state.selectedTownIds
+          ? Array.from(state.selectedTownIds)
+          : ALL_TOWNS.filter((t) => state.selectedCounties.has(t.countyName)).map((t) => t.id))
+      : [],
+    quizStationLines: state.stationQuizEnabled ? Array.from(state.quizStationLines) : [],
     difficulty: state.difficulty,
     playMode: state.playMode,
     timerMode: state.timerMode,
@@ -417,10 +447,21 @@ function renderRoomConciseSettingsSummary() {
   // 3. Station Line (Only if selected!)
   const stText = getConciseStationSummaryText();
   if (stText) {
-    const filterSuffix = state.filterStationsByRegion && state.quizTargetMode !== "station" && state.selectedCounties.size > 0
+    const filterSuffix = state.filterStationsByRegion && state.regionQuizEnabled && state.selectedCounties.size > 0
       ? `（📍僅限所選區域內 ${typeof getActiveQuizStations === "function" ? getActiveQuizStations().length : ""} 站）`
       : "";
     rows.push({ label: "車站：", text: `${stText}${filterSuffix}`, highlight: "text-pink-200" });
+  }
+
+  // 3b. Airport & Port Lines (Only if selected!)
+  if (typeof getConcisePoiSummaryParts === "function") {
+    const poiParts = getConcisePoiSummaryParts();
+    if (poiParts.length > 0) {
+      const regNote = state.filterStationsByRegion && state.regionQuizEnabled && state.selectedCounties.size > 0
+        ? "（📍僅限所選區域內）"
+        : "";
+      rows.push({ label: "地標：", text: `${poiParts.join(" · ")}${regNote}`, highlight: "text-teal-200" });
+    }
   }
 
   // 4. Interface Restriction Line (Only if restricted / non-default!)
@@ -1168,6 +1209,12 @@ function describeConfigDiff(patch) {
 function buildProposedConfigFromPatch(patch) {
   const base = getHostSyncConfig(true);
   if (patch.quizTargetMode) base.quizTargetMode = patch.quizTargetMode;
+  if (typeof patch.regionQuizEnabled === "boolean") base.regionQuizEnabled = patch.regionQuizEnabled;
+  if (typeof patch.stationQuizEnabled === "boolean") base.stationQuizEnabled = patch.stationQuizEnabled;
+  if (typeof patch.airportQuizEnabled === "boolean") base.airportQuizEnabled = patch.airportQuizEnabled;
+  if (typeof patch.portQuizEnabled === "boolean") base.portQuizEnabled = patch.portQuizEnabled;
+  if (Array.isArray(patch.airportSubTypes)) base.airportSubTypes = patch.airportSubTypes.slice();
+  if (Array.isArray(patch.portSubTypes)) base.portSubTypes = patch.portSubTypes.slice();
   if (patch.difficulty) base.difficulty = patch.difficulty;
   if (patch.playMode) base.playMode = patch.playMode;
   if (patch.selectedCounties) base.selectedCounties = Array.from(patch.selectedCounties);
@@ -2631,8 +2678,11 @@ function broadcastP2PState(lastItemName) {
     missedTowns: Array.from(state.missedTowns),
     unlockedStations: Array.from(state.unlockedStations),
     missedStations: Array.from(state.missedStations),
-    targetId: state.targetId || null,
-    targetStationKey: state.targetStationKey || null,
+    unlockedPois: Array.from(state.unlockedPois || []),
+    missedPois: Array.from(state.missedPois || []),
+    targetId: state.targetId,
+    targetStationKey: state.targetStationKey,
+    targetPoiId: state.targetPoiId,
     stats: { ...state.stats }
   };
 
@@ -2705,8 +2755,11 @@ function handleIncomingP2PData(payload, senderIdFromMsg = null) {
       missedTowns: Array.isArray(payload.missedTowns) ? payload.missedTowns : existing.missedTowns || [],
       unlockedStations: uStations,
       missedStations: Array.isArray(payload.missedStations) ? payload.missedStations : existing.missedStations || [],
+      unlockedPois: Array.isArray(payload.unlockedPois) ? payload.unlockedPois : existing.unlockedPois || [],
+      missedPois: Array.isArray(payload.missedPois) ? payload.missedPois : existing.missedPois || [],
       targetId: payload.targetId !== undefined ? payload.targetId : existing.targetId || null,
       targetStationKey: payload.targetStationKey !== undefined ? payload.targetStationKey : existing.targetStationKey || null,
+      targetPoiId: payload.targetPoiId !== undefined ? payload.targetPoiId : existing.targetPoiId || null,
       elapsedSec: payload.elapsedSec ?? existing.elapsedSec ?? 0,
       stats: payload.stats || existing.stats || null,
       _viewSets: null
@@ -3142,16 +3195,34 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   if (Array.isArray(cfg.quizStationLines)) {
     state.quizStationLines = new Set(cfg.quizStationLines);
   }
+  if (typeof cfg.regionQuizEnabled === "boolean") {
+    state.regionQuizEnabled = cfg.regionQuizEnabled;
+  } else if (cfg.quizTargetMode) {
+    state.regionQuizEnabled = cfg.quizTargetMode !== "station";
+  }
+  if (typeof cfg.airportQuizEnabled === "boolean") {
+    state.airportQuizEnabled = cfg.airportQuizEnabled;
+  }
+  if (typeof cfg.portQuizEnabled === "boolean") {
+    state.portQuizEnabled = cfg.portQuizEnabled;
+  }
+  if (Array.isArray(cfg.airportSubTypes)) {
+    state.airportSubTypes = new Set(cfg.airportSubTypes);
+  }
+  if (Array.isArray(cfg.portSubTypes)) {
+    state.portSubTypes = new Set(cfg.portSubTypes);
+  }
 
-  if (state.quizTargetMode === "region") {
-    state.quizStationLines.clear();
-    state.stationQuizEnabled = false;
-  } else if (state.quizTargetMode === "station") {
-    state.selectedCounties.clear();
-    if (state.selectedTownIds) state.selectedTownIds.clear();
-    state.stationQuizEnabled = state.quizStationLines.size > 0;
+  if (typeof cfg.stationQuizEnabled === "boolean") {
+    state.stationQuizEnabled = cfg.stationQuizEnabled && state.quizStationLines.size > 0;
   } else {
-    state.stationQuizEnabled = state.quizStationLines.size > 0;
+    state.stationQuizEnabled = state.quizTargetMode !== "region" && state.quizStationLines.size > 0;
+  }
+  if (!state.stationQuizEnabled) {
+    state.quizStationLines.clear();
+  }
+  if (typeof syncLegacyQuizTargetMode === "function") {
+    syncLegacyQuizTargetMode();
   }
 
   if (state.stationQuizEnabled && state.quizStationLines.size > 0) {
@@ -3202,6 +3273,7 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   }
 
   resetGame();
+  if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
   renderScopeModalGrid();
 
   if (!fromCountdown && !state.isHost && cfg.isSettingChange) {

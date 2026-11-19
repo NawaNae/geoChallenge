@@ -22,30 +22,102 @@ function setSettingsTab(tabKey) {
 }
 
 function syncConfigButtonsUI() {
-  const qm = state.quizTargetMode || "region";
-  document.querySelectorAll(".qmode-btn").forEach((btn) => {
-    const isCur = btn.getAttribute("data-qmode") === qm;
-    btn.className = isCur
-      ? "qmode-btn p-2.5 rounded-xl border transition bg-sky-500/25 border-sky-400 text-white text-center sm:text-left shadow-md"
-      : "qmode-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-center sm:text-left";
+  if (typeof syncLegacyQuizTargetMode === "function") syncLegacyQuizTargetMode();
+  const hasR = Boolean(state.regionQuizEnabled);
+  const hasS = Boolean(state.stationQuizEnabled);
+  const hasA = Boolean(state.airportQuizEnabled);
+  const hasP = Boolean(state.portQuizEnabled);
+
+  const topicMap = { region: hasR, station: hasS, airport: hasA, port: hasP };
+  const topicAccent = {
+    region: "bg-sky-500/25 border-sky-400 text-white shadow-md",
+    station: "bg-pink-500/25 border-pink-400 text-white shadow-md",
+    airport: "bg-sky-500/25 border-sky-400 text-white shadow-md",
+    port: "bg-teal-500/25 border-teal-400 text-white shadow-md"
+  };
+
+  document.querySelectorAll(".topic-chip-btn").forEach((btn) => {
+    const t = btn.getAttribute("data-topic");
+    const isOn = Boolean(topicMap[t]);
+    btn.className = isOn
+      ? `topic-chip-btn p-2.5 rounded-xl border transition text-left ${topicAccent[t] || "bg-sky-500/25 border-sky-400 text-white"}`
+      : "topic-chip-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left";
+    const chk = btn.querySelector(".topic-check");
+    if (chk) {
+      chk.textContent = isOn ? "ON" : "OFF";
+      chk.className = isOn
+        ? "topic-check text-[10px] font-black px-1.5 py-0.5 rounded-md bg-emerald-400/25 text-emerald-200"
+        : "topic-check text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400";
+    }
   });
 
   const regSec = document.getElementById("scope-region-section");
   const stSec = document.getElementById("scope-station-section");
+  const apSec = document.getElementById("scope-airport-section");
+  const ptSec = document.getElementById("scope-port-section");
   const simpleRegBox = document.getElementById("simple-region-box");
   const simpleStBox = document.getElementById("simple-station-box");
+  const simpleApBox = document.getElementById("simple-airport-box");
+  const simplePtBox = document.getElementById("simple-port-box");
 
-  if (regSec) regSec.classList.toggle("hidden", qm === "station");
-  if (stSec) stSec.classList.toggle("hidden", qm === "region");
-  if (simpleRegBox) simpleRegBox.classList.toggle("hidden", qm === "station");
-  if (simpleStBox) simpleStBox.classList.toggle("hidden", qm === "region");
+  if (regSec) regSec.classList.toggle("hidden", !hasR);
+  if (stSec) stSec.classList.toggle("hidden", !hasS);
+  if (apSec) apSec.classList.toggle("hidden", !hasA);
+  if (ptSec) ptSec.classList.toggle("hidden", !hasP);
+  if (simpleRegBox) simpleRegBox.classList.toggle("hidden", !hasR);
+  if (simpleStBox) simpleStBox.classList.toggle("hidden", !hasS);
+  if (simpleApBox) simpleApBox.classList.toggle("hidden", !hasA);
+  if (simplePtBox) simplePtBox.classList.toggle("hidden", !hasP);
 
+  const showRegionFilterSwitch = hasR && (hasS || hasA || hasP);
   const mixedSwitchBar = document.getElementById("mixed-region-rail-switch-bar");
   const wrapSimpleFilter = document.getElementById("wrap-simple-filter-st-region");
   const wrapAdvFilter = document.getElementById("wrap-adv-filter-st-region");
-  if (mixedSwitchBar) mixedSwitchBar.classList.toggle("hidden", qm !== "mixed");
-  if (wrapSimpleFilter) wrapSimpleFilter.classList.toggle("hidden", qm === "station");
-  if (wrapAdvFilter) wrapAdvFilter.classList.toggle("hidden", qm === "station");
+  if (mixedSwitchBar) mixedSwitchBar.classList.toggle("hidden", !showRegionFilterSwitch);
+  if (wrapSimpleFilter) wrapSimpleFilter.classList.toggle("hidden", !hasR);
+  if (wrapAdvFilter) wrapAdvFilter.classList.toggle("hidden", !hasR);
+
+  // Sync Airport & Port Subtype Pills (counts + active visual state + deduplicated totals)
+  if (typeof countPoisBySubType === "function" && typeof countUniquePoisForSubTypes === "function") {
+    const applyReg = Boolean(state.filterStationsByRegion && hasR);
+    document.querySelectorAll(".poi-subtype-btn").forEach((btn) => {
+      const cat = btn.getAttribute("data-poi-cat");
+      const sub = btn.getAttribute("data-poi-sub");
+      const activeSet = cat === "airport" ? state.airportSubTypes : state.portSubTypes;
+      const isOn = Boolean(activeSet && activeSet.has(sub));
+      const cnt = countPoisBySubType(cat, sub, applyReg);
+      const cntEl = btn.querySelector(".poi-sub-count");
+      if (cntEl) cntEl.textContent = String(cnt);
+      const onCls = cat === "airport"
+        ? "poi-subtype-btn p-2.5 rounded-xl border border-sky-400 bg-sky-500/20 text-white text-xs font-bold flex items-center justify-between gap-1.5 shadow-sm"
+        : "poi-subtype-btn p-2.5 rounded-xl border border-teal-400 bg-teal-500/20 text-white text-xs font-bold flex items-center justify-between gap-1.5 shadow-sm";
+      const offCls = "poi-subtype-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/80 hover:bg-slate-800 text-slate-300 text-xs font-bold flex items-center justify-between gap-1.5";
+      btn.className = isOn ? onCls : offCls;
+    });
+
+    const apUnique = countUniquePoisForSubTypes("airport", state.airportSubTypes, applyReg);
+    const ptUnique = countUniquePoisForSubTypes("port", state.portSubTypes, applyReg);
+    const apBadgeTxt = `去重總計：${apUnique} 座`;
+    const ptBadgeTxt = `去重總計：${ptUnique} 座`;
+    ["simple-airport-total-badge", "adv-airport-total-badge"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = apBadgeTxt;
+    });
+    ["simple-port-total-badge", "adv-port-total-badge"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = ptBadgeTxt;
+    });
+
+    const advHint = document.getElementById("simple-port-adv-hint");
+    if (advHint) {
+      const advOn = ["fishery_cat2", "industrial", "petro_lng"]
+        .filter((k) => state.portSubTypes && state.portSubTypes.has(k))
+        .map((k) => (getPoiSubTypeMeta("port", k) || {}).shortLabel || k);
+      advHint.textContent = advOn.length > 0
+        ? `進階港類已開啟：${advOn.join("、")}`
+        : "如需第二類漁港(小)、工業港、石化天然氣港，可至進階設定勾選";
+    }
+  }
 
   ["chk-mixed-filter-station-region", "chk-simple-filter-station-region", "chk-adv-filter-station-region"].forEach((cid) => {
     const el = document.getElementById(cid);
@@ -539,15 +611,22 @@ function renderScopeModalGrid() {
   }
 
   const counterEl = document.getElementById("scope-modal-counter");
-  const adminPart =
-    state.quizTargetMode === "station" || state.selectedCounties.size === 0
-      ? "不猜行政區"
-      : `${state.selectedCounties.size} 縣市 (${totalTowns} 區)`;
-  const stPart =
-    state.quizTargetMode === "region" || state.quizStationLines.size === 0
-      ? "不猜車站"
-      : `${state.quizStationLines.size} 線 (${totalStations} 站)`;
-  const fullCounterText = `題庫：${adminPart} ＋ ${stPart}`;
+  const counterParts = [];
+  if (state.regionQuizEnabled && state.selectedCounties.size > 0) {
+    counterParts.push(`🗺️ ${state.selectedCounties.size} 縣市 (${totalTowns} 區)`);
+  }
+  if (state.stationQuizEnabled && state.quizStationLines.size > 0) {
+    counterParts.push(`🚉 ${state.quizStationLines.size} 線 (${totalStations} 站)`);
+  }
+  if (typeof isPoiCategoryActive === "function" && isPoiCategoryActive("airport")) {
+    const apCnt = getActiveQuizPois("airport").length;
+    counterParts.push(`✈️ 機場 (${apCnt} 座)`);
+  }
+  if (typeof isPoiCategoryActive === "function" && isPoiCategoryActive("port")) {
+    const ptCnt = getActiveQuizPois("port").length;
+    counterParts.push(`⚓ 港口 (${ptCnt} 座)`);
+  }
+  const fullCounterText = counterParts.length > 0 ? `題庫：${counterParts.join(" ＋ ")}` : "請至少選擇一項題庫";
   if (counterEl) {
     counterEl.textContent = fullCounterText;
   }
@@ -593,12 +672,8 @@ function openRoomModal() {
 // Opens the Shared Top-Level Mode & Scope Settings Modal (#modal-scope)
 // Defaults to Simple Settings Tab per user requirement!
 function openModeSettingsModal(defaultTab = "simple") {
-  if (state.selectedCounties.size > 0 && state.quizStationLines.size > 0) {
-    state.quizTargetMode = "mixed";
-  } else if (state.selectedCounties.size === 0 && state.quizStationLines.size > 0) {
-    state.quizTargetMode = "station";
-  } else {
-    state.quizTargetMode = "region";
+  if (typeof syncLegacyQuizTargetMode === "function") {
+    syncLegacyQuizTargetMode();
   }
 
   setSettingsTab(defaultTab || state.settingsTab || "simple");
@@ -1332,57 +1407,123 @@ function bindAllUIEvents() {
     document.getElementById("session-restore-banner")?.classList.add("hidden");
   });
 
-  document.querySelectorAll(".qmode-btn").forEach((btn) => {
+  // Multi-select Topic Chips (行政區 / 車站 / 機場 / 港口)
+  document.querySelectorAll(".topic-chip-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      if (!canLocalModifyGameConfig()) return;
-      const qm = btn.getAttribute("data-qmode");
+      if (!canLocalModifyGameConfig()) {
+        setFeedback("僅房主可調整挑戰題庫！", "warn");
+        return;
+      }
+      const topic = btn.getAttribute("data-topic");
+      let nextR = Boolean(state.regionQuizEnabled);
+      let nextS = Boolean(state.stationQuizEnabled);
+      let nextA = Boolean(state.airportQuizEnabled);
+      let nextP = Boolean(state.portQuizEnabled);
       let nextCounties = new Set(state.selectedCounties);
-      let nextTownIds = new Set(state.selectedTownIds || []);
+      let nextTownIds = new Set(state.selectedTownIds);
       let nextLines = new Set(state.quizStationLines);
+      let nextApSubs = new Set(state.airportSubTypes);
+      let nextPtSubs = new Set(state.portSubTypes);
 
-      if (qm === "region") {
-        nextLines.clear();
-        if (nextCounties.size === 0 || nextTownIds.size === 0) {
-          nextCounties = new Set(TAIWAN_ADMIN_DATA.map((c) => c.name));
-          nextTownIds = new Set(ALL_TOWNS.map((t) => t.id));
-        }
-      } else if (qm === "station") {
-        nextCounties.clear();
-        nextTownIds.clear();
-        if (nextLines.size === 0) {
-          nextLines = new Set(SIMPLE_STATION_MAP.tpemrt());
-        }
-      } else if (qm === "mixed") {
-        if (nextCounties.size === 0 || nextTownIds.size === 0) {
-          nextCounties = new Set(TAIWAN_ADMIN_DATA.map((c) => c.name));
-          nextTownIds = new Set(ALL_TOWNS.map((t) => t.id));
-        }
-        if (nextLines.size === 0) {
-          nextLines = new Set(SIMPLE_STATION_MAP.tpemrt());
-        }
+      if (topic === "region") nextR = !nextR;
+      else if (topic === "station") nextS = !nextS;
+      else if (topic === "airport") nextA = !nextA;
+      else if (topic === "port") nextP = !nextP;
+
+      if (!nextR && !nextS && !nextA && !nextP) {
+        setFeedback("至少需保留 1 種挑戰題庫！", "warn");
+        return;
+      }
+
+      if (nextR && (nextCounties.size === 0 || nextTownIds.size === 0)) {
+        nextCounties = new Set(TAIWAN_ADMIN_DATA.map((c) => c.name));
+        nextTownIds = new Set(ALL_TOWNS.map((t) => t.id));
+      }
+      if (nextS && nextLines.size === 0) {
+        nextLines = new Set(SIMPLE_STATION_MAP.tpemrt());
+      }
+      if (nextA && nextApSubs.size === 0) {
+        nextApSubs = new Set(["intl", "domestic", "military"]);
+      }
+      if (nextP && nextPtSubs.size === 0) {
+        nextPtSubs = new Set(["intl_commercial", "intl_aux", "fishery_cat1"]);
       }
 
       if (state.isHost && state.roomCode) {
         requestOrApplyConfigChange(
           {
-            quizTargetMode: qm,
-            selectedCounties: Array.from(nextCounties),
-            selectedTownIds: Array.from(nextTownIds),
-            quizStationLines: Array.from(nextLines)
+            regionQuizEnabled: nextR,
+            stationQuizEnabled: nextS,
+            airportQuizEnabled: nextA,
+            portQuizEnabled: nextP,
+            selectedCounties: nextR ? Array.from(nextCounties) : [],
+            selectedTownIds: nextR ? Array.from(nextTownIds) : [],
+            quizStationLines: nextS ? Array.from(nextLines) : [],
+            airportSubTypes: Array.from(nextApSubs),
+            portSubTypes: Array.from(nextPtSubs)
           },
-          "挑戰類型"
+          "挑戰題庫"
         );
         return;
       }
 
-      state.quizTargetMode = qm;
+      state.regionQuizEnabled = nextR;
+      state.stationQuizEnabled = nextS;
+      state.airportQuizEnabled = nextA;
+      state.portQuizEnabled = nextP;
       state.selectedCounties = nextCounties;
       state.selectedTownIds = nextTownIds;
       state.quizStationLines = nextLines;
-      state.stationQuizEnabled = state.quizStationLines.size > 0;
+      state.airportSubTypes = nextApSubs;
+      state.portSubTypes = nextPtSubs;
+      if (typeof syncLegacyQuizTargetMode === "function") syncLegacyQuizTargetMode();
       renderScopeModalGrid();
-      if (state.isHost && state.roomCode) onHostSettingChange("挑戰類型");
+      if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
     });
+  });
+
+  // Airport & Port Subtype Pills (shared across Simple & Advanced tabs)
+  document.querySelectorAll(".poi-subtype-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!canLocalModifyGameConfig()) {
+        setFeedback("僅房主可調整地標分類！", "warn");
+        return;
+      }
+      const cat = btn.getAttribute("data-poi-cat");
+      const sub = btn.getAttribute("data-poi-sub");
+      const targetSet = cat === "airport" ? new Set(state.airportSubTypes) : new Set(state.portSubTypes);
+      if (targetSet.has(sub)) {
+        if (targetSet.size <= 1) {
+          setFeedback(`至少需保留 1 項${cat === "airport" ? "機場" : "港口"}子分類！`, "warn");
+          return;
+        }
+        targetSet.delete(sub);
+      } else {
+        targetSet.add(sub);
+      }
+
+      if (state.isHost && state.roomCode) {
+        const patch = cat === "airport"
+          ? { airportQuizEnabled: true, airportSubTypes: Array.from(targetSet) }
+          : { portQuizEnabled: true, portSubTypes: Array.from(targetSet) };
+        requestOrApplyConfigChange(patch, cat === "airport" ? "機場分類" : "港口分類");
+        return;
+      }
+
+      if (cat === "airport") {
+        state.airportSubTypes = targetSet;
+      } else {
+        state.portSubTypes = targetSet;
+      }
+      renderScopeModalGrid();
+      if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
+    });
+  });
+
+  document.getElementById("btn-jump-port-advanced")?.addEventListener("click", () => {
+    setSettingsTab("advanced");
+    const sec = document.getElementById("scope-port-section");
+    if (sec) sec.scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
 
   // ============================================================================
@@ -1597,18 +1738,20 @@ function bindAllUIEvents() {
       return;
     }
 
-    if (state.quizTargetMode === "region") {
+    if (!state.stationQuizEnabled) {
       state.quizStationLines.clear();
-      state.stationQuizEnabled = false;
     }
+    if (typeof syncLegacyQuizTargetMode === "function") syncLegacyQuizTargetMode();
 
-    if (state.selectedCounties.size === 0 && state.quizStationLines.size === 0) {
-      setFeedback("⚠️ 請至少選擇 1 個區域或 1 條車站路線作為挑戰題庫！", "warn");
+    const hasActivePoi = typeof hasAnyPoiQuizActive === "function" && hasAnyPoiQuizActive();
+    if (!state.regionQuizEnabled && !state.stationQuizEnabled && !hasActivePoi) {
+      setFeedback("⚠️ 請至少選擇 1 項挑戰題庫！", "warn");
+      state.regionQuizEnabled = true;
       state.selectedCounties = new Set(["臺北市"]);
       state.selectedTownIds = new Set(ALL_TOWNS.filter((t) => t.countyName === "臺北市").map((t) => t.id));
     }
 
-    if (state.quizTargetMode !== "region" && state.quizStationLines.size > 0) {
+    if (state.stationQuizEnabled && state.quizStationLines.size > 0) {
       state.stationQuizEnabled = true;
       const keepHw = state.selectedTransportLines.has("hw_freeway");
       state.selectedTransportLines = new Set(state.quizStationLines);
@@ -1908,6 +2051,7 @@ function bootstrapGeoMasterApp() {
   bindAllUIEvents();
   initMap();
   initPrecisionRailAndStationEngine();
+  if (typeof initPoiMapEngine === "function") initPoiMapEngine();
   initP2PEngine();
   renderScopeModalGrid();
   updatePrefixDropdownUI();

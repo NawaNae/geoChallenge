@@ -37,31 +37,73 @@ function updateScoreAndProgressUI() {
 
   const activeSt = getActiveQuizStations();
   const unlockedStCount = activeSt.filter((s) => vState.unlockedStations.has(s.key)).length;
+  const activePois = typeof getActiveQuizPois === "function" ? getActiveQuizPois() : [];
+  const vUnlockedPois = vState.unlockedPois || state.unlockedPois || new Set();
+  const unlockedPoiCount = activePois.filter((p) => vUnlockedPois.has(p.id)).length;
+  const stAndPoiCurrent = unlockedStCount + unlockedPoiCount;
+  const stAndPoiTotal = activeSt.length + activePois.length;
   const stPct =
-    activeSt.length > 0
-      ? ((unlockedStCount / activeSt.length) * 100).toFixed(1)
+    stAndPoiTotal > 0
+      ? ((stAndPoiCurrent / stAndPoiTotal) * 100).toFixed(1)
       : "0.0";
 
   const regionCurrent = state.difficulty === "county_only" ? unlockedCountyCount : unlockedTownCount;
   const regionTotal = state.difficulty === "county_only" ? scopeCounties.length : scopeTowns.length;
   const regionPct = state.difficulty === "county_only" ? countyPct : townPct;
 
-  const grandCurrent = regionCurrent + unlockedStCount;
-  const grandTotal = regionTotal + activeSt.length;
+  const grandCurrent = regionCurrent + unlockedStCount + unlockedPoiCount;
+  const grandTotal = regionTotal + activeSt.length + activePois.length;
   const grandPct = grandTotal > 0 ? ((grandCurrent / grandTotal) * 100).toFixed(1) : "0.0";
 
   // Update Top Dual Cards (Card 1: 地區進度 or 總進度; Card 2: 車站進度 or 鄉鎮進度)
   const cLabelEl = document.getElementById("stat-county-label");
-  if (regionTotal > 0 && activeSt.length > 0) {
+  if (regionTotal > 0 && stAndPoiTotal > 0) {
     if (cLabelEl) cLabelEl.textContent = "🗺️ 地區完成度";
     document.getElementById("stat-county-count").textContent = `${regionCurrent} / ${regionTotal} ${state.difficulty === "county_only" ? "縣市" : "區"}`;
     document.getElementById("stat-county-pct").textContent = `${regionPct}%`;
     document.getElementById("stat-county-bar").style.width = `${Math.min(100, parseFloat(regionPct))}%`;
 
-    document.getElementById("stat-town-label").textContent = "🚉 車站完成度";
-    document.getElementById("stat-town-count").textContent = `${unlockedStCount} / ${activeSt.length} 站`;
+    const secLabel = activeSt.length > 0 && activePois.length > 0
+      ? "🚉✈️ 車站與地標"
+      : activePois.length > 0
+      ? "✈️⚓ 機場與港口"
+      : "🚉 車站完成度";
+    const secUnit = activeSt.length > 0 && activePois.length === 0 ? "站" : "處";
+    document.getElementById("stat-town-label").textContent = secLabel;
+    document.getElementById("stat-town-count").textContent = `${stAndPoiCurrent} / ${stAndPoiTotal} ${secUnit}`;
     document.getElementById("stat-town-pct").textContent = `${stPct}%`;
     document.getElementById("stat-town-bar").style.width = `${Math.min(100, parseFloat(stPct))}%`;
+  } else if (regionTotal === 0 && activePois.length > 0 && activeSt.length === 0) {
+    // Pure POI Mode (Airport / Port)
+    const apAll = activePois.filter((p) => p.category === "airport");
+    const ptAll = activePois.filter((p) => p.category === "port");
+    const apCur = apAll.filter((p) => vUnlockedPois.has(p.id)).length;
+    const ptCur = ptAll.filter((p) => vUnlockedPois.has(p.id)).length;
+    const apPct = apAll.length > 0 ? ((apCur / apAll.length) * 100).toFixed(1) : "0.0";
+    const ptPct = ptAll.length > 0 ? ((ptCur / ptAll.length) * 100).toFixed(1) : "0.0";
+
+    if (apAll.length > 0 && ptAll.length > 0) {
+      if (cLabelEl) cLabelEl.textContent = "✈️ 機場進度";
+      document.getElementById("stat-county-count").textContent = `${apCur} / ${apAll.length} 座`;
+      document.getElementById("stat-county-pct").textContent = `${apPct}%`;
+      document.getElementById("stat-county-bar").style.width = `${Math.min(100, parseFloat(apPct))}%`;
+
+      document.getElementById("stat-town-label").textContent = "⚓ 港口進度";
+      document.getElementById("stat-town-count").textContent = `${ptCur} / ${ptAll.length} 座`;
+      document.getElementById("stat-town-pct").textContent = `${ptPct}%`;
+      document.getElementById("stat-town-bar").style.width = `${Math.min(100, parseFloat(ptPct))}%`;
+    } else {
+      const isAp = apAll.length > 0;
+      if (cLabelEl) cLabelEl.textContent = isAp ? "✈️ 機場總進度" : "⚓ 港口總進度";
+      document.getElementById("stat-county-count").textContent = `${unlockedPoiCount} / ${activePois.length} 座`;
+      document.getElementById("stat-county-pct").textContent = `${grandPct}%`;
+      document.getElementById("stat-county-bar").style.width = `${Math.min(100, parseFloat(grandPct))}%`;
+
+      document.getElementById("stat-town-label").textContent = "🎯 剩餘待猜";
+      document.getElementById("stat-town-count").textContent = `${activePois.length - unlockedPoiCount} 座`;
+      document.getElementById("stat-town-pct").textContent = `${grandPct}%`;
+      document.getElementById("stat-town-bar").style.width = `${Math.min(100, parseFloat(grandPct))}%`;
+    }
   } else if (regionTotal === 0 && activeSt.length > 0) {
     // Pure Station Mode
     const activeLineCount = state.stationQuizEnabled && state.quizStationLines.size > 0
@@ -314,16 +356,53 @@ function renderCountyProgressSidebar() {
   container.replaceChildren();
 
   const activeSt = getActiveQuizStations();
+  const activePois = typeof getActiveQuizPois === "function" ? getActiveQuizPois() : [];
+  const vUnlockedPois = vState.unlockedPois || state.unlockedPois || new Set();
   const scopeCounties = getScopeCounties();
 
   if (titleEl) {
-    if (scopeCounties.length > 0 && activeSt.length > 0) {
-      titleEl.textContent = "車站路線與各縣市完成度明細";
-    } else if (activeSt.length > 0) {
-      titleEl.textContent = "各系統總計與車站路線完成度明細";
-    } else {
-      titleEl.textContent = "各縣市完成度明細";
-    }
+    const parts = [];
+    if (activePois.length > 0) parts.push("機場港口");
+    if (activeSt.length > 0) parts.push("車站路線");
+    if (scopeCounties.length > 0) parts.push("各縣市");
+    titleEl.textContent = parts.length > 0 ? `${parts.join("與")}完成度明細` : "挑戰進度明細";
+  }
+
+  if (activePois.length > 0) {
+    const poiHeader = document.createElement("div");
+    poiHeader.className = "text-[11px] font-extrabold text-sky-300 uppercase tracking-wider px-1 pt-0.5";
+    poiHeader.textContent = "✈️⚓ 機場與港口完成度（去重統計）";
+    container.appendChild(poiHeader);
+
+    ["airport", "port"].forEach((cat) => {
+      const catPois = activePois.filter((p) => p.category === cat);
+      if (catPois.length === 0) return;
+      const meta = POI_CATEGORY_META[cat];
+      const unlockedCnt = catPois.filter((p) => vUnlockedPois.has(p.id)).length;
+      const pctP = ((unlockedCnt / catPois.length) * 100).toFixed(1);
+      const isDone = unlockedCnt === catPois.length;
+      container.appendChild(
+        createSidebarProgressCard({
+          title: `${meta.icon} ${meta.label}總計`,
+          subTitle: "",
+          badgeText: isDone ? "✅ 制霸" : "📍縮放",
+          badgeClass: isDone
+            ? "card-badge text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 shrink-0"
+            : "card-badge text-[10px] px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 shrink-0",
+          statText: `${unlockedCnt} / ${catPois.length} 座 · ${pctP}%`,
+          isDone,
+          pct: pctP,
+          color: meta.accent,
+          borderClass: isDone ? "border-emerald-500/40" : "border-sky-500/30",
+          onClick: () => {
+            if (typeof map !== "undefined" && map && typeof L !== "undefined" && catPois.length > 0) {
+              const b = L.latLngBounds(catPois.map((p) => [p.lat, p.lng]));
+              if (b.isValid()) map.fitBounds(b, { padding: [36, 36], maxZoom: 10 });
+            }
+          }
+        })
+      );
+    });
   }
 
   if (activeSt.length > 0) {
@@ -505,8 +584,10 @@ function checkVictoryCondition() {
           return t && (typeof isTownInScope === "function" ? isTownInScope(t) : state.selectedCounties.has(t.countyName));
         }).length;
 
-  const total = adminTotal + activeSt.length;
-  const current = adminCurrent + unlockedStCount;
+  const activePois = typeof getActiveQuizPois === "function" ? getActiveQuizPois() : [];
+  const unlockedPoiCount = activePois.filter((p) => state.unlockedPois.has(p.id)).length;
+  const total = adminTotal + activeSt.length + activePois.length;
+  const current = adminCurrent + unlockedStCount + unlockedPoiCount;
 
   if (total > 0 && current >= total) {
     finishGame("victory");
@@ -537,14 +618,24 @@ function finishGame(reason = "victory") {
         }
       });
     }
+    if (typeof getActiveQuizPois === "function") {
+      getActiveQuizPois().forEach((p) => {
+        if (!state.unlockedPois.has(p.id)) {
+          state.missedPois.add(p.id);
+        }
+      });
+    }
   }
 
   updateRoadAndRailwayTileOverlays();
   refreshAllPolygonStyles();
+  if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
   updateScoreAndProgressUI();
 
   const activeSt = getActiveQuizStations();
   const unlockedStCount = activeSt.filter((s) => state.unlockedStations.has(s.key)).length;
+  const activePois = typeof getActiveQuizPois === "function" ? getActiveQuizPois() : [];
+  const unlockedPoiCount = activePois.filter((p) => state.unlockedPois.has(p.id)).length;
   const scopeCounties = getScopeCounties();
   const scopeTowns = getScopeTowns();
   const adminTotal = state.difficulty === "county_only" ? scopeCounties.length : scopeTowns.length;
@@ -555,8 +646,8 @@ function finishGame(reason = "victory") {
         return t && (typeof isTownInScope === "function" ? isTownInScope(t) : state.selectedCounties.has(t.countyName));
       }).length;
 
-  const grandTotal = adminTotal + activeSt.length;
-  const grandScore = adminCurrent + unlockedStCount;
+  const grandTotal = adminTotal + activeSt.length + activePois.length;
+  const grandScore = adminCurrent + unlockedStCount + unlockedPoiCount;
   const totalAttempts = (state.stats && state.stats.totalAttempts) || grandScore;
   const wrongAttempts = (state.stats && state.stats.wrongAttempts) || 0;
   const correctAttempts = (state.stats && state.stats.correctAttempts) || grandScore;
@@ -1928,6 +2019,9 @@ function resetGame() {
   state.unlockedStations.clear();
   state.missedStations.clear();
   state.targetStationKey = null;
+  if (state.unlockedPois) state.unlockedPois.clear();
+  if (state.missedPois) state.missedPois.clear();
+  state.targetPoiId = null;
   state.isGameOver = false;
   state.finished = false;
   state.promptedLastPlayer = false;
@@ -1961,6 +2055,7 @@ function resetGame() {
   if (returnLobbyBtn) returnLobbyBtn.disabled = false;
 
   updateRoadAndRailwayTileOverlays();
+  if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
 
   document.getElementById("timer-display").textContent =
     state.timerMode === "down" ? formatTime(state.countdownTotalSec) : "00:00";
