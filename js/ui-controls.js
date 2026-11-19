@@ -1749,22 +1749,28 @@ function bindAllUIEvents() {
   });
 
   // Fair Rules Change Listeners (Host Room Window)
-  const handleLayerRuleChange = (label) => {
+  const handleLayerRuleChange = (label, autoLock = false) => {
     if (!canLocalModifyGameConfig()) return;
-    const lrule = document.getElementById("p2p-layer-rule-select").value;
-    const flayer = document.getElementById("p2p-forced-layer-select").value;
-    const rrule = document.getElementById("p2p-rail-rule-select").value;
+    const lruleEl = document.getElementById("p2p-layer-rule-select");
+    const flayerEl = document.getElementById("p2p-forced-layer-select");
+    const rruleEl = document.getElementById("p2p-rail-rule-select");
+    // Picking a specific basemap implies locking to it so both host and guests actually switch.
+    if (autoLock && lruleEl && lruleEl.value !== "locked") {
+      lruleEl.value = "locked";
+    }
+    const lrule = lruleEl ? lruleEl.value : state.p2pLayerRule;
+    const flayer = flayerEl ? flayerEl.value : state.p2pForcedLayer;
+    const rrule = rruleEl ? rruleEl.value : state.p2pRailRule;
     if (state.isHost && state.roomCode) {
       requestOrApplyConfigChange({ layerRule: lrule, forcedLayer: flayer, railRule: rrule }, label);
       return;
     }
     applyP2PLayerRule(lrule, flayer, rrule);
     if (typeof renderRoomConciseSettingsSummary === "function") renderRoomConciseSettingsSummary();
-    if (state.isHost && state.roomCode) onHostSettingChange(label);
   };
-  document.getElementById("p2p-layer-rule-select")?.addEventListener("change", () => handleLayerRuleChange("底圖限制"));
-  document.getElementById("p2p-forced-layer-select")?.addEventListener("change", () => handleLayerRuleChange("指定底圖"));
-  document.getElementById("p2p-rail-rule-select")?.addEventListener("change", () => handleLayerRuleChange("路網規則"));
+  document.getElementById("p2p-layer-rule-select")?.addEventListener("change", () => handleLayerRuleChange("底圖限制", false));
+  document.getElementById("p2p-forced-layer-select")?.addEventListener("change", () => handleLayerRuleChange("指定底圖", true));
+  document.getElementById("p2p-rail-rule-select")?.addEventListener("change", () => handleLayerRuleChange("路網規則", false));
 
 
   // Host Start Battle
