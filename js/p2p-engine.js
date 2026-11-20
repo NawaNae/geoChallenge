@@ -3247,10 +3247,14 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
 
   if (state.stationQuizEnabled && state.quizStationLines.size > 0) {
     state.selectedTransportLines = new Set(state.quizStationLines);
-    if (state.transportMode === "off" && state.p2pRailRule !== "ban_rail") {
-      state.transportMode = "lines_and_stations";
+    if (
+      (state.transportMode === "off" || state.transportMode === "lines_and_stations") &&
+      state.p2pRailRule !== "ban_rail" &&
+      state.p2pRailRule !== "force_lines"
+    ) {
+      state.transportMode = "rail_only";
     }
-  } else if (state.quizTargetMode === "region" && state.p2pRailRule === "free") {
+  } else if (!state.stationQuizEnabled && state.p2pRailRule === "free") {
     state.transportMode = "off";
   }
 

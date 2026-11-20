@@ -658,6 +658,16 @@ function finishGame(reason = "victory") {
   const correctAttempts = (state.stats && state.stats.correctAttempts) || grandScore;
   const accuracy = totalAttempts > 0 ? Math.round((correctAttempts / totalAttempts) * 100) : 100;
   const maxStreak = (state.stats && state.stats.maxStreak) || 0;
+  const poiBreakdown = {};
+  ["airport", "port", "reservoir", "lake"].forEach((cat) => {
+    if (typeof isPoiCategoryActive === "function" && isPoiCategoryActive(cat) && typeof getActiveQuizPois === "function") {
+      const list = getActiveQuizPois(cat);
+      const unlocked = list.filter((p) => state.unlockedPois.has(p.id)).length;
+      poiBreakdown[cat] = { current: unlocked, total: list.length };
+    } else {
+      poiBreakdown[cat] = { current: 0, total: 0 };
+    }
+  });
   const blockStats = computeClearedBlocksStats(scopeCounties, scopeTowns, activeSt);
 
   state.finalStats = {
@@ -668,6 +678,9 @@ function finishGame(reason = "victory") {
     adminTotal,
     unlockedStCount,
     stationTotal: activeSt.length,
+    poiCurrent: unlockedPoiCount,
+    poiTotal: activePois.length,
+    poiBreakdown,
     elapsedSec: state.elapsedSec,
     timerMode: state.timerMode,
     countdownTotalSec: state.countdownTotalSec,
@@ -707,7 +720,7 @@ function computeClearedBlocksStats(scopeCountiesArg, scopeTownsArg, activeStArg)
   const scopeCounties = scopeCountiesArg || getScopeCounties();
   const scopeTowns = scopeTownsArg || getScopeTowns();
   const activeSt = activeStArg || getActiveQuizStations();
-  const hasRegionScope = state.quizTargetMode !== "station" && (scopeTowns.length > 0 || scopeCounties.length > 0);
+  const hasRegionScope = Boolean(state.regionQuizEnabled) && state.quizTargetMode !== "station" && (scopeTowns.length > 0 || scopeCounties.length > 0);
 
   let completedCounties = 0;
   let totalScopeCounties = 0;
@@ -745,11 +758,36 @@ function computeClearedBlocksStats(scopeCountiesArg, scopeTownsArg, activeStArg)
     });
   }
 
-  const completedBlocks = completedCounties + completedLines;
-  const totalBlocks = totalScopeCounties + totalScopeLines;
+  let completedPoiCats = 0;
+  let totalScopePoiCats = 0;
+  const clearedPoiLabels = [];
+  const poiCatNames = { airport: "機場", port: "港口", reservoir: "水庫", lake: "湖泊" };
+  if (typeof isPoiCategoryActive === "function" && typeof getActiveQuizPois === "function") {
+    ["airport", "port", "reservoir", "lake"].forEach((cat) => {
+      if (!isPoiCategoryActive(cat)) return;
+      const list = getActiveQuizPois(cat);
+      if (list.length > 0) {
+        totalScopePoiCats++;
+        if (list.every((p) => state.unlockedPois.has(p.id))) {
+          completedPoiCats++;
+          clearedPoiLabels.push(poiCatNames[cat]);
+        }
+      }
+    });
+  }
+
+  const completedBlocks = completedCounties + completedLines + completedPoiCats;
+  const totalBlocks = totalScopeCounties + totalScopeLines + totalScopePoiCats;
   const parts = [];
   if (totalScopeCounties > 0) parts.push(`破關 ${completedCounties}/${totalScopeCounties} 縣市`);
   if (totalScopeLines > 0) parts.push(`${completedLines}/${totalScopeLines} 路線`);
+  if (totalScopePoiCats > 0) {
+    parts.push(
+      clearedPoiLabels.length > 0
+        ? `制霸${clearedPoiLabels.join("/")} (${completedPoiCats}/${totalScopePoiCats}類)`
+        : `${completedPoiCats}/${totalScopePoiCats} 類地標`
+    );
+  }
   const clearedSummaryText = parts.length > 0 ? parts.join(" · ") : `破關 ${completedBlocks} 區塊`;
 
   return {
@@ -757,6 +795,8 @@ function computeClearedBlocksStats(scopeCountiesArg, scopeTownsArg, activeStArg)
     totalScopeCounties,
     completedLines,
     totalScopeLines,
+    completedPoiCats,
+    totalScopePoiCats,
     completedBlocks,
     totalBlocks,
     clearedSummaryText
@@ -807,7 +847,7 @@ function detectRegionThemeProfile() {
   const townIds = state.selectedTownIds instanceof Set
     ? state.selectedTownIds
     : new Set(ALL_TOWNS.filter((t) => state.selectedCounties.has(t.countyName)).map((t) => t.id));
-  if (state.quizTargetMode === "station" || townIds.size === 0) return null;
+  if (!state.regionQuizEnabled || state.quizTargetMode === "station" || townIds.size === 0) return null;
 
   if (state.difficulty === "county_only" && state.selectedCounties.size === 22) {
     return makeTierTitles(
@@ -1169,6 +1209,85 @@ function detectStationThemeProfile() {
   return makeTierTitles("台灣軌道全網", "👑 台灣鐵道與捷運全網大宗師", "🚄 全台軌道交通極速霸主", "🚆 台灣軌道全網通關大師", "🚆 台灣軌道交通專家", "🚉 台灣鐵道捷運達人");
 }
 
+function formatBreakdownSummary(stats, verbose = false) {
+  if (!stats) return "0區";
+  const parts = [];
+  if ((stats.adminTotal || 0) > 0 || (stats.adminCurrent || 0) > 0) {
+    parts.push(verbose ? `行政區 ${stats.adminCurrent || 0}/${stats.adminTotal || 0}` : `${stats.adminCurrent || 0}區`);
+  }
+  if ((stats.stationTotal || 0) > 0 || (stats.unlockedStCount || 0) > 0) {
+    parts.push(verbose ? `車站 ${stats.unlockedStCount || 0}/${stats.stationTotal || 0}` : `${stats.unlockedStCount || 0}站`);
+  }
+  const pb = stats.poiBreakdown || {};
+  const catMeta = [
+    ["airport", "機場", "機場"],
+    ["port", "港口", "港"],
+    ["reservoir", "水庫", "水庫"],
+    ["lake", "湖泊", "湖"]
+  ];
+  catMeta.forEach(([key, fullLbl, shortLbl]) => {
+    const item = pb[key];
+    if (item && (item.total > 0 || item.current > 0)) {
+      parts.push(verbose ? `${fullLbl} ${item.current}/${item.total}` : `${item.current}${shortLbl}`);
+    }
+  });
+  if (parts.length === 0) return verbose ? "行政區 0/0" : "0區";
+  return parts.join(verbose ? "  ·  " : " · ");
+}
+
+function detectPoiThemeProfile() {
+  if (typeof isPoiCategoryActive !== "function") return null;
+  const activeCats = ["airport", "port", "reservoir", "lake"].filter((c) => isPoiCategoryActive(c));
+  if (activeCats.length === 0) return null;
+
+  if (activeCats.length === 1) {
+    const cat = activeCats[0];
+    if (cat === "airport") {
+      const subs = state.airportSubTypes instanceof Set ? state.airportSubTypes : new Set();
+      if (subs.size === 1 && subs.has("intl")) {
+        return makeTierTitles("台灣國際機場", "✈️ 國門塔台極速王者", "✈️ 國際航站制霸宗師", "✈️ 國際機場通關大師", "✈️ 國際航空專家", "✈️ 國際機場達人", "✈️ 航廈見習航迷", "✈️ 機場啟程旅人");
+      }
+      if (subs.size === 1 && subs.has("military")) {
+        return makeTierTitles("台灣軍用機場", "🎖️ 空軍基地最高指揮官", "🎖️ 戰備跑道制霸宗師", "🎖️ 軍用機場通關大師", "🎖️ 空防基地專家", "🎖️ 軍機場達人", "🎖️ 空防見習飛官", "🎖️ 基地巡禮旅人");
+      }
+      return makeTierTitles("台灣機場", "✈️ 台灣航空塔台最高王者", "✈️ 全台機場極速制霸宗師", "✈️ 台灣機場通關大師", "✈️ 台灣航空機場專家", "✈️ 台灣機場達人", "✈️ 機場見習航迷", "✈️ 航站啟程旅人");
+    }
+    if (cat === "port") {
+      const subs = state.portSubTypes instanceof Set ? state.portSubTypes : new Set();
+      const onlyFishery = subs.size > 0 && Array.from(subs).every((s) => s === "fishery_cat1" || s === "fishery_cat2");
+      const onlyCommercial = subs.size > 0 && Array.from(subs).every((s) => s === "intl_commercial" || s === "intl_aux");
+      if (onlyFishery) {
+        return makeTierTitles("台灣漁港", "🐟 台灣漁港討海大霸主", "🐟 全台漁港制霸宗師", "🐟 台灣漁港通關大師", "🐟 台灣漁港專家", "🐟 台灣漁港達人", "🐟 漁港見習釣客", "🐟 漁村尋訪旅人");
+      }
+      if (onlyCommercial) {
+        return makeTierTitles("台灣商港", "🚢 台灣港務總司令 · 商港霸主", "🚢 國際商港制霸宗師", "🚢 台灣商港通關大師", "🚢 台灣航運商港專家", "🚢 台灣商港達人", "🚢 港務見習水手", "🚢 港灣啟程旅人");
+      }
+      return makeTierTitles("台灣港口", "⚓ 台灣港灣總司令 · 航海王者", "⚓ 全台港口極速制霸宗師", "⚓ 台灣港口通關大師", "⚓ 台灣港口航運專家", "⚓ 台灣港口達人", "⚓ 港口見習航海士", "⚓ 港灣啟程旅人");
+    }
+    if (cat === "reservoir") {
+      return makeTierTitles("台灣水庫", "💧 台灣水利最高總工程師", "💧 全台水庫極速制霸宗師", "💧 台灣水庫通關大師", "💧 台灣水利水庫專家", "💧 台灣水庫達人", "💧 水庫見習巡檢員", "💧 水源探索旅人");
+    }
+    if (cat === "lake") {
+      const subs = state.lakeSubTypes instanceof Set ? state.lakeSubTypes : new Set();
+      if (subs.size === 1 && subs.has("lake_alpine")) {
+        return makeTierTitles("台灣高山秘境湖泊", "⛰️ 台灣百岳秘境湖神", "⛰️ 高山秘境湖泊宗師", "⛰️ 高山湖泊通關大師", "⛰️ 高山秘境湖泊專家", "⛰️ 高山湖泊達人", "⛰️ 秘境見習山友", "⛰️ 山湖尋幽旅人");
+      }
+      return makeTierTitles("台灣湖泊", "🏞️ 台灣山海湖光制霸神", "🏞️ 全台湖泊極速制霸宗師", "🏞️ 台灣湖泊通關大師", "🏞️ 台灣湖泊地理專家", "🏞️ 台灣湖泊達人", "🏞️ 湖畔見習旅人", "🏞️ 尋湖啟程旅人");
+    }
+  }
+
+  const catSet = new Set(activeCats);
+  if (activeCats.length === 2 && catSet.has("airport") && catSet.has("port")) {
+    return makeTierTitles("台灣海空門戶", "✈️ 台灣海空雙門戶大霸主", "⚓ 海空樞紐極速制霸宗師", "✈️ 海空門戶通關大師", "⚓ 台灣海空交通專家", "✈️ 海空門戶達人");
+  }
+  if (activeCats.length === 2 && catSet.has("reservoir") && catSet.has("lake")) {
+    return makeTierTitles("台灣水庫與湖泊", "💧 台灣山川湖庫水神", "🏞️ 全台湖庫極速制霸宗師", "💧 水庫湖泊通關大師", "🏞️ 台灣湖庫地理專家", "💧 台灣湖庫水景達人");
+  }
+  const names = { airport: "機場", port: "港口", reservoir: "水庫", lake: "湖泊" };
+  const label = activeCats.map((c) => names[c]).join("・");
+  return makeTierTitles(label, "🏆 台灣海陸空地標大宗師", "🧭 全台地標極速制霸霸主", `🏆 ${label}通關大師`, `🧭 ${label}地理專家`, `🧭 ${label}探索達人`);
+}
+
 function getGradeFromStats(stats) {
   const grandScore = Number(stats.grandScore || 0);
   const grandTotal = Math.max(1, Number(stats.grandTotal || 1));
@@ -1252,23 +1371,32 @@ function getGradeFromStats(stats) {
   // 2. Determine Scope-Specific Title & Slogan
   const regTheme = detectRegionThemeProfile();
   const stTheme = detectStationThemeProfile();
+  const poiTheme = detectPoiThemeProfile();
+  const activeThemes = [regTheme, stTheme, poiTheme].filter(Boolean);
+  const stripEmoji = (s) => String(s || "").replace(/^[👑🌊⛰️🌾🏙️⬆️☀️🏝️🔱🚄🚆🚇🚋🌲🏮🌸✈️🎫🏆⚡🧭🌱🚶🎖️⚓🚢🐟💧🏞️]+\s*/, "");
 
   let title = "";
   let scopeLabel = "台灣地理";
-  if (regTheme && stTheme) {
-    const rTitle = (regTheme.titles[grade] || regTheme.scopeLabel).replace(/^[👑🌊⛰️🌾🏙️⬆️☀️🏝️🔱🚄🚆🚇🚋🌲🏮🌸✈️🎫🏆⚡🧭🌱🚶]+\s*/, "");
-    const sTitle = (stTheme.titles[grade] || stTheme.scopeLabel).replace(/^[👑🌊⛰️🌾🏙️⬆️☀️🏝️🔱🚄🚆🚇🚋🌲🏮🌸✈️🎫🏆⚡🧭🌱🚶]+\s*/, "");
-    const rShort = rTitle.split(" · ")[0];
-    const sShort = sTitle.split(" · ")[0];
-    const filterTag = state.filterStationsByRegion ? " (區域鐵道)" : "";
-    title = `${rShort} × ${sShort}`;
-    scopeLabel = `${regTheme.scopeLabel}＋${stTheme.scopeLabel}${filterTag}`;
-  } else if (stTheme) {
-    title = stTheme.titles[grade] || stTheme.titles.S;
-    scopeLabel = stTheme.scopeLabel;
-  } else if (regTheme) {
-    title = regTheme.titles[grade] || regTheme.titles.S;
-    scopeLabel = regTheme.scopeLabel;
+  if (activeThemes.length === 1) {
+    title = activeThemes[0].titles[grade] || activeThemes[0].titles.S;
+    scopeLabel = activeThemes[0].scopeLabel;
+  } else if (activeThemes.length === 2) {
+    const t1Short = stripEmoji(activeThemes[0].titles[grade] || activeThemes[0].scopeLabel).split(" · ")[0];
+    const t2Short = stripEmoji(activeThemes[1].titles[grade] || activeThemes[1].scopeLabel).split(" · ")[0];
+    const filterTag = regTheme && state.filterStationsByRegion ? " (區域內)" : "";
+    title = `${t1Short} × ${t2Short}`;
+    scopeLabel = `${activeThemes[0].scopeLabel}＋${activeThemes[1].scopeLabel}${filterTag}`;
+  } else if (activeThemes.length >= 3) {
+    const multiAll = makeTierTitles(
+      activeThemes.map((t) => t.scopeLabel).join("＋"),
+      "👑 台灣海陸空全領域制霸神",
+      "⚡ 台灣全領域極速大宗師",
+      "🏆 海陸空全能通關大師",
+      "🧭 台灣全領域地理專家",
+      "🧭 海陸空全能探索達人"
+    );
+    title = multiAll.titles[grade] || multiAll.titles.S;
+    scopeLabel = multiAll.scopeLabel + (regTheme && state.filterStationsByRegion ? " (區域內)" : "");
   } else {
     title = "台灣地理探索旅人";
   }
@@ -1447,9 +1575,20 @@ function showSettlementModal() {
   const diffLabel = diffNames[state.difficulty] || state.difficulty;
   const scopeTownCount = getScopeTowns().length;
   const activeSt = getActiveQuizStations();
-  const scopeSummary = state.selectedCounties.size === 22
-    ? `全台 368 區${activeSt.length > 0 ? ` + ${activeSt.length}站` : ""}`
-    : `${state.selectedCounties.size} 縣市 (${scopeTownCount}區)${activeSt.length > 0 ? ` + ${activeSt.length}站` : ""}`;
+  const scopeParts = [];
+  if (state.regionQuizEnabled && scopeTownCount > 0) {
+    scopeParts.push(state.selectedCounties.size === 22 ? "全台 368 區" : `${state.selectedCounties.size} 縣市 (${scopeTownCount}區)`);
+  }
+  if (activeSt.length > 0) scopeParts.push(`${activeSt.length}站`);
+  if (typeof isPoiCategoryActive === "function" && typeof getActiveQuizPois === "function") {
+    [["airport", "機場"], ["port", "港"], ["reservoir", "水庫"], ["lake", "湖"]].forEach(([cat, lbl]) => {
+      if (isPoiCategoryActive(cat)) {
+        const cnt = getActiveQuizPois(cat).length;
+        if (cnt > 0) scopeParts.push(`${cnt}${lbl}`);
+      }
+    });
+  }
+  const scopeSummary = scopeParts.length > 0 ? scopeParts.join(" + ") : "台灣地理";
 
   if (modeBadge) modeBadge.textContent = `${diffLabel} · ${scopeSummary}`;
   if (rematchBtnText) rematchBtnText.textContent = isMultiplayer ? "發起重開對戰" : "再玩一局";
@@ -1667,7 +1806,7 @@ function showSettlementModal() {
   document.getElementById("settlement-acc").textContent = `${stats.accuracy}%`;
   document.getElementById("settlement-wrong").textContent = `答錯 ${stats.wrongAttempts} 次`;
   document.getElementById("settlement-streak").textContent = `${stats.maxStreak} 題`;
-  document.getElementById("settlement-breakdown").textContent = `${stats.adminCurrent}區 / ${stats.unlockedStCount}站`;
+  document.getElementById("settlement-breakdown").textContent = formatBreakdownSummary(stats, false);
   const clearedEl = document.getElementById("settlement-cleared-blocks");
   if (clearedEl) {
     clearedEl.textContent = stats.clearedSummaryText || computeClearedBlocksStats().clearedSummaryText;
@@ -1854,7 +1993,7 @@ function downloadSettlementCard() {
 
   ctx.fillStyle = "#94a3b8";
   ctx.font = "14px 'Noto Sans TC', sans-serif";
-  ctx.fillText(`行政區：${stats.adminCurrent} / ${stats.adminTotal}  ·  車站：${stats.unlockedStCount} / ${stats.stationTotal}`, 96, 465);
+  ctx.fillText(formatBreakdownSummary(stats, true), 96, 465);
 
   const pBarW = 416;
   drawRoundedRect(ctx, 96, 486, pBarW, 10, 5, "#1e293b", null);
@@ -1961,7 +2100,8 @@ function formatSettlementShareText(stats, isMultiplayer, oppStats) {
     `🗺️ 【Taiwan GeoMaster Pro · 台灣地理挑戰成績單】`,
     `👤 挑戰者：${stats.name}`,
     resultLine,
-    `📊 總完成度：${pctStr} (${stats.grandScore} / ${stats.grandTotal} 題 · ${clearedText})`,
+    `📊 總完成度：${pctStr} (${stats.grandScore} / ${stats.grandTotal} 題 · ${formatBreakdownSummary(stats, false)})`,
+    `🏅 破關區塊：${clearedText}`,
     `⏱️ 耗時與速率：${formatTime(stats.elapsedSec)} (${qPerSecVal} 題/秒 · 平均 ${avgSec} 秒/題)`,
     `🎯 答題正確率：${stats.accuracy}% (答錯 ${stats.wrongAttempts} 次)`,
     `🔥 最高連擊：${stats.maxStreak} 連對`,

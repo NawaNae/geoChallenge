@@ -855,3 +855,158 @@ input, select {
   border-color: rgba(251, 113, 133, 0.65);
   color: #fecdd3;
 }
+
+
+/* ============================================================================
+   UNIFIED DUAL-ACTION SELECT CARDS (Solo Quick-Select + Union Multi-Select)
+   ============================================================================ */
+.geo-select-card {
+  display: flex;
+  align-items: stretch;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  background: rgba(2, 6, 23, 0.74);
+  color: #cbd5e1;
+  overflow: hidden;
+  touch-action: manipulation;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
+}
+.geo-select-card:hover {
+  border-color: rgba(100, 116, 139, 0.95);
+  background: rgba(15, 23, 42, 0.88);
+}
+.geo-select-card.geo-compact {
+  display: inline-flex;
+  border-radius: 0.7rem;
+}
+
+.geo-solo-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 130ms ease, transform 100ms ease-out;
+}
+.geo-compact .geo-solo-btn {
+  padding: 0.32rem 0.52rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.geo-solo-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.geo-solo-btn:active {
+  transform: scale(0.97);
+}
+.geo-solo-btn:focus-visible,
+.geo-union-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: -2px;
+}
+
+.geo-union-btn {
+  flex: 0 0 auto;
+  min-width: 2.65rem;
+  padding: 0.35rem 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border-left: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.52);
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 140ms ease, color 140ms ease, transform 100ms ease-out;
+}
+.geo-compact .geo-union-btn {
+  min-width: 1.95rem;
+  padding: 0.28rem 0.42rem;
+}
+.geo-union-btn:hover {
+  background: rgba(56, 189, 248, 0.18);
+  color: #f8fafc;
+}
+.geo-union-btn:active {
+  transform: scale(0.94);
+}
+
+.geo-union-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.16rem 0.42rem;
+  border-radius: 0.45rem;
+  background: rgba(30, 41, 59, 0.9);
+  color: #94a3b8;
+  line-height: 1.1;
+  white-space: nowrap;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.geo-compact .geo-union-pill {
+  padding: 0.12rem 0.32rem;
+  font-size: 10px;
+}
+
+/* Active (ON / All selected) states by accent */
+.geo-select-card[data-state="on"] {
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(2, 6, 23, 0.35);
+}
+.geo-select-card[data-state="on"] .geo-union-btn {
+  background: rgba(16, 185, 129, 0.14);
+  border-left-color: rgba(255, 255, 255, 0.18);
+}
+.geo-select-card[data-state="on"] .geo-union-pill {
+  background: rgba(52, 211, 153, 0.24);
+  color: #a7f3d0;
+}
+.geo-select-card[data-state="partial"] .geo-union-btn {
+  background: rgba(56, 189, 248, 0.12);
+  border-left-color: rgba(56, 189, 248, 0.25);
+}
+.geo-select-card[data-state="partial"] .geo-union-pill {
+  background: rgba(56, 189, 248, 0.22);
+  color: #bae6fd;
+}
+
+.geo-select-card[data-accent="sky"][data-state="on"] { background: rgba(14, 165, 233, 0.22); border-color: #38bdf8; }
+.geo-select-card[data-accent="sky"][data-state="partial"] { background: rgba(14, 165, 233, 0.10); border-color: rgba(56, 189, 248, 0.45); color: #bae6fd; }
+
+.geo-select-card[data-accent="pink"][data-state="on"] { background: rgba(236, 72, 153, 0.22); border-color: #f472b6; }
+.geo-select-card[data-accent="pink"][data-state="partial"] { background: rgba(236, 72, 153, 0.10); border-color: rgba(244, 114, 182, 0.45); color: #fbcfe8; }
+
+.geo-select-card[data-accent="teal"][data-state="on"] { background: rgba(20, 184, 166, 0.22); border-color: #2dd4bf; }
+.geo-select-card[data-accent="teal"][data-state="partial"] { background: rgba(20, 184, 166, 0.10); border-color: rgba(45, 212, 191, 0.45); color: #99f6e4; }
+
+.geo-select-card[data-accent="blue"][data-state="on"] { background: rgba(59, 130, 246, 0.22); border-color: #60a5fa; }
+.geo-select-card[data-accent="blue"][data-state="partial"] { background: rgba(59, 130, 246, 0.10); border-color: rgba(96, 165, 250, 0.45); color: #bfdbfe; }
+
+.geo-select-card[data-accent="emerald"][data-state="on"] { background: rgba(16, 185, 129, 0.22); border-color: #34d399; }
+.geo-select-card[data-accent="emerald"][data-state="partial"] { background: rgba(16, 185, 129, 0.10); border-color: rgba(52, 211, 153, 0.45); color: #a7f3d0; }
+
+.geo-select-card[data-accent="amber"][data-state="on"] { background: rgba(245, 158, 11, 0.22); border-color: #fbbf24; }
+.geo-select-card[data-accent="amber"][data-state="partial"] { background: rgba(245, 158, 11, 0.10); border-color: rgba(251, 191, 36, 0.45); color: #fde68a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .geo-select-card,
+  .geo-solo-btn,
+  .geo-union-btn,
+  .geo-union-pill {
+    transition: none !important;
+    transform: none !important;
+  }
+}

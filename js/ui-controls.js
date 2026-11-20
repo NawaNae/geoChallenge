@@ -31,28 +31,15 @@ function syncConfigButtonsUI() {
   const hasLk = Boolean(state.lakeQuizEnabled);
 
   const topicMap = { region: hasR, station: hasS, airport: hasA, port: hasP, reservoir: hasRes, lake: hasLk };
-  const topicAccent = {
-    region: "bg-sky-500/25 border-sky-400 text-white shadow-md",
-    station: "bg-pink-500/25 border-pink-400 text-white shadow-md",
-    airport: "bg-sky-500/25 border-sky-400 text-white shadow-md",
-    port: "bg-teal-500/25 border-teal-400 text-white shadow-md",
-    reservoir: "bg-blue-500/25 border-blue-400 text-white shadow-md",
-    lake: "bg-emerald-500/25 border-emerald-400 text-white shadow-md"
-  };
 
-  document.querySelectorAll(".topic-chip-btn").forEach((btn) => {
-    const t = btn.getAttribute("data-topic");
+  document.querySelectorAll(".topic-chip-btn").forEach((card) => {
+    const t = card.getAttribute("data-topic");
     const isOn = Boolean(topicMap[t]);
-    btn.className = isOn
-      ? `topic-chip-btn p-2.5 rounded-xl border transition text-left ${topicAccent[t] || "bg-sky-500/25 border-sky-400 text-white"}`
-      : "topic-chip-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left";
-    const chk = btn.querySelector(".topic-check");
-    if (chk) {
-      chk.textContent = isOn ? "ON" : "OFF";
-      chk.className = isOn
-        ? "topic-check text-[10px] font-black px-1.5 py-0.5 rounded-md bg-emerald-400/25 text-emerald-200"
-        : "topic-check text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400";
-    }
+    card.setAttribute("data-state", isOn ? "on" : "off");
+    const unionBtn = card.querySelector(".geo-union-btn");
+    if (unionBtn) unionBtn.setAttribute("aria-checked", isOn ? "true" : "false");
+    const chk = card.querySelector(".topic-check");
+    if (chk) chk.textContent = isOn ? "✓ ON" : "+ OFF";
   });
 
   const regSec = document.getElementById("scope-region-section");
@@ -92,23 +79,19 @@ function syncConfigButtonsUI() {
   // Sync Airport, Port, Reservoir & Lake Subtype Pills (counts + active visual state + deduplicated totals)
   if (typeof countPoisBySubType === "function" && typeof countUniquePoisForSubTypes === "function") {
     const applyReg = Boolean(state.filterStationsByRegion && hasR);
-    const poiAccentCls = {
-      airport: "border-sky-400 bg-sky-500/20",
-      port: "border-teal-400 bg-teal-500/20",
-      reservoir: "border-blue-400 bg-blue-500/20",
-      lake: "border-emerald-400 bg-emerald-500/20"
-    };
-    document.querySelectorAll(".poi-subtype-btn").forEach((btn) => {
-      const cat = btn.getAttribute("data-poi-cat");
-      const sub = btn.getAttribute("data-poi-sub");
+    document.querySelectorAll(".poi-subtype-btn").forEach((card) => {
+      const cat = card.getAttribute("data-poi-cat");
+      const sub = card.getAttribute("data-poi-sub");
       const activeSet = typeof getEnabledSubTypesForCategory === "function" ? getEnabledSubTypesForCategory(cat) : null;
       const isOn = Boolean(activeSet && activeSet.has(sub));
       const cnt = countPoisBySubType(cat, sub, applyReg);
-      const cntEl = btn.querySelector(".poi-sub-count");
+      card.setAttribute("data-state", isOn ? "on" : "off");
+      const unionBtn = card.querySelector(".geo-union-btn");
+      if (unionBtn) unionBtn.setAttribute("aria-checked", isOn ? "true" : "false");
+      const stateEl = card.querySelector(".poi-sub-state");
+      if (stateEl) stateEl.textContent = isOn ? "✓" : "+";
+      const cntEl = card.querySelector(".poi-sub-count");
       if (cntEl) cntEl.textContent = String(cnt);
-      const onCls = `poi-subtype-btn p-2.5 rounded-xl border ${poiAccentCls[cat] || "border-sky-400 bg-sky-500/20"} text-white text-xs font-bold flex items-center justify-between gap-1.5 shadow-sm`;
-      const offCls = "poi-subtype-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/80 hover:bg-slate-800 text-slate-300 text-xs font-bold flex items-center justify-between gap-1.5";
-      btn.className = isOn ? onCls : offCls;
     });
 
     const apUnique = countUniquePoisForSubTypes("airport", state.airportSubTypes, applyReg);
@@ -393,6 +376,14 @@ const SIMPLE_STATION_MAP = {
     ).map((l) => l.id)
 };
 
+function getDefaultStationQuizLines() {
+  const traMain = [...SIMPLE_STATION_MAP.tra_west_main(), ...SIMPLE_STATION_MAP.tra_east_main()];
+  const allMrt = TAIWAN_SELECTABLE_LINES
+    .filter((l) => !l.isHighway && l.id.startsWith("mrt_"))
+    .map((l) => l.id);
+  return Array.from(new Set([...traMain, ...allMrt]));
+}
+
 const REGION_PRESETS = [
   { id: "btn-scope-all", getTownIds: SIMPLE_REGION_MAP.all },
   { id: "btn-scope-west", getTownIds: () => ALL_TOWNS.filter((t) => TAIWAN_WEST_COUNTY_SET.has(t.countyName)).map((t) => t.id) },
@@ -433,63 +424,49 @@ function syncPresetButtonsUI() {
     state.selectedTownIds = new Set(ALL_TOWNS.filter((t) => state.selectedCounties.has(t.countyName)).map((t) => t.id));
   }
 
-  // 1. Sync Simple Region Buttons
-  document.querySelectorAll(".simple-region-btn").forEach((btn) => {
-    const key = btn.getAttribute("data-simple-region");
+  const syncDualCard = (card, allIn, someIn) => {
+    const st = allIn ? "on" : someIn ? "partial" : "off";
+    card.setAttribute("data-state", st);
+    const unionBtn = card.querySelector(".geo-union-btn");
+    if (unionBtn) {
+      unionBtn.setAttribute("aria-checked", allIn ? "true" : someIn ? "mixed" : "false");
+    }
+    const pill = card.querySelector(".geo-union-pill");
+    if (pill) {
+      pill.textContent = allIn ? "✓" : someIn ? "−" : "+";
+    }
+  };
+
+  // 1. Sync Simple Region Cards
+  document.querySelectorAll(".simple-region-btn").forEach((card) => {
+    const key = card.getAttribute("data-simple-region");
     const fn = SIMPLE_REGION_MAP[key];
     if (!fn) return;
     const townIds = fn();
     const allIn = townIds.length > 0 && townIds.every((id) => state.selectedTownIds.has(id));
     const someIn = townIds.some((id) => state.selectedTownIds.has(id));
-    const chk = btn.querySelector('input[type="checkbox"]');
-    if (chk) {
-      chk.checked = allIn;
-      chk.indeterminate = !allIn && someIn;
-    }
-    btn.className = allIn
-      ? "simple-region-btn p-2.5 rounded-xl bg-sky-500/25 border border-sky-400 text-white font-bold text-xs flex items-center justify-between gap-1.5 transition shadow"
-      : someIn
-      ? "simple-region-btn p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/40 text-sky-200 font-bold text-xs flex items-center justify-between gap-1.5 transition"
-      : "simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold text-xs flex items-center justify-between gap-1.5 transition";
+    syncDualCard(card, allIn, someIn);
   });
 
-  // 2. Sync Simple Station Buttons
-  document.querySelectorAll(".simple-station-btn").forEach((btn) => {
-    const key = btn.getAttribute("data-simple-station");
+  // 2. Sync Simple Station Cards
+  document.querySelectorAll(".simple-station-btn").forEach((card) => {
+    const key = card.getAttribute("data-simple-station");
     const fn = SIMPLE_STATION_MAP[key];
     if (!fn) return;
     const lineIds = fn();
     const allIn = lineIds.length > 0 && lineIds.every((id) => state.quizStationLines.has(id));
     const someIn = lineIds.some((id) => state.quizStationLines.has(id));
-    const chk = btn.querySelector('input[type="checkbox"]');
-    if (chk) {
-      chk.checked = allIn;
-      chk.indeterminate = !allIn && someIn;
-    }
-    const spanCls =
-      key === "all_main"
-        ? " col-span-2 sm:col-span-4"
-        : "";
-    btn.className = allIn
-      ? `simple-station-btn p-2.5 rounded-xl bg-pink-500/25 border border-pink-400 text-white font-bold text-xs flex items-center justify-between gap-1.5 transition shadow${spanCls}`
-      : someIn
-      ? `simple-station-btn p-2.5 rounded-xl bg-pink-500/10 border border-pink-500/40 text-pink-200 font-bold text-xs flex items-center justify-between gap-1.5 transition${spanCls}`
-      : `simple-station-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold text-xs flex items-center justify-between gap-1.5 transition${spanCls}`;
+    syncDualCard(card, allIn, someIn);
   });
 
   // 3. Sync Advanced Region Presets
   REGION_PRESETS.forEach((p) => {
-    const btn = document.getElementById(p.id);
-    if (!btn) return;
-    const chk = btn.querySelector('input[type="checkbox"]');
+    const card = document.getElementById(p.id);
+    if (!card) return;
     const townIds = p.getTownIds();
     const allIn = townIds.length > 0 && townIds.every((id) => state.selectedTownIds.has(id));
     const someIn = townIds.some((id) => state.selectedTownIds.has(id));
-    if (chk) {
-      chk.checked = allIn;
-      chk.indeterminate = !allIn && someIn;
-    }
-    btn.classList.toggle("scope-preset-active", allIn);
+    syncDualCard(card, allIn, someIn);
   });
 
   const btnClear = document.getElementById("btn-scope-clear");
@@ -499,17 +476,12 @@ function syncPresetButtonsUI() {
 
   // 4. Sync Advanced Station Presets
   STATION_PRESETS.forEach((p) => {
-    const btn = document.getElementById(p.id);
-    if (!btn) return;
-    const chk = btn.querySelector('input[type="checkbox"]');
+    const card = document.getElementById(p.id);
+    if (!card) return;
     const lineIds = p.getLineIds();
     const allIn = lineIds.length > 0 && lineIds.every((id) => state.quizStationLines.has(id));
     const someIn = lineIds.some((id) => state.quizStationLines.has(id));
-    if (chk) {
-      chk.checked = allIn;
-      chk.indeterminate = !allIn && someIn;
-    }
-    btn.classList.toggle("scope-preset-active", allIn);
+    syncDualCard(card, allIn, someIn);
   });
 
   const btnQstNone = document.getElementById("btn-qst-none");
@@ -1455,113 +1427,135 @@ function bindAllUIEvents() {
     document.getElementById("session-restore-banner")?.classList.add("hidden");
   });
 
-  // Multi-select Topic Chips (行政區 / 車站 / 機場 / 港口 / 水庫 / 湖泊)
-  document.querySelectorAll(".topic-chip-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      if (!canLocalModifyGameConfig()) {
-        setFeedback("僅房主可調整挑戰題庫！", "warn");
-        return;
-      }
-      const topic = btn.getAttribute("data-topic");
-      let nextR = Boolean(state.regionQuizEnabled);
-      let nextS = Boolean(state.stationQuizEnabled);
-      let nextA = Boolean(state.airportQuizEnabled);
-      let nextP = Boolean(state.portQuizEnabled);
-      let nextRes = Boolean(state.reservoirQuizEnabled);
-      let nextLk = Boolean(state.lakeQuizEnabled);
-      let nextCounties = new Set(state.selectedCounties);
-      let nextTownIds = new Set(state.selectedTownIds);
-      let nextLines = new Set(state.quizStationLines);
-      let nextApSubs = new Set(state.airportSubTypes);
-      let nextPtSubs = new Set(state.portSubTypes);
-      let nextResSubs = new Set(state.reservoirSubTypes);
-      let nextLkSubs = new Set(state.lakeSubTypes);
+  // Unified Dual-Action Topic Cards (Left = Exclusive Solo Select; Right = Union Multi-Select)
+  const applyTopicSelection = (topic, isUnion) => {
+    if (!canLocalModifyGameConfig()) {
+      setFeedback("僅房主可調整挑戰題庫！", "warn");
+      return;
+    }
+    const prevR = Boolean(state.regionQuizEnabled);
+    const prevS = Boolean(state.stationQuizEnabled);
+    let nextR = prevR;
+    let nextS = prevS;
+    let nextA = Boolean(state.airportQuizEnabled);
+    let nextP = Boolean(state.portQuizEnabled);
+    let nextRes = Boolean(state.reservoirQuizEnabled);
+    let nextLk = Boolean(state.lakeQuizEnabled);
+    let nextCounties = new Set(state.selectedCounties);
+    let nextTownIds = new Set(state.selectedTownIds);
+    let nextLines = new Set(state.quizStationLines);
+    let nextApSubs = new Set(state.airportSubTypes);
+    let nextPtSubs = new Set(state.portSubTypes);
+    let nextResSubs = new Set(state.reservoirSubTypes);
+    let nextLkSubs = new Set(state.lakeSubTypes);
+    let nextFilterByRegion = Boolean(state.filterStationsByRegion);
 
+    if (isUnion) {
       if (topic === "region") nextR = !nextR;
       else if (topic === "station") nextS = !nextS;
       else if (topic === "airport") nextA = !nextA;
       else if (topic === "port") nextP = !nextP;
       else if (topic === "reservoir") nextRes = !nextRes;
       else if (topic === "lake") nextLk = !nextLk;
+    } else {
+      nextR = topic === "region";
+      nextS = topic === "station";
+      nextA = topic === "airport";
+      nextP = topic === "port";
+      nextRes = topic === "reservoir";
+      nextLk = topic === "lake";
+    }
 
-      if (!nextR && !nextS && !nextA && !nextP && !nextRes && !nextLk) {
-        setFeedback("至少需保留 1 種挑戰題庫！", "warn");
-        return;
-      }
+    if (!nextR && !nextS && !nextA && !nextP && !nextRes && !nextLk) {
+      setFeedback("至少需保留 1 種挑戰題庫！", "warn");
+      return;
+    }
 
-      if (nextR && (nextCounties.size === 0 || nextTownIds.size === 0)) {
-        nextCounties = new Set(TAIWAN_ADMIN_DATA.map((c) => c.name));
-        nextTownIds = new Set(ALL_TOWNS.map((t) => t.id));
-      }
-      if (nextS && nextLines.size === 0) {
-        nextLines = new Set(SIMPLE_STATION_MAP.tpemrt());
-      }
-      if (nextA && nextApSubs.size === 0) {
-        nextApSubs = new Set(["intl", "domestic", "military"]);
-      }
-      if (nextP && nextPtSubs.size === 0) {
-        nextPtSubs = new Set(["intl_commercial", "intl_aux", "fishery_cat1"]);
-      }
-      if (nextRes && nextResSubs.size === 0) {
-        nextResSubs = new Set(["res_major"]);
-      }
-      if (nextLk && nextLkSubs.size === 0) {
-        nextLkSubs = new Set(["lake_scenic"]);
-      }
+    if (nextR && (nextCounties.size === 0 || nextTownIds.size === 0)) {
+      nextCounties = new Set(TAIWAN_ADMIN_DATA.map((c) => c.name));
+      nextTownIds = new Set(ALL_TOWNS.map((t) => t.id));
+    }
+    if (nextS && nextLines.size === 0) {
+      nextLines = new Set(getDefaultStationQuizLines());
+    }
+    // When turning Station ON while Region is ON (or Region ON while Station is ON), default-enable regional filtering
+    if ((nextS && !prevS && nextR) || (nextR && !prevR && nextS)) {
+      nextFilterByRegion = true;
+    }
+    if (nextA && nextApSubs.size === 0) {
+      nextApSubs = new Set(["intl", "domestic", "military"]);
+    }
+    if (nextP && nextPtSubs.size === 0) {
+      nextPtSubs = new Set(["intl_commercial", "intl_aux", "fishery_cat1"]);
+    }
+    if (nextRes && nextResSubs.size === 0) {
+      nextResSubs = new Set(["res_major"]);
+    }
+    if (nextLk && nextLkSubs.size === 0) {
+      nextLkSubs = new Set(["lake_scenic"]);
+    }
 
-      if (state.isHost && state.roomCode) {
-        requestOrApplyConfigChange(
-          {
-            regionQuizEnabled: nextR,
-            stationQuizEnabled: nextS,
-            airportQuizEnabled: nextA,
-            portQuizEnabled: nextP,
-            reservoirQuizEnabled: nextRes,
-            lakeQuizEnabled: nextLk,
-            selectedCounties: nextR ? Array.from(nextCounties) : [],
-            selectedTownIds: nextR ? Array.from(nextTownIds) : [],
-            quizStationLines: nextS ? Array.from(nextLines) : [],
-            airportSubTypes: Array.from(nextApSubs),
-            portSubTypes: Array.from(nextPtSubs),
-            reservoirSubTypes: Array.from(nextResSubs),
-            lakeSubTypes: Array.from(nextLkSubs)
-          },
-          "挑戰題庫"
-        );
-        return;
-      }
+    if (state.isHost && state.roomCode) {
+      requestOrApplyConfigChange(
+        {
+          regionQuizEnabled: nextR,
+          stationQuizEnabled: nextS,
+          airportQuizEnabled: nextA,
+          portQuizEnabled: nextP,
+          reservoirQuizEnabled: nextRes,
+          lakeQuizEnabled: nextLk,
+          filterStationsByRegion: nextFilterByRegion,
+          selectedCounties: nextR ? Array.from(nextCounties) : [],
+          selectedTownIds: nextR ? Array.from(nextTownIds) : [],
+          quizStationLines: nextS ? Array.from(nextLines) : [],
+          airportSubTypes: Array.from(nextApSubs),
+          portSubTypes: Array.from(nextPtSubs),
+          reservoirSubTypes: Array.from(nextResSubs),
+          lakeSubTypes: Array.from(nextLkSubs)
+        },
+        "挑戰題庫"
+      );
+      return;
+    }
 
-      state.regionQuizEnabled = nextR;
-      state.stationQuizEnabled = nextS;
-      state.airportQuizEnabled = nextA;
-      state.portQuizEnabled = nextP;
-      state.reservoirQuizEnabled = nextRes;
-      state.lakeQuizEnabled = nextLk;
-      state.selectedCounties = nextCounties;
-      state.selectedTownIds = nextTownIds;
-      state.quizStationLines = nextLines;
-      state.airportSubTypes = nextApSubs;
-      state.portSubTypes = nextPtSubs;
-      state.reservoirSubTypes = nextResSubs;
-      state.lakeSubTypes = nextLkSubs;
-      if (typeof syncLegacyQuizTargetMode === "function") syncLegacyQuizTargetMode();
-      renderScopeModalGrid();
-      if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
-    });
+    state.regionQuizEnabled = nextR;
+    state.stationQuizEnabled = nextS;
+    state.airportQuizEnabled = nextA;
+    state.portQuizEnabled = nextP;
+    state.reservoirQuizEnabled = nextRes;
+    state.lakeQuizEnabled = nextLk;
+    state.filterStationsByRegion = nextFilterByRegion;
+    state.selectedCounties = nextCounties;
+    state.selectedTownIds = nextTownIds;
+    state.quizStationLines = nextLines;
+    state.airportSubTypes = nextApSubs;
+    state.portSubTypes = nextPtSubs;
+    state.reservoirSubTypes = nextResSubs;
+    state.lakeSubTypes = nextLkSubs;
+    if (typeof syncLegacyQuizTargetMode === "function") syncLegacyQuizTargetMode();
+    renderScopeModalGrid();
+    if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
+  };
+
+  document.querySelectorAll(".topic-chip-btn").forEach((card) => {
+    const topic = card.getAttribute("data-topic");
+    const soloBtn = card.querySelector(".geo-solo-btn");
+    const unionBtn = card.querySelector(".geo-union-btn");
+    if (soloBtn) soloBtn.addEventListener("click", () => applyTopicSelection(topic, false));
+    if (unionBtn) unionBtn.addEventListener("click", () => applyTopicSelection(topic, true));
   });
 
-  // POI Subtype Pills (Airport / Port / Reservoir / Lake — shared across Simple & Advanced tabs)
-  document.querySelectorAll(".poi-subtype-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      if (!canLocalModifyGameConfig()) {
-        setFeedback("僅房主可調整地標分類！", "warn");
-        return;
-      }
-      const cat = btn.getAttribute("data-poi-cat");
-      const sub = btn.getAttribute("data-poi-sub");
-      const curSet = typeof getEnabledSubTypesForCategory === "function" ? getEnabledSubTypesForCategory(cat) : new Set();
-      const targetSet = new Set(curSet);
-      const catLabel = (POI_CATEGORY_META[cat] && POI_CATEGORY_META[cat].label) || "地標";
+  // Unified Dual-Action POI Subtype Cards (Left = Exclusive Solo; Right = Union Toggle)
+  const applyPoiSubTypeSelection = (cat, sub, isUnion) => {
+    if (!canLocalModifyGameConfig()) {
+      setFeedback("僅房主可調整地標分類！", "warn");
+      return;
+    }
+    const curSet = typeof getEnabledSubTypesForCategory === "function" ? getEnabledSubTypesForCategory(cat) : new Set();
+    const catLabel = (POI_CATEGORY_META[cat] && POI_CATEGORY_META[cat].label) || "地標";
+    let targetSet;
+    if (isUnion) {
+      targetSet = new Set(curSet);
       if (targetSet.has(sub)) {
         if (targetSet.size <= 1) {
           setFeedback(`至少需保留 1 項${catLabel}子分類！`, "warn");
@@ -1571,27 +1565,38 @@ function bindAllUIEvents() {
       } else {
         targetSet.add(sub);
       }
+    } else {
+      targetSet = new Set([sub]);
+    }
 
-      if (state.isHost && state.roomCode) {
-        const patch =
-          cat === "airport"
-            ? { airportQuizEnabled: true, airportSubTypes: Array.from(targetSet) }
-            : cat === "port"
-            ? { portQuizEnabled: true, portSubTypes: Array.from(targetSet) }
-            : cat === "reservoir"
-            ? { reservoirQuizEnabled: true, reservoirSubTypes: Array.from(targetSet) }
-            : { lakeQuizEnabled: true, lakeSubTypes: Array.from(targetSet) };
-        requestOrApplyConfigChange(patch, `${catLabel}分類`);
-        return;
-      }
+    if (state.isHost && state.roomCode) {
+      const patch =
+        cat === "airport"
+          ? { airportQuizEnabled: true, airportSubTypes: Array.from(targetSet) }
+          : cat === "port"
+          ? { portQuizEnabled: true, portSubTypes: Array.from(targetSet) }
+          : cat === "reservoir"
+          ? { reservoirQuizEnabled: true, reservoirSubTypes: Array.from(targetSet) }
+          : { lakeQuizEnabled: true, lakeSubTypes: Array.from(targetSet) };
+      requestOrApplyConfigChange(patch, `${catLabel}分類`);
+      return;
+    }
 
-      if (cat === "airport") state.airportSubTypes = targetSet;
-      else if (cat === "port") state.portSubTypes = targetSet;
-      else if (cat === "reservoir") state.reservoirSubTypes = targetSet;
-      else if (cat === "lake") state.lakeSubTypes = targetSet;
-      renderScopeModalGrid();
-      if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
-    });
+    if (cat === "airport") state.airportSubTypes = targetSet;
+    else if (cat === "port") state.portSubTypes = targetSet;
+    else if (cat === "reservoir") state.reservoirSubTypes = targetSet;
+    else if (cat === "lake") state.lakeSubTypes = targetSet;
+    renderScopeModalGrid();
+    if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
+  };
+
+  document.querySelectorAll(".poi-subtype-btn").forEach((card) => {
+    const cat = card.getAttribute("data-poi-cat");
+    const sub = card.getAttribute("data-poi-sub");
+    const soloBtn = card.querySelector(".geo-solo-btn");
+    const unionBtn = card.querySelector(".geo-union-btn");
+    if (soloBtn) soloBtn.addEventListener("click", () => applyPoiSubTypeSelection(cat, sub, false));
+    if (unionBtn) unionBtn.addEventListener("click", () => applyPoiSubTypeSelection(cat, sub, true));
   });
 
   [
@@ -1723,57 +1728,30 @@ function bindAllUIEvents() {
     if (state.isHost && state.roomCode) onHostSettingChange("車站題庫");
   };
 
-  // Bind Simple Region Buttons
-  document.querySelectorAll(".simple-region-btn").forEach((btn) => {
-    const key = btn.getAttribute("data-simple-region");
+  // Bind Simple Region Cards (Solo left / Union right)
+  document.querySelectorAll(".simple-region-btn").forEach((card) => {
+    const key = card.getAttribute("data-simple-region");
     const fn = SIMPLE_REGION_MAP[key];
     if (!fn) return;
-    const chk = btn.querySelector('input[type="checkbox"]');
-    if (chk) {
-      chk.addEventListener("click", (e) => {
-        e.stopPropagation();
-        applyRegionScopeSelection(fn(), true);
-      });
-    }
-    btn.addEventListener("click", (e) => {
-      if (e.target.tagName === "INPUT") return;
-      applyRegionScopeSelection(fn(), false);
-    });
+    card.querySelector(".geo-solo-btn")?.addEventListener("click", () => applyRegionScopeSelection(fn(), false));
+    card.querySelector(".geo-union-btn")?.addEventListener("click", () => applyRegionScopeSelection(fn(), true));
   });
 
-  // Bind Simple Station Buttons
-  document.querySelectorAll(".simple-station-btn").forEach((btn) => {
-    const key = btn.getAttribute("data-simple-station");
+  // Bind Simple Station Cards (Solo left / Union right)
+  document.querySelectorAll(".simple-station-btn").forEach((card) => {
+    const key = card.getAttribute("data-simple-station");
     const fn = SIMPLE_STATION_MAP[key];
     if (!fn) return;
-    const chk = btn.querySelector('input[type="checkbox"]');
-    if (chk) {
-      chk.addEventListener("click", (e) => {
-        e.stopPropagation();
-        applyStationScopeSelection(fn(), true);
-      });
-    }
-    btn.addEventListener("click", (e) => {
-      if (e.target.tagName === "INPUT") return;
-      applyStationScopeSelection(fn(), false);
-    });
+    card.querySelector(".geo-solo-btn")?.addEventListener("click", () => applyStationScopeSelection(fn(), false));
+    card.querySelector(".geo-union-btn")?.addEventListener("click", () => applyStationScopeSelection(fn(), true));
   });
 
-  // Bind Advanced Region Preset Buttons and Checkboxes
+  // Bind Advanced Region Preset Cards
   REGION_PRESETS.forEach((p) => {
-    const btn = document.getElementById(p.id);
-    if (!btn) return;
-    const chk = btn.querySelector('input[type="checkbox"]');
-    if (chk) {
-      chk.addEventListener("click", (e) => {
-        e.stopPropagation();
-        applyRegionScopeSelection(p.getTownIds(), true);
-      });
-    }
-    btn.addEventListener("click", (e) => {
-      if (e.target.tagName === "INPUT") return;
-      applyRegionScopeSelection(p.getTownIds(), false);
-    });
+    const card = document.getElementById(p.id);
+    if (!card) return;
+    card.querySelector(".geo-solo-btn")?.addEventListener("click", () => applyRegionScopeSelection(p.getTownIds(), false));
+    card.querySelector(".geo-union-btn")?.addEventListener("click", () => applyRegionScopeSelection(p.getTownIds(), true));
   });
 
   document.getElementById("btn-scope-random-one")?.addEventListener("click", () => {
@@ -1786,21 +1764,12 @@ function bindAllUIEvents() {
     applyRegionScopeSelection([], false);
   });
 
-  // Bind Advanced Station Preset Buttons and Checkboxes
+  // Bind Advanced Station Preset Cards
   STATION_PRESETS.forEach((p) => {
-    const btn = document.getElementById(p.id);
-    if (!btn) return;
-    const chk = btn.querySelector('input[type="checkbox"]');
-    if (chk) {
-      chk.addEventListener("click", (e) => {
-        e.stopPropagation();
-        applyStationScopeSelection(p.getLineIds(), true);
-      });
-    }
-    btn.addEventListener("click", (e) => {
-      if (e.target.tagName === "INPUT") return;
-      applyStationScopeSelection(p.getLineIds(), false);
-    });
+    const card = document.getElementById(p.id);
+    if (!card) return;
+    card.querySelector(".geo-solo-btn")?.addEventListener("click", () => applyStationScopeSelection(p.getLineIds(), false));
+    card.querySelector(".geo-union-btn")?.addEventListener("click", () => applyStationScopeSelection(p.getLineIds(), true));
   });
 
   document.getElementById("btn-qst-none")?.addEventListener("click", () => {
@@ -1833,10 +1802,15 @@ function bindAllUIEvents() {
 
     if (state.stationQuizEnabled && state.quizStationLines.size > 0) {
       state.stationQuizEnabled = true;
-      const keepHw = state.selectedTransportLines.has("hw_freeway");
+      // Default to pure rail overlay (no hw_freeway / highway tiles that spoil airports & ports)
       state.selectedTransportLines = new Set(state.quizStationLines);
-      if (keepHw && state.selectedCounties.size > 0) state.selectedTransportLines.add("hw_freeway");
-      if (state.transportMode === "off") state.transportMode = "lines_and_stations";
+      if (
+        (state.transportMode === "off" || state.transportMode === "lines_and_stations") &&
+        state.p2pRailRule !== "ban_rail" &&
+        state.p2pRailRule !== "force_lines"
+      ) {
+        state.transportMode = "rail_only";
+      }
     } else {
       state.stationQuizEnabled = false;
       if (!state.roomCode || state.p2pRailRule === "free") {
@@ -1846,18 +1820,26 @@ function bindAllUIEvents() {
 
     const totalTowns = getScopeTowns().length;
     const activeSt = getActiveQuizStations();
-    let summaryLabel = "";
-    if (state.selectedCounties.size === 0 && activeSt.length > 0) {
-      summaryLabel = `純車站 (${activeSt.length}站)`;
-    } else {
-      const adminStr =
+    const sumParts = [];
+    if (state.regionQuizEnabled && totalTowns > 0) {
+      sumParts.push(
         totalTowns === 368
           ? "全台 368 區"
           : state.selectedCounties.size === 1
           ? `${Array.from(state.selectedCounties)[0]} (${totalTowns}區)`
-          : `${totalTowns} 區`;
-      summaryLabel = activeSt.length > 0 ? `${adminStr} + ${activeSt.length}站` : adminStr;
+          : `${totalTowns} 區`
+      );
     }
+    if (activeSt.length > 0) sumParts.push(`${activeSt.length}站`);
+    if (typeof isPoiCategoryActive === "function" && typeof getActiveQuizPois === "function") {
+      [["airport", "機場"], ["port", "港"], ["reservoir", "水庫"], ["lake", "湖"]].forEach(([cat, lbl]) => {
+        if (isPoiCategoryActive(cat)) {
+          const cnt = getActiveQuizPois(cat).length;
+          if (cnt > 0) sumParts.push(`${cnt}${lbl}`);
+        }
+      });
+    }
+    const summaryLabel = sumParts.length > 0 ? sumParts.join(" + ") : "台灣地理";
     document.getElementById("scope-summary-label").textContent = summaryLabel;
     document.getElementById("modal-scope").classList.add("hidden");
     resetGame();

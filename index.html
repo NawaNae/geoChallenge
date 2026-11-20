@@ -828,55 +828,67 @@
         <div id="unified-settings-panel" class="space-y-3.5">
           <fieldset id="unified-settings-fieldset" class="space-y-3.5">
 
-            <!-- Shared Step 0: Multi-Select Quiz Topics (區 / 車站 / 機場 / 港口) -->
+            <!-- Shared Step 0: Unified Dual-Action Quiz Topics (點左側單選快切 / 點右側開關複選連集) -->
             <div class="p-3 rounded-2xl bg-slate-900/90 border border-sky-500/30">
               <div class="flex flex-wrap items-center justify-between gap-1 mb-2">
-                <label class="text-xs font-extrabold text-sky-300">挑戰題庫（可單選或複選混合）</label>
-                <span class="text-[11px] text-slate-400">點亮項目後下方自動展開範圍設定</span>
+                <label class="text-xs font-extrabold text-sky-300">挑戰題庫（統一快選＋連集）</label>
+                <span class="text-[11px] text-slate-400">點左側名稱「單選快切」 · 點右側開關「複選連集」</span>
               </div>
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <button type="button" data-topic="region" class="topic-chip-btn p-2.5 rounded-xl border transition bg-sky-500/25 border-sky-400 text-white text-left shadow-md" data-tip="猜台灣縣市與鄉鎮市區">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-xs sm:text-sm font-extrabold">🗺️ 行政區</span>
-                    <span class="topic-check text-[10px] font-black px-1.5 py-0.5 rounded-md bg-sky-400/25 text-sky-200">ON</span>
-                  </div>
-                  <div class="text-[10px] text-slate-300 mt-0.5">22 縣市 / 368 區</div>
-                </button>
-                <button type="button" data-topic="station" class="topic-chip-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left" data-tip="猜台鐵、高鐵、捷運與輕軌車站">
-                  <div class="flex items-center justify-between gap-1">
+                <div data-topic="region" data-accent="sky" data-state="on" class="topic-chip-btn geo-select-card" data-tip="猜台灣縣市與鄉鎮市區">
+                  <button type="button" class="geo-solo-btn" aria-label="單選🗺️ 行政區">
+                    <span class="text-xs sm:text-sm font-extrabold text-sky-200">🗺️ 行政區</span>
+                    <span class="text-[10px] text-slate-400 mt-0.5">22 縣市 / 368 區</span>
+                  </button>
+                  <button type="button" class="geo-union-btn" role="checkbox" aria-checked="true" aria-label="複選切換🗺️ 行政區">
+                    <span class="geo-union-pill topic-check">✓ ON</span>
+                  </button>
+                </div>
+                <div data-topic="station" data-accent="pink" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜台鐵、高鐵、捷運與輕軌車站（開啟預設台鐵主線＋捷運）">
+                  <button type="button" class="geo-solo-btn" aria-label="單選🚉 車站">
                     <span class="text-xs sm:text-sm font-extrabold text-pink-300">🚉 車站</span>
-                    <span class="topic-check text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400">OFF</span>
-                  </div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">台鐵 / 高鐵 / 捷運</div>
-                </button>
-                <button type="button" data-topic="airport" class="topic-chip-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left" data-tip="猜台灣國際、國內與軍用機場（軍民合用自動去重）">
-                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-[10px] text-slate-400 mt-0.5">台鐵主線 / 捷運</span>
+                  </button>
+                  <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換🚉 車站">
+                    <span class="geo-union-pill topic-check">+ OFF</span>
+                  </button>
+                </div>
+                <div data-topic="airport" data-accent="sky" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜台灣國際、國內與軍用機場（軍民合用自動去重）">
+                  <button type="button" class="geo-solo-btn" aria-label="單選✈️ 機場">
                     <span class="text-xs sm:text-sm font-extrabold text-sky-300">✈️ 機場</span>
-                    <span class="topic-check text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400">OFF</span>
-                  </div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">國際 / 國內 / 軍用</div>
-                </button>
-                <button type="button" data-topic="port" class="topic-chip-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left" data-tip="猜台灣國際商港、國際輔助港與官方9座第一類漁港（進階可選精選24座第二類漁港及工業/天然氣港）">
-                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-[10px] text-slate-400 mt-0.5">國際 / 國內 / 軍用</span>
+                  </button>
+                  <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換✈️ 機場">
+                    <span class="geo-union-pill topic-check">+ OFF</span>
+                  </button>
+                </div>
+                <div data-topic="port" data-accent="teal" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜台灣國際商港、國際輔助港與官方9座第一類漁港（進階可選精選24座第二類漁港及工業/天然氣港）">
+                  <button type="button" class="geo-solo-btn" aria-label="單選⚓ 港口">
                     <span class="text-xs sm:text-sm font-extrabold text-teal-300">⚓ 港口</span>
-                    <span class="topic-check text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400">OFF</span>
-                  </div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">商港 / 輔助 / 漁港</div>
-                </button>
-                <button type="button" data-topic="reservoir" class="topic-chip-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left" data-tip="猜台灣主要水庫（進階可選其他本島水庫與離島水庫，與湖泊重疊項目自動去重）">
-                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-[10px] text-slate-400 mt-0.5">商港 / 輔助 / 漁港</span>
+                  </button>
+                  <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換⚓ 港口">
+                    <span class="geo-union-pill topic-check">+ OFF</span>
+                  </button>
+                </div>
+                <div data-topic="reservoir" data-accent="blue" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜台灣主要水庫（進階可選其他本島水庫與離島水庫，與湖泊重疊項目自動去重）">
+                  <button type="button" class="geo-solo-btn" aria-label="單選💧 水庫">
                     <span class="text-xs sm:text-sm font-extrabold text-blue-300">💧 水庫</span>
-                    <span class="topic-check text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400">OFF</span>
-                  </div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">主要 / 本島 / 離島</div>
-                </button>
-                <button type="button" data-topic="lake" class="topic-chip-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/70 hover:bg-slate-800 text-slate-300 transition text-left" data-tip="猜台灣知名觀光平地湖泊（進階可選高山秘境湖泊，與水庫重疊項目自動去重）">
-                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-[10px] text-slate-400 mt-0.5">主要 / 本島 / 離島</span>
+                  </button>
+                  <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換💧 水庫">
+                    <span class="geo-union-pill topic-check">+ OFF</span>
+                  </button>
+                </div>
+                <div data-topic="lake" data-accent="emerald" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜台灣知名觀光平地湖泊（進階可選高山秘境湖泊，與水庫重疊項目自動去重）">
+                  <button type="button" class="geo-solo-btn" aria-label="單選🏞️ 湖泊">
                     <span class="text-xs sm:text-sm font-extrabold text-emerald-300">🏞️ 湖泊</span>
-                    <span class="topic-check text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-400">OFF</span>
-                  </div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">觀光平地 / 高山秘境</div>
-                </button>
+                    <span class="text-[10px] text-slate-400 mt-0.5">觀光平地 / 高山秘境</span>
+                  </button>
+                  <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換🏞️ 湖泊">
+                    <span class="geo-union-pill topic-check">+ OFF</span>
+                  </button>
+                </div>
               </div>
               <div id="mixed-region-rail-switch-bar" class="hidden mt-2.5 pt-2.5 border-t border-slate-800/90 flex flex-wrap items-center justify-between gap-2">
                 <label class="inline-flex items-center gap-2 text-xs font-extrabold text-amber-200 cursor-pointer select-none" data-tip="開啟後，僅會出題位於目前已選行政區（如北部、西部濱海、山區、單一縣市）境內的車站、機場與港口">
@@ -948,53 +960,53 @@
               <div id="simple-region-box" class="p-3.5 rounded-2xl bg-slate-900/90 border border-amber-500/30 space-y-2.5">
                 <div class="flex items-center justify-between">
                   <label class="text-xs sm:text-sm font-extrabold text-amber-300">🗺️ 選擇區域範圍</label>
-                  <span class="text-[11px] text-slate-400">點按鈕單選，點勾選框可多選組合</span>
+                  <span class="text-[11px] text-slate-400">點左側單選 · 點右側開關複選</span>
                 </div>
                 <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  <button type="button" data-simple-region="all" class="simple-region-btn p-2.5 rounded-xl bg-sky-500/20 border border-sky-400 text-white font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="全臺灣 22 縣市共 368 鄉鎮市區">
-                    <span>🇹🇼 全臺</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-region="north" class="simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="北部：北北基桃竹宜 (89區)">
-                    <span>⬆️ 北</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-region="central" class="simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="中部：苗中彰投雲 (105區)">
-                    <span>⛰️ 中</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-region="south" class="simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="南部：嘉南高屏澎 (132區)">
-                    <span>☀️ 南</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-region="east" class="simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="東部：花蓮、臺東 (29區)">
-                    <span>🌊 東</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-region="islands" class="simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="外島：澎湖、金門、馬祖連江 (16區)">
-                    <span>🏝️ 外島</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-region="mountain" class="simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="山區：台灣本島 29 山地原民區與內陸高山丘陵鄉鎮，不含蘭嶼 (57區)">
-                    <span>⛰️ 山區</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-region="west_plain" class="simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="西部平原：西半部本島平原、盆地與台地鄉鎮，不含小琉球 (262區)">
-                    <span>🌾 西部平原</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-region="east_plain" class="simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="東部平原：蘭陽平原、花東縱谷與海岸平地鄉鎮，不含綠島蘭嶼 (30區)">
-                    <span>🌾 東部平原</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-region="west_coast" class="simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="西部濱海：西濱台61線與台灣海峽沿岸臨海鄉鎮 (57區)">
-                    <span>🌊 西部濱海</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-region="east_coast" class="simple-region-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="東部濱海：蘇花與花東海岸台11線臨太平洋本島鄉鎮 (19區)">
-                    <span>🌊 東部濱海</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
+                  <div data-simple-region="all" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="全臺灣 22 縣市共 368 鄉鎮市區">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🇹🇼 全臺</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-region="north" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="北部：北北基桃竹宜 (89區)">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">⬆️ 北</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-region="central" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="中部：苗中彰投雲 (105區)">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">⛰️ 中</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-region="south" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="南部：嘉南高屏澎 (132區)">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">☀️ 南</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-region="east" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="東部：花蓮、臺東 (29區)">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🌊 東</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-region="islands" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="外島：澎湖、金門、馬祖連江 (16區)">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🏝️ 外島</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-region="mountain" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="山區：台灣本島 29 山地原民區與內陸高山丘陵鄉鎮，不含蘭嶼 (57區)">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">⛰️ 山區</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-region="west_plain" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="西部平原：西半部本島平原、盆地與台地鄉鎮，不含小琉球 (262區)">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🌾 西部平原</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-region="east_plain" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="東部平原：蘭陽平原、花東縱谷與海岸平地鄉鎮，不含綠島蘭嶼 (30區)">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🌾 東部平原</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-region="west_coast" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="西部濱海：西濱台61線與台灣海峽沿岸臨海鄉鎮 (57區)">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🌊 西部濱海</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-region="east_coast" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="東部濱海：蘇花與花東海岸台11線臨太平洋本島鄉鎮 (19區)">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🌊 東部濱海</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
                 </div>
               </div>
 
@@ -1007,46 +1019,46 @@
                       <input id="chk-simple-filter-station-region" type="checkbox" class="w-3.5 h-3.5 rounded bg-slate-900 border-amber-400 text-amber-500 accent-amber-400 cursor-pointer" />
                       <span>📍 僅猜所選區域內的鐵道</span>
                     </label>
-                    <span class="text-[11px] text-slate-400">點按鈕單選，點勾選框多選</span>
+                    <span class="text-[11px] text-slate-400">點左側單選 · 點右側複選</span>
                   </div>
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <button type="button" data-simple-station="tpemrt" class="simple-station-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="北捷：淡水信義、板南、松山新店、中和新蘆、文湖、環狀線">
-                    <span>🚇 北捷</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-station="khmrt" class="simple-station-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="高捷：紅線、橘線">
-                    <span>🚇 高捷</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-station="tcmrt" class="simple-station-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="中捷：綠線">
-                    <span>🚇 中捷</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-station="thsr" class="simple-station-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="台灣高鐵 12 座車站">
-                    <span>🚄 高鐵</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-station="tra_coast" class="simple-station-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="台鐵海岸線（海線：竹南—大甲—清水—追分—彰化，18站）">
-                    <span>🌊 台鐵海線</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-station="tra_mountain" class="simple-station-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="台鐵臺中線（山線：竹南—苗栗—豐原—臺中—彰化，23站）">
-                    <span>⛰️ 台鐵山線</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-station="tra_west_main" class="simple-station-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="台鐵西部幹線（縱貫線北段、山線、海線、成追線、縱貫線南段、屏東線）">
-                    <span>🚆 西部主線全</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-station="tra_east_main" class="simple-station-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-between gap-1.5 transition" data-tip="台鐵東部幹線（宜蘭線、北迴線、花東線、南迴線）">
-                    <span>🚆 東部主線全</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
-                  <button type="button" data-simple-station="all_main" class="simple-station-btn p-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-amber-200 font-bold text-xs flex items-center justify-between gap-1.5 transition col-span-2 sm:col-span-4" data-tip="全台高鐵、台鐵、捷運、輕軌（不含纜車、林鐵蹦蹦車、烏來台車、糖鐵五分車等休閒設施）">
-                    <span>✅ 全（不含休閒設施 纜車台車）</span>
-                    <input type="checkbox" class="preset-chk w-3.5 h-3.5 rounded" />
-                  </button>
+                  <div data-simple-station="tpemrt" data-accent="pink" data-state="off" class="simple-station-btn geo-select-card" data-tip="北捷：淡水信義、板南、松山新店、中和新蘆、文湖、環狀線">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🚇 北捷</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-station="khmrt" data-accent="pink" data-state="off" class="simple-station-btn geo-select-card" data-tip="高捷：紅線、橘線">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🚇 高捷</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-station="tcmrt" data-accent="pink" data-state="off" class="simple-station-btn geo-select-card" data-tip="中捷：綠線">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🚇 中捷</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-station="thsr" data-accent="pink" data-state="off" class="simple-station-btn geo-select-card" data-tip="台灣高鐵 12 座車站">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🚄 高鐵</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-station="tra_coast" data-accent="pink" data-state="off" class="simple-station-btn geo-select-card" data-tip="台鐵海岸線（海線：竹南—大甲—清水—追分—彰化，18站）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🌊 台鐵海線</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-station="tra_mountain" data-accent="pink" data-state="off" class="simple-station-btn geo-select-card" data-tip="台鐵臺中線（山線：竹南—苗栗—豐原—臺中—彰化，23站）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">⛰️ 台鐵山線</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-station="tra_west_main" data-accent="pink" data-state="off" class="simple-station-btn geo-select-card" data-tip="台鐵西部幹線（縱貫線北段、山線、海線、成追線、縱貫線南段、屏東線）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🚆 西部主線全</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-station="tra_east_main" data-accent="pink" data-state="off" class="simple-station-btn geo-select-card" data-tip="台鐵東部幹線（宜蘭線、北迴線、花東線、南迴線）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold ">🚆 東部主線全</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
+                  <div data-simple-station="all_main" data-accent="pink" data-state="off" class="simple-station-btn geo-select-card col-span-2 sm:col-span-4" data-tip="全台高鐵、台鐵、捷運、輕軌（不含纜車、林鐵蹦蹦車、烏來台車、糖鐵五分車等休閒設施）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold text-amber-200">✅ 全（不含休閒設施 纜車台車）</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button>
+                  </div>
                 </div>
               </div>
 
@@ -1059,18 +1071,18 @@
                   </span>
                 </div>
                 <div class="grid grid-cols-3 gap-2">
-                  <button type="button" data-poi-cat="airport" data-poi-sub="intl" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="桃園、松山、臺中清泉崗、高雄國際機場">
-                    <span>🌐 國際</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">4</span>
-                  </button>
-                  <button type="button" data-poi-cat="airport" data-poi-sub="domestic" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="含本島與離島民航國內航站（含軍民合用）">
-                    <span>🏠 國內</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">16</span>
-                  </button>
-                  <button type="button" data-poi-cat="airport" data-poi-sub="military" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="含空軍基地、陸航基地與軍民合用機場（總數自動去重）">
-                    <span>🎖️ 軍機場</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">15</span>
-                  </button>
+                  <div data-poi-cat="airport" data-poi-sub="intl" data-accent="sky" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="桃園、松山、臺中清泉崗、高雄國際機場">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🌐 國際</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">4</span></span></button>
+                  </div>
+                  <div data-poi-cat="airport" data-poi-sub="domestic" data-accent="sky" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="含本島與離島民航國內航站（含軍民合用）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🏠 國內</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">16</span></span></button>
+                  </div>
+                  <div data-poi-cat="airport" data-poi-sub="military" data-accent="sky" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="含空軍基地、陸航基地與軍民合用機場（總數自動去重）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🎖️ 軍機場</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">15</span></span></button>
+                  </div>
                 </div>
                 <div class="text-[11px] text-slate-400">軍民合用機場於各子項各自計入，但總題數自動去重僅計 1 次。</div>
               </div>
@@ -1084,18 +1096,18 @@
                   </span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button type="button" data-poi-cat="port" data-poi-sub="intl_commercial" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="基隆港、臺中港、高雄港、花蓮港">
-                    <span>🚢 國際商港</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">4</span>
-                  </button>
-                  <button type="button" data-poi-cat="port" data-poi-sub="intl_aux" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="臺北港、蘇澳港、安平港（已排除石化天然氣與工業港）">
-                    <span>⚓ 國際輔助港</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">3</span>
-                  </button>
-                  <button type="button" data-poi-cat="port" data-poi-sub="fishery_cat1" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="漁業署官方 9 座第一類大型漁港">
-                    <span>🐟 第一類漁港(大)</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">9</span>
-                  </button>
+                  <div data-poi-cat="port" data-poi-sub="intl_commercial" data-accent="teal" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="基隆港、臺中港、高雄港、花蓮港">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🚢 國際商港</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">4</span></span></button>
+                  </div>
+                  <div data-poi-cat="port" data-poi-sub="intl_aux" data-accent="teal" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="臺北港、蘇澳港、安平港（已排除石化天然氣與工業港）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">⚓ 國際輔助港</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">3</span></span></button>
+                  </div>
+                  <div data-poi-cat="port" data-poi-sub="fishery_cat1" data-accent="teal" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="漁業署官方 9 座第一類大型漁港">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🐟 第一類漁港(大)</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">9</span></span></button>
+                  </div>
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-slate-400">
                   <span id="simple-port-adv-hint">如需第二類漁港(精選24/212處)、工業港、石化天然氣港，可至進階設定勾選</span>
@@ -1114,18 +1126,18 @@
                   </span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button type="button" data-poi-cat="reservoir" data-poi-sub="res_major" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="經濟部水利署主要水情監測水庫（石門、翡翠、曾文、日月潭、德基、鯉魚潭等 21 座）">
-                    <span>💧 主要水庫</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">21</span>
-                  </button>
-                  <button type="button" data-poi-cat="reservoir" data-poi-sub="res_other" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="其他知名本島水庫（澄清湖、虎頭埤、鳳山、大埔、西勢、鳥嘴潭人工湖等）">
-                    <span>🌊 其他本島</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">14</span>
-                  </button>
-                  <button type="button" data-poi-cat="reservoir" data-poi-sub="res_offshore" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="澎湖（成功/興仁/七美）、金門（太湖）、馬祖（勝利）、綠島（酬勤）">
-                    <span>🏝️ 離島水庫</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">6</span>
-                  </button>
+                  <div data-poi-cat="reservoir" data-poi-sub="res_major" data-accent="blue" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="經濟部水利署主要水情監測水庫（石門、翡翠、曾文、日月潭、德基、鯉魚潭等 21 座）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">💧 主要水庫</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">21</span></span></button>
+                  </div>
+                  <div data-poi-cat="reservoir" data-poi-sub="res_other" data-accent="blue" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="其他知名本島水庫（澄清湖、虎頭埤、鳳山、大埔、西勢、鳥嘴潭人工湖等）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🌊 其他本島</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">14</span></span></button>
+                  </div>
+                  <div data-poi-cat="reservoir" data-poi-sub="res_offshore" data-accent="blue" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="澎湖（成功/興仁/七美）、金門（太湖）、馬祖（勝利）、綠島（酬勤）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🏝️ 離島水庫</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">6</span></span></button>
+                  </div>
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-slate-400">
                   <span id="simple-reservoir-adv-hint">如需其他本島水庫（如澄清湖、虎頭埤、鳳山）或離島水庫，可至進階設定勾選</span>
@@ -1144,14 +1156,14 @@
                   </span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button type="button" data-poi-cat="lake" data-poi-sub="lake_scenic" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="日月潭、花蓮/埔里鯉魚潭、大坡池、梅花湖、夢幻湖、蓮池潭、澄清湖等 22 座">
-                    <span>🏞️ 觀光與平地湖泊</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">22</span>
-                  </button>
-                  <button type="button" data-poi-cat="lake" data-poi-sub="lake_alpine" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="嘉明湖、翠峰湖、松蘿湖、明池、七彩湖、翠池、大小鬼湖、水漾森林等 12 座">
-                    <span>⛰️ 高山與秘境湖泊</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">12</span>
-                  </button>
+                  <div data-poi-cat="lake" data-poi-sub="lake_scenic" data-accent="emerald" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="日月潭、花蓮/埔里鯉魚潭、大坡池、梅花湖、夢幻湖、蓮池潭、澄清湖等 22 座">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🏞️ 觀光與平地湖泊</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">22</span></span></button>
+                  </div>
+                  <div data-poi-cat="lake" data-poi-sub="lake_alpine" data-accent="emerald" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="嘉明湖、翠峰湖、松蘿湖、明池、七彩湖、翠池、大小鬼湖、水漾森林等 12 座">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">⛰️ 高山與秘境湖泊</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">12</span></span></button>
+                  </div>
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-slate-400">
                   <span id="simple-lake-adv-hint">如需高山秘境湖泊（嘉明湖、翠峰湖、松蘿湖、水漾森林等），可至進階設定勾選</span>
@@ -1170,7 +1182,7 @@
               <div id="scope-region-section" class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <label class="text-xs font-bold text-amber-300">
-                    進階行政區細選（點按鈕單選，點勾選框多選）
+                    進階行政區細選（點左側單選 · 點右側複選）
                   </label>
                   <div class="flex items-center gap-1.5">
                     <button id="btn-scope-random-one" type="button" class="px-2.5 py-1 rounded-lg bg-fuchsia-500/20 hover:bg-fuchsia-500/30 text-fuchsia-300 border border-fuchsia-500/40 text-[11px] font-bold transition">
@@ -1182,19 +1194,19 @@
                   </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-1.5">
-                  <button id="btn-scope-all" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>全臺</span></button>
-                  <button id="btn-scope-west" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>西部16縣市</span></button>
-                  <button id="btn-scope-six" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>六都</span></button>
-                  <button id="btn-scope-north" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>北部</span></button>
-                  <button id="btn-scope-central" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>中部</span></button>
-                  <button id="btn-scope-south" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-orange-500/20 text-orange-300 border border-orange-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>南部</span></button>
-                  <button id="btn-scope-east" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>東部</span></button>
-                  <button id="btn-scope-mountain" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-lime-500/20 text-lime-300 border border-lime-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>山區</span></button>
-                  <button id="btn-scope-west-plain" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>西部平原</span></button>
-                  <button id="btn-scope-east-plain" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-emerald-600/20 text-emerald-200 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>東部平原</span></button>
-                  <button id="btn-scope-west-coast" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-sky-600/20 text-sky-200 border border-sky-600/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>西部濱海</span></button>
-                  <button id="btn-scope-east-coast" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-teal-600/20 text-teal-200 border border-teal-600/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>東部濱海</span></button>
-                  <button id="btn-scope-islands" type="button" class="scope-preset-btn px-2 py-1 rounded-xl bg-amber-600/20 text-amber-200 border border-amber-600/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>外島澎金馬</span></button>
+                  <div id="btn-scope-all" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>全臺</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-west" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>西部16縣市</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-six" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>六都</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-north" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>北部</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-central" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>中部</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-south" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>南部</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-east" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>東部</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-mountain" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>山區</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-west-plain" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>西部平原</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-east-plain" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>東部平原</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-west-coast" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>西部濱海</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-east-coast" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>東部濱海</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-scope-islands" data-accent="sky" data-state="off" class="scope-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>外島澎金馬</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
                 </div>
 
                 <div id="scope-counties-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 pt-1"></div>
@@ -1222,22 +1234,22 @@
                 </div>
                 <div class="flex flex-wrap items-center gap-1.5">
                   <button id="btn-qst-none" type="button" class="px-2 py-1 rounded-xl bg-slate-800 text-slate-200 border border-slate-600 text-[11px] font-bold">🚫 不猜車站</button>
-                  <button id="btn-qst-tpemrt" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>北捷</span></button>
-                  <button id="btn-qst-khmrt" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>高捷</span></button>
-                  <button id="btn-qst-tcmrt" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>中捷</span></button>
-                  <button id="btn-qst-tymrt" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>桃捷</span></button>
-                  <button id="btn-qst-allmrt" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>全捷運</span></button>
-                  <button id="btn-qst-lrt" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>全輕軌</span></button>
-                  <button id="btn-qst-tra-coast" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>台鐵海線</span></button>
-                  <button id="btn-qst-tra-mountain" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>台鐵山線</span></button>
-                  <button id="btn-qst-tra-west" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>台鐵西部主線</span></button>
-                  <button id="btn-qst-tra-east" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>台鐵東部主線</span></button>
-                  <button id="btn-qst-tra-branch" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>台鐵支線</span></button>
-                  <button id="btn-qst-tra-all" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-sky-600/20 text-sky-200 border border-sky-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>台鐵全線</span></button>
-                  <button id="btn-qst-thsr" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-orange-500/20 text-orange-300 border border-orange-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>高鐵</span></button>
-                  <button id="btn-qst-main-all" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>全(不含休閒纜車台車)</span></button>
-                  <button id="btn-qst-heritage" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-emerald-600/20 text-emerald-300 border border-emerald-600/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>林鐵/糖鐵/纜車</span></button>
-                  <button id="btn-qst-all" type="button" class="station-preset-btn px-2 py-1 rounded-xl bg-amber-600/20 text-amber-200 border border-amber-500/40 text-[11px] font-bold flex items-center gap-1"><input type="checkbox" class="preset-chk w-3 h-3 rounded" /><span>含休閒全選</span></button>
+                  <div id="btn-qst-tpemrt" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>北捷</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-khmrt" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>高捷</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-tcmrt" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>中捷</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-tymrt" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>桃捷</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-allmrt" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>全捷運</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-lrt" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>全輕軌</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-tra-coast" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>台鐵海線</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-tra-mountain" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>台鐵山線</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-tra-west" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>台鐵西部主線</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-tra-east" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>台鐵東部主線</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-tra-branch" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>台鐵支線</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-tra-all" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>台鐵全線</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-thsr" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>高鐵</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-main-all" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>全(不含休閒纜車台車)</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-heritage" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>林鐵/糖鐵/纜車</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
+                  <div id="btn-qst-all" data-accent="pink" data-state="off" class="station-preset-btn geo-select-card geo-compact"><button type="button" class="geo-solo-btn"><span>含休閒全選</span></button><button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill">+</span></button></div>
                 </div>
 
                 <div id="scope-stations-grid" class="space-y-2 pt-1"></div>
@@ -1252,18 +1264,18 @@
                   </span>
                 </div>
                 <div class="grid grid-cols-3 gap-2">
-                  <button type="button" data-poi-cat="airport" data-poi-sub="intl" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
-                    <span>🌐 國際</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">4</span>
-                  </button>
-                  <button type="button" data-poi-cat="airport" data-poi-sub="domestic" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
-                    <span>🏠 國內</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">16</span>
-                  </button>
-                  <button type="button" data-poi-cat="airport" data-poi-sub="military" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
-                    <span>🎖️ 軍機場</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">15</span>
-                  </button>
+                  <div data-poi-cat="airport" data-poi-sub="intl" data-accent="sky" data-state="off" class="poi-subtype-btn geo-select-card">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🌐 國際</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">4</span></span></button>
+                  </div>
+                  <div data-poi-cat="airport" data-poi-sub="domestic" data-accent="sky" data-state="off" class="poi-subtype-btn geo-select-card">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🏠 國內</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">16</span></span></button>
+                  </div>
+                  <div data-poi-cat="airport" data-poi-sub="military" data-accent="sky" data-state="off" class="poi-subtype-btn geo-select-card">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🎖️ 軍機場</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">15</span></span></button>
+                  </div>
                 </div>
               </div>
 
@@ -1277,33 +1289,33 @@
                 </div>
                 <div class="text-[11px] font-bold text-slate-400">預設港類</div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button type="button" data-poi-cat="port" data-poi-sub="intl_commercial" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
-                    <span>🚢 國際商港</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">4</span>
-                  </button>
-                  <button type="button" data-poi-cat="port" data-poi-sub="intl_aux" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
-                    <span>⚓ 國際輔助港</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">3</span>
-                  </button>
-                  <button type="button" data-poi-cat="port" data-poi-sub="fishery_cat1" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5">
-                    <span>🐟 第一類漁港(大)</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">9</span>
-                  </button>
+                  <div data-poi-cat="port" data-poi-sub="intl_commercial" data-accent="teal" data-state="off" class="poi-subtype-btn geo-select-card">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🚢 國際商港</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">4</span></span></button>
+                  </div>
+                  <div data-poi-cat="port" data-poi-sub="intl_aux" data-accent="teal" data-state="off" class="poi-subtype-btn geo-select-card">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">⚓ 國際輔助港</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">3</span></span></button>
+                  </div>
+                  <div data-poi-cat="port" data-poi-sub="fishery_cat1" data-accent="teal" data-state="off" class="poi-subtype-btn geo-select-card">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🐟 第一類漁港(大)</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">9</span></span></button>
+                  </div>
                 </div>
                 <div class="text-[11px] font-bold text-amber-300 pt-1">進階港類（預設關閉）</div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button type="button" data-poi-cat="port" data-poi-sub="fishery_cat2" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="農業部113年公告全台共 212 處第二類漁港；本項精選 24 處具代表性知名漁港（含本島與離島）">
-                    <span>🎣 第二類漁港(精選)</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">24</span>
-                  </button>
-                  <button type="button" data-poi-cat="port" data-poi-sub="industrial" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="和平工業專用港、麥寮工業專用港">
-                    <span>🏭 工業港</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">2</span>
-                  </button>
-                  <button type="button" data-poi-cat="port" data-poi-sub="petro_lng" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="永安、臺中、觀塘液化天然氣接收港及麥寮石化工業港（與工業港自動去重）">
-                    <span>⛽ 石化天然氣港</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">4</span>
-                  </button>
+                  <div data-poi-cat="port" data-poi-sub="fishery_cat2" data-accent="teal" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="農業部113年公告全台共 212 處第二類漁港；本項精選 24 處具代表性知名漁港（含本島與離島）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🎣 第二類漁港(精選)</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">24</span></span></button>
+                  </div>
+                  <div data-poi-cat="port" data-poi-sub="industrial" data-accent="teal" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="和平工業專用港、麥寮工業專用港">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🏭 工業港</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">2</span></span></button>
+                  </div>
+                  <div data-poi-cat="port" data-poi-sub="petro_lng" data-accent="teal" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="永安、臺中、觀塘液化天然氣接收港及麥寮石化工業港（與工業港自動去重）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">⛽ 石化天然氣港</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">4</span></span></button>
+                  </div>
                 </div>
               </div>
 
@@ -1316,18 +1328,18 @@
                   </span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button type="button" data-poi-cat="reservoir" data-poi-sub="res_major" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="經濟部水利署主要水情監測水庫（21 座）">
-                    <span>💧 主要水庫</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">21</span>
-                  </button>
-                  <button type="button" data-poi-cat="reservoir" data-poi-sub="res_other" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="其他知名本島水庫（14 座，含澄清湖、虎頭埤、青草湖、美濃湖、龍鑾潭等雙屬性湖庫）">
-                    <span>🌊 其他本島水庫</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">14</span>
-                  </button>
-                  <button type="button" data-poi-cat="reservoir" data-poi-sub="res_offshore" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="澎湖、金門、馬祖、綠島代表性離島水庫（6 座）">
-                    <span>🏝️ 離島水庫</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">6</span>
-                  </button>
+                  <div data-poi-cat="reservoir" data-poi-sub="res_major" data-accent="blue" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="經濟部水利署主要水情監測水庫（21 座）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">💧 主要水庫</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">21</span></span></button>
+                  </div>
+                  <div data-poi-cat="reservoir" data-poi-sub="res_other" data-accent="blue" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="其他知名本島水庫（14 座，含澄清湖、虎頭埤、青草湖、美濃湖、龍鑾潭等雙屬性湖庫）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🌊 其他本島水庫</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">14</span></span></button>
+                  </div>
+                  <div data-poi-cat="reservoir" data-poi-sub="res_offshore" data-accent="blue" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="澎湖、金門、馬祖、綠島代表性離島水庫（6 座）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🏝️ 離島水庫</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">6</span></span></button>
+                  </div>
                 </div>
               </div>
 
@@ -1340,14 +1352,14 @@
                   </span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button type="button" data-poi-cat="lake" data-poi-sub="lake_scenic" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="觀光與平地湖泊（22 座，含日月潭、澄清湖、虎頭埤、青草湖、美濃湖、龍鑾潭）">
-                    <span>🏞️ 觀光與平地湖泊</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">22</span>
-                  </button>
-                  <button type="button" data-poi-cat="lake" data-poi-sub="lake_alpine" class="poi-subtype-btn p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-1.5" data-tip="高山與秘境湖泊（12 座：嘉明湖、翠峰湖、松蘿湖、明池、七彩湖、翠池、大小鬼湖等）">
-                    <span>⛰️ 高山與秘境湖泊</span>
-                    <span class="poi-sub-count font-mono-num text-[11px] px-1.5 py-0.5 rounded-md bg-slate-900/80">12</span>
-                  </button>
+                  <div data-poi-cat="lake" data-poi-sub="lake_scenic" data-accent="emerald" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="觀光與平地湖泊（22 座，含日月潭、澄清湖、虎頭埤、青草湖、美濃湖、龍鑾潭）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🏞️ 觀光與平地湖泊</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">22</span></span></button>
+                  </div>
+                  <div data-poi-cat="lake" data-poi-sub="lake_alpine" data-accent="emerald" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="高山與秘境湖泊（12 座：嘉明湖、翠峰湖、松蘿湖、明池、七彩湖、翠池、大小鬼湖等）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">⛰️ 高山與秘境湖泊</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">12</span></span></button>
+                  </div>
                 </div>
               </div>
             </div>
