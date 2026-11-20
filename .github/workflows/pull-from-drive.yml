@@ -38,13 +38,13 @@ jobs:
           mkdir -p /tmp/incoming_src
           unzip -o /tmp/incoming.zip -d /tmp/incoming_src
 
-          # 若 ZIP 內多包了一層資料夾，自動剝除那一層
           SRC=/tmp/incoming_src
           if [ "$(ls -A /tmp/incoming_src | wc -l)" -eq 1 ] && [ -d "/tmp/incoming_src/$(ls -A /tmp/incoming_src)" ]; then
             SRC="/tmp/incoming_src/$(ls -A /tmp/incoming_src)"
           fi
 
-          rsync -av --exclude='.git' --exclude='.github' "$SRC/" ./
+          [ -f "$SRC/.commit-msg" ] && cp "$SRC/.commit-msg" /tmp/commit_msg.txt || rm -f /tmp/commit_msg.txt
+          rsync -av --exclude='.git' --exclude='.github' --exclude='.commit-msg' "$SRC/" ./
           rm -f /tmp/sa.json /tmp/incoming.zip
 
       - name: Commit and push if changed
@@ -56,5 +56,9 @@ jobs:
             echo "No changes to commit."
             exit 0
           fi
-          git commit -m "chore: sync updates from Google Drive"
+          if [ -s /tmp/commit_msg.txt ]; then
+            git commit -F /tmp/commit_msg.txt
+          else
+            git commit -m "chore: sync updates from Google Drive"
+          fi
           git push
