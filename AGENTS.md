@@ -20,7 +20,7 @@
 | `data/admin-data.js` | ~235 | 台灣 22 縣市與 368 鄉鎮市區靜態清單、山區 (`TAIWAN_MOUNTAIN_SET`)、西部平原 (`TAIWAN_WEST_PLAIN_SET`)、東部平原 (`TAIWAN_EAST_PLAIN_SET`) 與濱海集合 | `TAIWAN_ADMIN_DATA`, `ALL_TOWNS`, `TAIWAN_MOUNTAIN_SET`, `TAIWAN_WEST_PLAIN_SET`, `TAIWAN_EAST_PLAIN_SET`, `TAIWAN_MAINLAND_OFFSHORE_SET` |
 | `data/transport-data.js` | ~845 | 全台交通路網與軌道車站清單（高鐵、台鐵西部/東部/支線、北桃中捷高捷、輕軌、纜車、林鐵、糖鐵） | `TAIWAN_SELECTABLE_LINES`, `LINE_DISPLAY_META`, `STATION_TOWNSHIP_MAP`, `resolveStationTownInfo()`, `getLineDisplayName()` |
 | `data/railisland-shapes.js` | ~1 | 開放資料鐵道與捷運真實幾何線段 (`MultiLineString`) | `RAILISLAND_SHAPES`, `OPEN_RAIL_ATTRIBUTION` |
-| `data/poi-data.js` | ~560 | 台灣機場（國際/國內/軍用，軍民合用多標籤）與港口（國際商港/國際輔助港/第一類漁港；進階第二類漁港/工業港/石化天然氣港）精準經緯度資料集 | `POI_CATEGORY_META`, `AIRPORT_SUBTYPES`, `PORT_SUBTYPES`, `TAIWAN_POI_DATA`, `resolvePoiTownId()` |
+| `data/poi-data.js` | ~560 | 台灣機場（24座）、港口（45座；官方第一類漁港9座＋精選第二類漁港24/212座）、水庫（41座：主要21/其他本島14/離島6）與湖泊（34座：觀光平地22/高山秘境12，6座雙屬性湖庫跨類別去重）精準經緯度資料集 | `POI_CATEGORY_META`, `AIRPORT_SUBTYPES`, `PORT_SUBTYPES`, `RESERVOIR_SUBTYPES`, `LAKE_SUBTYPES`, `TAIWAN_POI_DATA`, `resolvePoiTownId()` |
 | `js/poi-engine.js` | ~300 | 機場與港口核心引擎：多標籤自動去重計數、區域篩選、答題別名比對與專屬地圖標記圖層 (`poiMarkerPane`) | `getActiveQuizPois()`, `countPoisBySubType()`, `countUniquePoisForSubTypes()`, `tryMatchAndUnlockPoi()`, `initPoiMapEngine()`, `refreshPoiMapLayer()` |
 | `TODO.md` | ~60 | 第二階段待實作題庫（水庫、湖泊、島嶼）調查與實作注意事項 | 待辦規劃文件 |
 | `js/state.js` | ~290 | 全域狀態物件 (`state`，含 `settingsTab`、`bannedDevices`、`roomHasPassword`)、穩定裝置識別碼 (`getOrCreateStableDeviceId()`)、觀戰視角代理 (`getActiveViewState()`)、防作弊權限守衛 (`canLocalModifyGameConfig()`) | `state`, `getActiveViewState()`, `canLocalModifyGameConfig()`, `playTone()` |

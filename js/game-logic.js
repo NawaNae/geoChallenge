@@ -242,7 +242,7 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
   const isStationQuizActive = Boolean(state.stationQuizEnabled && state.quizStationLines && state.quizStationLines.size > 0);
   const isPurePoiQuiz = isPoiQuizActive && !state.regionQuizEnabled && !isStationQuizActive;
   const isTargetingPoi = (state.playMode === "target_click" || state.playMode === "target_random") && Boolean(state.targetPoiId);
-  const looksLikePoiInput = /(機場|基地|航空站|桃機|松機|清泉崗|漁港|商港|工業港|天然氣港|接收港|接收站|港|一接|二接|三接)$/.test(core) || /^[A-Za-z]{3,4}$/.test(core);
+  const looksLikePoiInput = /(機場|基地|航空站|桃機|松機|清泉崗|漁港|商港|工業港|天然氣港|接收港|接收站|港|一接|二接|三接|水庫|攔河堰|人工湖|大壩|壩|湖|潭|池|埤|窟|水漾森林|天使的眼淚)$/.test(core) || /^[A-Za-z]{3,4}$/.test(core);
 
   if (isPoiQuizActive && (isTargetingPoi || isPurePoiQuiz || looksLikePoiInput)) {
     const poiRes = tryMatchAndUnlockPoi(core, isAutoCheck);
@@ -252,11 +252,16 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
         return false;
       }
       const p = poiRes.poi;
-      const catMeta = POI_CATEGORY_META[p.category] || { icon: "📍", label: "地標" };
+      const displayCat = typeof getPoiDisplayCategory === "function" ? getPoiDisplayCategory(p) : p.category;
+      const catMeta = POI_CATEGORY_META[displayCat] || { icon: "📍", label: "地標" };
       state.lastTargetLat = p.lat;
       state.lastTargetLng = p.lng;
       if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
-      onSuccessfulUnlock(`${catMeta.icon} 解鎖${catMeta.label}：${p.name}（${p.countyName}${p.townName}）`, p.shortName, Boolean(isTargetingPoi));
+      const unlockedList = Array.isArray(poiRes.unlockedList) && poiRes.unlockedList.length > 1 ? poiRes.unlockedList : null;
+      const unlockMsg = unlockedList
+        ? `${catMeta.icon} 同時解鎖 ${unlockedList.length} 處${catMeta.label}：${unlockedList.map((x) => x.name).join("、")}`
+        : `${catMeta.icon} 解鎖${catMeta.label}：${p.name}（${p.countyName}${p.townName}）`;
+      onSuccessfulUnlock(unlockMsg, p.shortName, Boolean(isTargetingPoi));
       if (isTargetingPoi) {
         if (state.playMode === "target_random") {
           pickNextTargetRegion();

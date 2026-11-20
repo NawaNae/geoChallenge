@@ -800,6 +800,22 @@ input, select {
   color: #99f6e4;
 }
 
+/* Reservoir: Water-drop inspired rounded badge (blue accent) */
+.tw-poi-reservoir {
+  border-radius: 50% 50% 50% 6px;
+  border: 2px solid #60a5fa;
+  background: rgba(15, 23, 42, 0.92);
+  color: #bfdbfe;
+}
+
+/* Lake: Soft circular emerald badge */
+.tw-poi-lake {
+  border-radius: 9999px;
+  border: 2px solid #34d399;
+  background: rgba(15, 23, 42, 0.92);
+  color: #a7f3d0;
+}
+
 /* States */
 .tw-poi-state-unlocked {
   border-color: #34d399 !important;

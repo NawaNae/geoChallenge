@@ -23,6 +23,20 @@ const POI_CATEGORY_META = {
     icon: "⚓",
     accent: "#2dd4bf",
     badgeClass: "bg-teal-500/20 text-teal-300 border-teal-400/40"
+  },
+  reservoir: {
+    id: "reservoir",
+    label: "水庫",
+    icon: "💧",
+    accent: "#60a5fa",
+    badgeClass: "bg-blue-500/20 text-blue-300 border-blue-400/40"
+  },
+  lake: {
+    id: "lake",
+    label: "湖泊",
+    icon: "🏞️",
+    accent: "#34d399",
+    badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
   }
 };
 
@@ -37,10 +51,21 @@ const PORT_SUBTYPES = [
   { id: "intl_commercial", label: "國際商港", shortLabel: "國際商港", icon: "🚢", tier: "simple", isDefault: true },
   { id: "intl_aux", label: "國際輔助港", shortLabel: "國際輔助港", icon: "⚓", tier: "simple", isDefault: true },
   { id: "fishery_cat1", label: "第一類漁港(大)", shortLabel: "一類漁港", icon: "🐟", tier: "simple", isDefault: true },
-  // Advanced selectable (default OFF)
-  { id: "fishery_cat2", label: "第二類漁港(小)", shortLabel: "二類漁港", icon: "🎣", tier: "advanced", isDefault: false },
+  // Advanced selectable (default OFF — MOA 113/10/24 lists 212 Cat-2 ports; curated 24 representative ports)
+  { id: "fishery_cat2", label: "第二類漁港(精選)", shortLabel: "二類精選", icon: "🎣", tier: "advanced", isDefault: false },
   { id: "industrial", label: "工業港", shortLabel: "工業港", icon: "🏭", tier: "advanced", isDefault: false },
   { id: "petro_lng", label: "石化天然氣港", shortLabel: "石化天然氣", icon: "⛽", tier: "advanced", isDefault: false }
+];
+
+const RESERVOIR_SUBTYPES = [
+  { id: "res_major", label: "主要水庫", shortLabel: "主要水庫", icon: "💧", tier: "simple", isDefault: true },
+  { id: "res_other", label: "其他本島水庫", shortLabel: "其他本島", icon: "🌊", tier: "advanced", isDefault: false },
+  { id: "res_offshore", label: "離島水庫", shortLabel: "離島水庫", icon: "🏝️", tier: "advanced", isDefault: false }
+];
+
+const LAKE_SUBTYPES = [
+  { id: "lake_scenic", label: "觀光與平地湖泊", shortLabel: "觀光平地", icon: "🏞️", tier: "simple", isDefault: true },
+  { id: "lake_alpine", label: "高山與秘境湖泊", shortLabel: "高山秘境", icon: "⛰️", tier: "advanced", isDefault: false }
 ];
 
 const TAIWAN_POI_DATA = [
@@ -985,6 +1010,924 @@ const TAIWAN_POI_DATA = [
     lat: 25.0411,
     lng: 121.0445,
     note: "液化天然氣接收港（三接）"
+  }  ,
+  // ----------------------------------------------------------------
+  // 💧 RESERVOIRS — Major (21)
+  // ----------------------------------------------------------------
+  {
+    id: "res_xinshan",
+    category: "reservoir",
+    name: "新山水庫",
+    shortName: "新山水庫",
+    aliases: ["基隆新山水庫"],
+    subTypes: ["res_major"],
+    countyName: "基隆市",
+    townName: "安樂區",
+    lat: 25.1282,
+    lng: 121.7186,
+    note: "主要水庫（基隆河支流）"
+  },
+  {
+    id: "res_feitsui",
+    category: "reservoir",
+    name: "翡翠水庫",
+    shortName: "翡翠水庫",
+    aliases: ["臺北翡翠水庫", "台北翡翠水庫"],
+    subTypes: ["res_major"],
+    countyName: "新北市",
+    townName: "石碇區",
+    lat: 24.9092,
+    lng: 121.5797,
+    note: "主要水庫（北勢溪）"
+  },
+  {
+    id: "res_shimen",
+    category: "reservoir",
+    name: "石門水庫",
+    shortName: "石門水庫",
+    aliases: ["桃園石門水庫"],
+    subTypes: ["res_major"],
+    countyName: "桃園市",
+    townName: "大溪區",
+    lat: 24.8115,
+    lng: 121.2452,
+    note: "主要水庫（大漢溪）"
+  },
+  {
+    id: "res_baoshan",
+    category: "reservoir",
+    name: "寶山水庫",
+    shortName: "寶山水庫",
+    aliases: ["寶一水庫", "寶山第一水庫"],
+    subTypes: ["res_major"],
+    countyName: "新竹縣",
+    townName: "寶山鄉",
+    lat: 24.7562,
+    lng: 121.0504,
+    note: "主要水庫（柴梳山溪）"
+  },
+  {
+    id: "res_baoshan2",
+    category: "reservoir",
+    name: "寶山第二水庫",
+    shortName: "寶二水庫",
+    aliases: ["寶二水庫", "寶二", "新竹寶二水庫"],
+    subTypes: ["res_major"],
+    countyName: "新竹縣",
+    townName: "寶山鄉",
+    lat: 24.7379,
+    lng: 121.0365,
+    note: "主要水庫（石井溪）"
+  },
+  {
+    id: "res_yongheshan",
+    category: "reservoir",
+    name: "永和山水庫",
+    shortName: "永和山水庫",
+    aliases: ["東興水庫"],
+    subTypes: ["res_major"],
+    countyName: "苗栗縣",
+    townName: "三灣鄉",
+    lat: 24.6565,
+    lng: 120.9228,
+    note: "主要水庫（中港溪）"
+  },
+  {
+    id: "res_mingde",
+    category: "reservoir",
+    name: "明德水庫",
+    shortName: "明德水庫",
+    aliases: ["後龍水庫"],
+    subTypes: ["res_major"],
+    countyName: "苗栗縣",
+    townName: "頭屋鄉",
+    lat: 24.5855,
+    lng: 120.8924,
+    note: "主要水庫（老田寮溪）"
+  },
+  {
+    id: "res_liyutan",
+    category: "reservoir",
+    name: "鯉魚潭水庫",
+    shortName: "鯉魚潭水庫",
+    aliases: ["苗栗鯉魚潭水庫", "三義鯉魚潭水庫", "苗栗鯉魚潭"],
+    subTypes: ["res_major"],
+    countyName: "苗栗縣",
+    townName: "三義鄉",
+    lat: 24.3435,
+    lng: 120.7834,
+    note: "主要水庫（大安溪支流）"
+  },
+  {
+    id: "res_deji",
+    category: "reservoir",
+    name: "德基水庫",
+    shortName: "德基水庫",
+    aliases: ["達見水庫"],
+    subTypes: ["res_major"],
+    countyName: "臺中市",
+    townName: "和平區",
+    lat: 24.2564,
+    lng: 121.1683,
+    note: "主要水庫（大甲溪）"
+  },
+  {
+    id: "res_shigang",
+    category: "reservoir",
+    name: "石岡壩",
+    shortName: "石岡壩",
+    aliases: ["石岡水庫", "石岡攔河堰"],
+    subTypes: ["res_major"],
+    countyName: "臺中市",
+    townName: "石岡區",
+    lat: 24.2817,
+    lng: 120.7697,
+    note: "主要攔河堰（大甲溪）"
+  },
+  {
+    id: "res_wushe",
+    category: "reservoir",
+    name: "霧社水庫",
+    shortName: "霧社水庫",
+    aliases: ["萬大水庫", "仁愛碧湖"],
+    subTypes: ["res_major"],
+    countyName: "南投縣",
+    townName: "仁愛鄉",
+    lat: 24.0085,
+    lng: 121.1322,
+    note: "主要水庫（霧社溪）"
+  },
+  {
+    id: "res_sunmoonlake",
+    category: "reservoir",
+    categories: ["reservoir", "lake"],
+    name: "日月潭",
+    shortName: "日月潭",
+    aliases: ["日月潭水庫", "水沙連"],
+    subTypes: ["res_major", "lake_scenic"],
+    countyName: "南投縣",
+    townName: "魚池鄉",
+    lat: 23.8595,
+    lng: 120.9159,
+    note: "主要水庫／臺灣最大天然湖泊（跨類別去重）"
+  },
+  {
+    id: "res_hushan",
+    category: "reservoir",
+    name: "湖山水庫",
+    shortName: "湖山水庫",
+    aliases: ["雲林湖山水庫"],
+    subTypes: ["res_major"],
+    countyName: "雲林縣",
+    townName: "斗六市",
+    lat: 23.6942,
+    lng: 120.6258,
+    note: "主要水庫（梅林溪）"
+  },
+  {
+    id: "res_renyitan",
+    category: "reservoir",
+    name: "仁義潭水庫",
+    shortName: "仁義潭水庫",
+    aliases: ["仁義潭"],
+    subTypes: ["res_major"],
+    countyName: "嘉義縣",
+    townName: "番路鄉",
+    lat: 23.4622,
+    lng: 120.5112,
+    note: "主要水庫（八掌溪）"
+  },
+  {
+    id: "res_lantan",
+    category: "reservoir",
+    name: "蘭潭水庫",
+    shortName: "蘭潭水庫",
+    aliases: ["蘭潭", "紅毛埤"],
+    subTypes: ["res_major"],
+    countyName: "嘉義市",
+    townName: "東區",
+    lat: 23.4664,
+    lng: 120.4836,
+    note: "主要水庫（八掌溪）"
+  },
+  {
+    id: "res_baihe",
+    category: "reservoir",
+    name: "白河水庫",
+    shortName: "白河水庫",
+    aliases: ["臺南白河水庫", "台南白河水庫"],
+    subTypes: ["res_major"],
+    countyName: "臺南市",
+    townName: "白河區",
+    lat: 23.3563,
+    lng: 120.4781,
+    note: "主要水庫（急水溪）"
+  },
+  {
+    id: "res_zengwen",
+    category: "reservoir",
+    name: "曾文水庫",
+    shortName: "曾文水庫",
+    aliases: ["臺灣最大水庫"],
+    subTypes: ["res_major"],
+    countyName: "嘉義縣",
+    townName: "大埔鄉",
+    lat: 23.2496,
+    lng: 120.5370,
+    note: "主要水庫（全台容量最大）"
+  },
+  {
+    id: "res_wushantou",
+    category: "reservoir",
+    name: "烏山頭水庫",
+    shortName: "烏山頭水庫",
+    aliases: ["珊瑚潭"],
+    subTypes: ["res_major"],
+    countyName: "臺南市",
+    townName: "官田區",
+    lat: 23.2088,
+    lng: 120.3728,
+    note: "主要水庫（珊瑚潭）"
+  },
+  {
+    id: "res_nanhua",
+    category: "reservoir",
+    name: "南化水庫",
+    shortName: "南化水庫",
+    aliases: ["臺南南化水庫", "台南南化水庫"],
+    subTypes: ["res_major"],
+    countyName: "臺南市",
+    townName: "南化區",
+    lat: 23.0882,
+    lng: 120.5425,
+    note: "主要水庫（後堀溪）"
+  },
+  {
+    id: "res_agongdian",
+    category: "reservoir",
+    name: "阿公店水庫",
+    shortName: "阿公店水庫",
+    aliases: ["燕巢阿公店水庫"],
+    subTypes: ["res_major"],
+    countyName: "高雄市",
+    townName: "燕巢區",
+    lat: 22.8114,
+    lng: 120.3471,
+    note: "主要水庫（阿公店溪）"
+  },
+  {
+    id: "res_mudan",
+    category: "reservoir",
+    name: "牡丹水庫",
+    shortName: "牡丹水庫",
+    aliases: ["屏東牡丹水庫"],
+    subTypes: ["res_major"],
+    countyName: "屏東縣",
+    townName: "牡丹鄉",
+    lat: 22.1331,
+    lng: 120.7819,
+    note: "主要水庫（四重溪）"
+  },
+  // ----------------------------------------------------------------
+  // 💧 RESERVOIRS — Other Mainland (14, including 5 dual reservoir/lake)
+  // ----------------------------------------------------------------
+  {
+    id: "res_xishi",
+    category: "reservoir",
+    name: "西勢水庫",
+    shortName: "西勢水庫",
+    aliases: ["暖暖水庫"],
+    subTypes: ["res_other"],
+    countyName: "基隆市",
+    townName: "暖暖區",
+    lat: 25.0835,
+    lng: 121.7418,
+    note: "其他水庫（台灣首座自來水水庫）"
+  },
+  {
+    id: "res_dapu",
+    category: "reservoir",
+    name: "大埔水庫",
+    shortName: "大埔水庫",
+    aliases: ["峨眉湖"],
+    subTypes: ["res_other"],
+    countyName: "新竹縣",
+    townName: "峨眉鄉",
+    lat: 24.6801,
+    lng: 120.9854,
+    note: "其他水庫（峨眉湖）"
+  },
+  {
+    id: "res_qingcao",
+    category: "lake",
+    categories: ["reservoir", "lake"],
+    name: "青草湖",
+    shortName: "青草湖",
+    aliases: ["青草湖水庫", "新竹青草湖"],
+    subTypes: ["res_other", "lake_scenic"],
+    countyName: "新竹市",
+    townName: "東區",
+    lat: 24.7731,
+    lng: 120.9718,
+    note: "水庫／觀光湖泊（跨類別去重）"
+  },
+  {
+    id: "res_guguan",
+    category: "reservoir",
+    name: "谷關水庫",
+    shortName: "谷關水庫",
+    aliases: ["谷關壩"],
+    subTypes: ["res_other"],
+    countyName: "臺中市",
+    townName: "和平區",
+    lat: 24.2054,
+    lng: 121.0079,
+    note: "其他水庫（大甲溪發電）"
+  },
+  {
+    id: "res_mingtan",
+    category: "reservoir",
+    name: "明潭水庫",
+    shortName: "明潭水庫",
+    aliases: ["明潭下池水庫"],
+    subTypes: ["res_other"],
+    countyName: "南投縣",
+    townName: "水里鄉",
+    lat: 23.8358,
+    lng: 120.8685,
+    note: "其他水庫（抽蓄發電下池）"
+  },
+  {
+    id: "res_minghu",
+    category: "reservoir",
+    name: "明湖水庫",
+    shortName: "明湖水庫",
+    aliases: ["大觀二廠下池"],
+    subTypes: ["res_other"],
+    countyName: "南投縣",
+    townName: "水里鄉",
+    lat: 23.8540,
+    lng: 120.8758,
+    note: "其他水庫（抽蓄發電下池）"
+  },
+  {
+    id: "res_niaozuitan",
+    category: "reservoir",
+    name: "鳥嘴潭人工湖",
+    shortName: "鳥嘴潭人工湖",
+    aliases: ["鳥嘴潭", "鳥嘴潭水庫", "草屯鳥嘴潭"],
+    subTypes: ["res_other"],
+    countyName: "南投縣",
+    townName: "草屯鎮",
+    lat: 23.9912,
+    lng: 120.7332,
+    note: "其他水庫（烏溪人工湖）"
+  },
+  {
+    id: "res_jianshanpi",
+    category: "reservoir",
+    name: "尖山埤水庫",
+    shortName: "尖山埤水庫",
+    aliases: ["尖山埤"],
+    subTypes: ["res_other"],
+    countyName: "臺南市",
+    townName: "柳營區",
+    lat: 23.2654,
+    lng: 120.3917,
+    note: "其他水庫（急水溪支流）"
+  },
+  {
+    id: "res_hutoupi",
+    category: "reservoir",
+    categories: ["reservoir", "lake"],
+    name: "虎頭埤水庫",
+    shortName: "虎頭埤",
+    aliases: ["虎頭埤", "新化虎頭埤"],
+    subTypes: ["res_other", "lake_scenic"],
+    countyName: "臺南市",
+    townName: "新化區",
+    lat: 23.0252,
+    lng: 120.3372,
+    note: "台灣第一座水庫／觀光湖泊（跨類別去重）"
+  },
+  {
+    id: "res_deyuanpi",
+    category: "reservoir",
+    name: "德元埤水庫",
+    shortName: "德元埤水庫",
+    aliases: ["德元埤"],
+    subTypes: ["res_other"],
+    countyName: "臺南市",
+    townName: "柳營區",
+    lat: 23.2689,
+    lng: 120.3455,
+    note: "其他水庫（平地灌溉水庫）"
+  },
+  {
+    id: "res_fengshan",
+    category: "reservoir",
+    name: "鳳山水庫",
+    shortName: "鳳山水庫",
+    aliases: ["高雄鳳山水庫"],
+    subTypes: ["res_other"],
+    countyName: "高雄市",
+    townName: "小港區",
+    lat: 22.5335,
+    lng: 120.3918,
+    note: "其他水庫（離槽工業給水）"
+  },
+  {
+    id: "res_chengqing",
+    category: "lake",
+    categories: ["reservoir", "lake"],
+    name: "澄清湖",
+    shortName: "澄清湖",
+    aliases: ["澄清湖水庫", "大貝湖", "高雄澄清湖"],
+    subTypes: ["res_other", "lake_scenic"],
+    countyName: "高雄市",
+    townName: "鳥松區",
+    lat: 22.6606,
+    lng: 120.3511,
+    note: "水庫／觀光湖泊（跨類別去重）"
+  },
+  {
+    id: "res_meinong",
+    category: "lake",
+    categories: ["reservoir", "lake"],
+    name: "美濃湖",
+    shortName: "美濃湖",
+    aliases: ["美濃湖水庫", "中正湖", "瀰濃湖"],
+    subTypes: ["res_other", "lake_scenic"],
+    countyName: "高雄市",
+    townName: "美濃區",
+    lat: 22.9056,
+    lng: 120.5517,
+    note: "水庫／人工湖泊（跨類別去重）"
+  },
+  {
+    id: "res_longluan",
+    category: "lake",
+    categories: ["reservoir", "lake"],
+    name: "龍鑾潭",
+    shortName: "龍鑾潭",
+    aliases: ["龍鑾潭水庫", "恆春龍鑾潭"],
+    subTypes: ["res_other", "lake_scenic"],
+    countyName: "屏東縣",
+    townName: "恆春鎮",
+    lat: 21.9765,
+    lng: 120.7368,
+    note: "水庫／濕地湖泊（跨類別去重）"
+  },
+  // ----------------------------------------------------------------
+  // 💧 RESERVOIRS — Offshore Islands (6)
+  // ----------------------------------------------------------------
+  {
+    id: "res_chenggong_ph",
+    category: "reservoir",
+    name: "成功水庫",
+    shortName: "成功水庫",
+    aliases: ["澎湖成功水庫"],
+    subTypes: ["res_offshore"],
+    countyName: "澎湖縣",
+    townName: "湖西鄉",
+    lat: 23.5518,
+    lng: 119.6197,
+    note: "離島水庫（澎湖最大水庫）"
+  },
+  {
+    id: "res_xingren_ph",
+    category: "reservoir",
+    name: "興仁水庫",
+    shortName: "興仁水庫",
+    aliases: ["澎湖興仁水庫"],
+    subTypes: ["res_offshore"],
+    countyName: "澎湖縣",
+    townName: "馬公市",
+    lat: 23.5418,
+    lng: 119.6054,
+    note: "離島水庫（澎湖）"
+  },
+  {
+    id: "res_qimei_ph",
+    category: "reservoir",
+    name: "七美水庫",
+    shortName: "七美水庫",
+    aliases: ["澎湖七美水庫"],
+    subTypes: ["res_offshore"],
+    countyName: "澎湖縣",
+    townName: "七美鄉",
+    lat: 23.2044,
+    lng: 119.4292,
+    note: "離島水庫（澎湖）"
+  },
+  {
+    id: "res_taihu_km",
+    category: "reservoir",
+    name: "太湖水庫",
+    shortName: "太湖水庫",
+    aliases: ["太湖", "金門太湖"],
+    subTypes: ["res_offshore"],
+    countyName: "金門縣",
+    townName: "金湖鎮",
+    lat: 24.4426,
+    lng: 118.4239,
+    note: "離島水庫（金門最大人工湖）"
+  },
+  {
+    id: "res_shengli_mz",
+    category: "reservoir",
+    name: "勝利水庫",
+    shortName: "勝利水庫",
+    aliases: ["馬祖勝利水庫", "南竿勝利水庫"],
+    subTypes: ["res_offshore"],
+    countyName: "連江縣",
+    townName: "南竿鄉",
+    lat: 26.1539,
+    lng: 119.9277,
+    note: "離島水庫（馬祖）"
+  },
+  {
+    id: "res_chouqin_gi",
+    category: "reservoir",
+    name: "酬勤水庫",
+    shortName: "酬勤水庫",
+    aliases: ["綠島水庫", "綠島酬勤水庫"],
+    subTypes: ["res_offshore"],
+    countyName: "臺東縣",
+    townName: "綠島鄉",
+    lat: 22.6584,
+    lng: 121.4822,
+    note: "離島水庫（綠島）"
+  },
+  // ----------------------------------------------------------------
+  // 🏞️ LAKES — Scenic & Lowland (16 pure + 6 dual above = 22)
+  // ----------------------------------------------------------------
+  {
+    id: "lk_qingren",
+    category: "lake",
+    name: "情人湖",
+    shortName: "情人湖",
+    aliases: ["基隆情人湖", "五義埤"],
+    subTypes: ["lake_scenic"],
+    countyName: "基隆市",
+    townName: "安樂區",
+    lat: 25.1583,
+    lng: 121.7061,
+    note: "天然觀光湖泊"
+  },
+  {
+    id: "lk_menghuan",
+    category: "lake",
+    name: "夢幻湖",
+    shortName: "夢幻湖",
+    aliases: ["陽明山夢幻湖", "鴨池"],
+    subTypes: ["lake_scenic"],
+    countyName: "臺北市",
+    townName: "北投區",
+    lat: 25.1669,
+    lng: 121.5603,
+    note: "天然濕地湖泊（臺灣水韭棲地）"
+  },
+  {
+    id: "lk_dahu_tp",
+    category: "lake",
+    name: "大湖",
+    shortName: "大湖",
+    aliases: ["內湖大湖", "大湖公園", "十四份陂"],
+    subTypes: ["lake_scenic"],
+    countyName: "臺北市",
+    townName: "內湖區",
+    lat: 25.0835,
+    lng: 121.6025,
+    note: "半人工觀光湖泊（內湖）"
+  },
+  {
+    id: "lk_bihu_tp",
+    category: "lake",
+    name: "碧湖",
+    shortName: "碧湖",
+    aliases: ["內湖大埤", "碧湖公園", "內湖碧湖"],
+    subTypes: ["lake_scenic"],
+    countyName: "臺北市",
+    townName: "內湖區",
+    lat: 25.0819,
+    lng: 121.5841,
+    note: "半人工觀光湖泊（內湖大埤）"
+  },
+  {
+    id: "lk_jinlong",
+    category: "lake",
+    name: "金龍湖",
+    shortName: "金龍湖",
+    aliases: ["汐止金龍湖", "匠頭埤"],
+    subTypes: ["lake_scenic"],
+    countyName: "新北市",
+    townName: "汐止區",
+    lat: 25.0706,
+    lng: 121.6305,
+    note: "人工觀光湖泊（大臺北最大湖泊）"
+  },
+  {
+    id: "lk_longtan_yilan",
+    category: "lake",
+    name: "龍潭湖",
+    shortName: "龍潭湖",
+    aliases: ["礁溪龍潭湖", "大埤湖"],
+    subTypes: ["lake_scenic"],
+    countyName: "宜蘭縣",
+    townName: "礁溪鄉",
+    lat: 24.7931,
+    lng: 121.7410,
+    note: "天然觀光湖泊（宜蘭五大名湖之首）"
+  },
+  {
+    id: "lk_meihua",
+    category: "lake",
+    name: "梅花湖",
+    shortName: "梅花湖",
+    aliases: ["冬山梅花湖", "大埤"],
+    subTypes: ["lake_scenic"],
+    countyName: "宜蘭縣",
+    townName: "冬山鄉",
+    lat: 24.6442,
+    lng: 121.7327,
+    note: "天然觀光湖泊"
+  },
+  {
+    id: "lk_shuanglianpi",
+    category: "lake",
+    name: "雙連埤",
+    shortName: "雙連埤",
+    aliases: ["員山雙連埤"],
+    subTypes: ["lake_scenic"],
+    countyName: "宜蘭縣",
+    townName: "員山鄉",
+    lat: 24.7501,
+    lng: 121.6401,
+    note: "天然濕地湖泊"
+  },
+  {
+    id: "lk_longtan_dachi",
+    category: "lake",
+    name: "龍潭大池",
+    shortName: "龍潭大池",
+    aliases: ["桃園龍潭大池", "龍潭觀光大池"],
+    subTypes: ["lake_scenic"],
+    countyName: "桃園市",
+    townName: "龍潭區",
+    lat: 24.8658,
+    lng: 121.2108,
+    note: "天然觀光湖泊"
+  },
+  {
+    id: "lk_cihu",
+    category: "lake",
+    name: "慈湖",
+    shortName: "慈湖",
+    aliases: ["前慈湖", "後慈湖", "大溪慈湖", "埤尾"],
+    subTypes: ["lake_scenic"],
+    countyName: "桃園市",
+    townName: "大溪區",
+    lat: 24.8427,
+    lng: 121.2943,
+    note: "半人工觀光湖泊"
+  },
+  {
+    id: "lk_liyutan_puli",
+    category: "lake",
+    name: "埔里鯉魚潭",
+    shortName: "埔里鯉魚潭",
+    aliases: ["鯉魚潭", "南投鯉魚潭", "鯉魚窟"],
+    subTypes: ["lake_scenic"],
+    countyName: "南投縣",
+    townName: "埔里鎮",
+    lat: 23.9636,
+    lng: 120.9963,
+    note: "天然觀光湖泊（南投埔里）"
+  },
+  {
+    id: "lk_qilin",
+    category: "lake",
+    name: "麒麟潭",
+    shortName: "麒麟潭",
+    aliases: ["鹿谷麒麟潭", "大水堀"],
+    subTypes: ["lake_scenic"],
+    countyName: "南投縣",
+    townName: "鹿谷鄉",
+    lat: 23.7498,
+    lng: 120.7798,
+    note: "天然觀光湖泊"
+  },
+  {
+    id: "lk_lianchi",
+    category: "lake",
+    name: "蓮池潭",
+    shortName: "蓮池潭",
+    aliases: ["左營蓮池潭", "高雄蓮池潭"],
+    subTypes: ["lake_scenic"],
+    countyName: "高雄市",
+    townName: "左營區",
+    lat: 22.6836,
+    lng: 120.2967,
+    note: "人工觀光湖泊（龍虎塔）"
+  },
+  {
+    id: "lk_liyutan_hualien",
+    category: "lake",
+    name: "花蓮鯉魚潭",
+    shortName: "花蓮鯉魚潭",
+    aliases: ["鯉魚潭", "壽豐鯉魚潭"],
+    subTypes: ["lake_scenic"],
+    countyName: "花蓮縣",
+    townName: "壽豐鄉",
+    lat: 23.9278,
+    lng: 121.5122,
+    note: "天然觀光湖泊（花東最大內陸湖）"
+  },
+  {
+    id: "lk_dapo",
+    category: "lake",
+    name: "大坡池",
+    shortName: "大坡池",
+    aliases: ["池上大坡池", "大陂池"],
+    subTypes: ["lake_scenic"],
+    countyName: "臺東縣",
+    townName: "池上鄉",
+    lat: 23.1167,
+    lng: 121.2244,
+    note: "天然斷層池與濕地"
+  },
+  {
+    id: "lk_pipa",
+    category: "lake",
+    name: "琵琶湖",
+    shortName: "琵琶湖",
+    aliases: ["臺東琵琶湖", "台東琵琶湖", "臺東森林公園琵琶湖"],
+    subTypes: ["lake_scenic"],
+    countyName: "臺東縣",
+    townName: "臺東市",
+    lat: 22.7647,
+    lng: 121.1636,
+    note: "天然湧泉湖泊（臺東森林公園）"
+  },
+  // ----------------------------------------------------------------
+  // 🏞️ LAKES — Alpine & Secluded (12)
+  // ----------------------------------------------------------------
+  {
+    id: "lk_songluo",
+    category: "lake",
+    name: "松蘿湖",
+    shortName: "松蘿湖",
+    aliases: ["十七歲少女之湖", "松羅湖"],
+    subTypes: ["lake_alpine"],
+    countyName: "新北市",
+    townName: "烏來區",
+    lat: 24.7235,
+    lng: 121.5529,
+    note: "高山秘境湖泊（海拔 1,320m）"
+  },
+  {
+    id: "lk_mingchi",
+    category: "lake",
+    name: "明池",
+    shortName: "明池",
+    aliases: ["明池湖", "池端"],
+    subTypes: ["lake_alpine"],
+    countyName: "宜蘭縣",
+    townName: "大同鄉",
+    lat: 24.6510,
+    lng: 121.4718,
+    note: "高山湖泊（海拔 1,140m）"
+  },
+  {
+    id: "lk_cuifeng",
+    category: "lake",
+    name: "翠峰湖",
+    shortName: "翠峰湖",
+    aliases: ["太平山翠峰湖"],
+    subTypes: ["lake_alpine"],
+    countyName: "宜蘭縣",
+    townName: "大同鄉",
+    lat: 24.5138,
+    lng: 121.6085,
+    note: "全台最大高山湖泊（海拔 1,850m）"
+  },
+  {
+    id: "lk_yuanyang",
+    category: "lake",
+    name: "鴛鴦湖",
+    shortName: "鴛鴦湖",
+    aliases: ["尖石鴛鴦湖"],
+    subTypes: ["lake_alpine"],
+    countyName: "新竹縣",
+    townName: "尖石鄉",
+    lat: 24.5767,
+    lng: 121.4044,
+    note: "高山自然保留區湖泊（海拔 1,670m）"
+  },
+  {
+    id: "lk_cuichi",
+    category: "lake",
+    name: "翠池",
+    shortName: "翠池",
+    aliases: ["雪山翠池"],
+    subTypes: ["lake_alpine"],
+    countyName: "苗栗縣",
+    townName: "泰安鄉",
+    lat: 24.3837,
+    lng: 121.2179,
+    note: "全台海拔最高天然湖泊（海拔 3,520m）"
+  },
+  {
+    id: "lk_shuiyang",
+    category: "lake",
+    name: "水漾森林",
+    shortName: "水漾森林",
+    aliases: ["阿里山水漾森林"],
+    subTypes: ["lake_alpine"],
+    countyName: "嘉義縣",
+    townName: "阿里山鄉",
+    lat: 23.5625,
+    lng: 120.8087,
+    note: "921 地震形成之高山堰塞湖（海拔 1,830m）"
+  },
+  {
+    id: "lk_nanren",
+    category: "lake",
+    name: "南仁湖",
+    shortName: "南仁湖",
+    aliases: ["墾丁南仁湖"],
+    subTypes: ["lake_alpine"],
+    countyName: "屏東縣",
+    townName: "滿州鄉",
+    lat: 22.0833,
+    lng: 120.8617,
+    note: "生態保護區天然濕地湖泊"
+  },
+  {
+    id: "lk_qicai",
+    category: "lake",
+    name: "七彩湖",
+    shortName: "七彩湖",
+    aliases: ["鹿池", "七星湖"],
+    subTypes: ["lake_alpine"],
+    countyName: "花蓮縣",
+    townName: "萬榮鄉",
+    lat: 23.7519,
+    lng: 121.2361,
+    note: "高山湖泊（海拔 2,900m）"
+  },
+  {
+    id: "lk_jiaming",
+    category: "lake",
+    name: "嘉明湖",
+    shortName: "嘉明湖",
+    aliases: ["天使的眼淚", "蛋池"],
+    subTypes: ["lake_alpine"],
+    countyName: "臺東縣",
+    townName: "海端鄉",
+    lat: 23.2934,
+    lng: 121.0345,
+    note: "高山冰斗湖（海拔 3,310m）"
+  },
+  {
+    id: "lk_dagui",
+    category: "lake",
+    name: "大鬼湖",
+    shortName: "大鬼湖",
+    aliases: ["他羅瑪琳池", "茂林大鬼湖"],
+    subTypes: ["lake_alpine"],
+    countyName: "高雄市",
+    townName: "茂林區",
+    lat: 22.8742,
+    lng: 120.8588,
+    note: "高山秘境湖泊（海拔 2,150m）"
+  },
+  {
+    id: "lk_xiaogui",
+    category: "lake",
+    name: "小鬼湖",
+    shortName: "小鬼湖",
+    aliases: ["巴油池"],
+    subTypes: ["lake_alpine"],
+    countyName: "臺東縣",
+    townName: "卑南鄉",
+    lat: 22.7520,
+    lng: 120.8768,
+    note: "高山秘境湖泊（海拔 2,040m）"
+  },
+  {
+    id: "lk_lanyu_tianchi",
+    category: "lake",
+    name: "蘭嶼天池",
+    shortName: "蘭嶼天池",
+    aliases: ["大天池", "蘭嶼大天池"],
+    subTypes: ["lake_alpine"],
+    countyName: "臺東縣",
+    townName: "蘭嶼鄉",
+    lat: 22.0189,
+    lng: 121.5640,
+    note: "火山口湖（蘭嶼）"
   }
 ];
 
@@ -1003,7 +1946,21 @@ function resolvePoiTownId(poi) {
   return poi._townId;
 }
 
+function getPoiCategories(poi) {
+  if (!poi) return [];
+  if (Array.isArray(poi.categories) && poi.categories.length > 0) return poi.categories;
+  return poi.category ? [poi.category] : [];
+}
+
+function poiMatchesCategory(poi, category) {
+  return getPoiCategories(poi).includes(category);
+}
+
 function getPoiSubTypeMeta(category, subTypeId) {
-  const list = category === "airport" ? AIRPORT_SUBTYPES : PORT_SUBTYPES;
+  let list = [];
+  if (category === "airport") list = AIRPORT_SUBTYPES;
+  else if (category === "port") list = PORT_SUBTYPES;
+  else if (category === "reservoir") list = RESERVOIR_SUBTYPES;
+  else if (category === "lake") list = LAKE_SUBTYPES;
   return list.find((s) => s.id === subTypeId) || null;
 }

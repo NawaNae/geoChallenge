@@ -57,20 +57,20 @@ function getLocalGrandCounts() {
       };
     }
   });
-  const activeAirports = activePois.filter((p) => p.category === "airport");
-  if (activeAirports.length > 0) {
-    macroProgress["機場"] = {
-      cur: activeAirports.filter((p) => state.unlockedPois.has(p.id)).length,
-      tot: activeAirports.length
-    };
-  }
-  const activePorts = activePois.filter((p) => p.category === "port");
-  if (activePorts.length > 0) {
-    macroProgress["港口"] = {
-      cur: activePorts.filter((p) => state.unlockedPois.has(p.id)).length,
-      tot: activePorts.length
-    };
-  }
+  [
+    ["airport", "機場"],
+    ["port", "港口"],
+    ["reservoir", "水庫"],
+    ["lake", "湖泊"]
+  ].forEach(([catKey, label]) => {
+    const catList = typeof getActiveQuizPois === "function" ? getActiveQuizPois(catKey) : activePois.filter((p) => p.category === catKey);
+    if (catList.length > 0) {
+      macroProgress[label] = {
+        cur: catList.filter((p) => state.unlockedPois.has(p.id)).length,
+        tot: catList.length
+      };
+    }
+  });
 
   return {
     regionCurrent,
@@ -230,8 +230,12 @@ function getHostSyncConfig(isSettingChange = false, changeLabel = "", changeDeta
     stationQuizEnabled: Boolean(state.stationQuizEnabled),
     airportQuizEnabled: Boolean(state.airportQuizEnabled),
     portQuizEnabled: Boolean(state.portQuizEnabled),
+    reservoirQuizEnabled: Boolean(state.reservoirQuizEnabled),
+    lakeQuizEnabled: Boolean(state.lakeQuizEnabled),
     airportSubTypes: Array.from(state.airportSubTypes || []),
     portSubTypes: Array.from(state.portSubTypes || []),
+    reservoirSubTypes: Array.from(state.reservoirSubTypes || []),
+    lakeSubTypes: Array.from(state.lakeSubTypes || []),
     showStationTerminusHints: Boolean(state.showStationTerminusHints),
     filterStationsByRegion: Boolean(state.filterStationsByRegion),
     allowTargetHints: Boolean(state.allowTargetHints),
@@ -1213,8 +1217,12 @@ function buildProposedConfigFromPatch(patch) {
   if (typeof patch.stationQuizEnabled === "boolean") base.stationQuizEnabled = patch.stationQuizEnabled;
   if (typeof patch.airportQuizEnabled === "boolean") base.airportQuizEnabled = patch.airportQuizEnabled;
   if (typeof patch.portQuizEnabled === "boolean") base.portQuizEnabled = patch.portQuizEnabled;
+  if (typeof patch.reservoirQuizEnabled === "boolean") base.reservoirQuizEnabled = patch.reservoirQuizEnabled;
+  if (typeof patch.lakeQuizEnabled === "boolean") base.lakeQuizEnabled = patch.lakeQuizEnabled;
   if (Array.isArray(patch.airportSubTypes)) base.airportSubTypes = patch.airportSubTypes.slice();
   if (Array.isArray(patch.portSubTypes)) base.portSubTypes = patch.portSubTypes.slice();
+  if (Array.isArray(patch.reservoirSubTypes)) base.reservoirSubTypes = patch.reservoirSubTypes.slice();
+  if (Array.isArray(patch.lakeSubTypes)) base.lakeSubTypes = patch.lakeSubTypes.slice();
   if (patch.difficulty) base.difficulty = patch.difficulty;
   if (patch.playMode) base.playMode = patch.playMode;
   if (patch.selectedCounties) base.selectedCounties = Array.from(patch.selectedCounties);
@@ -3206,11 +3214,23 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   if (typeof cfg.portQuizEnabled === "boolean") {
     state.portQuizEnabled = cfg.portQuizEnabled;
   }
+  if (typeof cfg.reservoirQuizEnabled === "boolean") {
+    state.reservoirQuizEnabled = cfg.reservoirQuizEnabled;
+  }
+  if (typeof cfg.lakeQuizEnabled === "boolean") {
+    state.lakeQuizEnabled = cfg.lakeQuizEnabled;
+  }
   if (Array.isArray(cfg.airportSubTypes)) {
     state.airportSubTypes = new Set(cfg.airportSubTypes);
   }
   if (Array.isArray(cfg.portSubTypes)) {
     state.portSubTypes = new Set(cfg.portSubTypes);
+  }
+  if (Array.isArray(cfg.reservoirSubTypes)) {
+    state.reservoirSubTypes = new Set(cfg.reservoirSubTypes);
+  }
+  if (Array.isArray(cfg.lakeSubTypes)) {
+    state.lakeSubTypes = new Set(cfg.lakeSubTypes);
   }
 
   if (typeof cfg.stationQuizEnabled === "boolean") {

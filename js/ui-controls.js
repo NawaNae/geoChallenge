@@ -27,13 +27,17 @@ function syncConfigButtonsUI() {
   const hasS = Boolean(state.stationQuizEnabled);
   const hasA = Boolean(state.airportQuizEnabled);
   const hasP = Boolean(state.portQuizEnabled);
+  const hasRes = Boolean(state.reservoirQuizEnabled);
+  const hasLk = Boolean(state.lakeQuizEnabled);
 
-  const topicMap = { region: hasR, station: hasS, airport: hasA, port: hasP };
+  const topicMap = { region: hasR, station: hasS, airport: hasA, port: hasP, reservoir: hasRes, lake: hasLk };
   const topicAccent = {
     region: "bg-sky-500/25 border-sky-400 text-white shadow-md",
     station: "bg-pink-500/25 border-pink-400 text-white shadow-md",
     airport: "bg-sky-500/25 border-sky-400 text-white shadow-md",
-    port: "bg-teal-500/25 border-teal-400 text-white shadow-md"
+    port: "bg-teal-500/25 border-teal-400 text-white shadow-md",
+    reservoir: "bg-blue-500/25 border-blue-400 text-white shadow-md",
+    lake: "bg-emerald-500/25 border-emerald-400 text-white shadow-md"
   };
 
   document.querySelectorAll(".topic-chip-btn").forEach((btn) => {
@@ -55,21 +59,29 @@ function syncConfigButtonsUI() {
   const stSec = document.getElementById("scope-station-section");
   const apSec = document.getElementById("scope-airport-section");
   const ptSec = document.getElementById("scope-port-section");
+  const resSec = document.getElementById("scope-reservoir-section");
+  const lkSec = document.getElementById("scope-lake-section");
   const simpleRegBox = document.getElementById("simple-region-box");
   const simpleStBox = document.getElementById("simple-station-box");
   const simpleApBox = document.getElementById("simple-airport-box");
   const simplePtBox = document.getElementById("simple-port-box");
+  const simpleResBox = document.getElementById("simple-reservoir-box");
+  const simpleLkBox = document.getElementById("simple-lake-box");
 
   if (regSec) regSec.classList.toggle("hidden", !hasR);
   if (stSec) stSec.classList.toggle("hidden", !hasS);
   if (apSec) apSec.classList.toggle("hidden", !hasA);
   if (ptSec) ptSec.classList.toggle("hidden", !hasP);
+  if (resSec) resSec.classList.toggle("hidden", !hasRes);
+  if (lkSec) lkSec.classList.toggle("hidden", !hasLk);
   if (simpleRegBox) simpleRegBox.classList.toggle("hidden", !hasR);
   if (simpleStBox) simpleStBox.classList.toggle("hidden", !hasS);
   if (simpleApBox) simpleApBox.classList.toggle("hidden", !hasA);
   if (simplePtBox) simplePtBox.classList.toggle("hidden", !hasP);
+  if (simpleResBox) simpleResBox.classList.toggle("hidden", !hasRes);
+  if (simpleLkBox) simpleLkBox.classList.toggle("hidden", !hasLk);
 
-  const showRegionFilterSwitch = hasR && (hasS || hasA || hasP);
+  const showRegionFilterSwitch = hasR && (hasS || hasA || hasP || hasRes || hasLk);
   const mixedSwitchBar = document.getElementById("mixed-region-rail-switch-bar");
   const wrapSimpleFilter = document.getElementById("wrap-simple-filter-st-region");
   const wrapAdvFilter = document.getElementById("wrap-adv-filter-st-region");
@@ -77,35 +89,47 @@ function syncConfigButtonsUI() {
   if (wrapSimpleFilter) wrapSimpleFilter.classList.toggle("hidden", !hasR);
   if (wrapAdvFilter) wrapAdvFilter.classList.toggle("hidden", !hasR);
 
-  // Sync Airport & Port Subtype Pills (counts + active visual state + deduplicated totals)
+  // Sync Airport, Port, Reservoir & Lake Subtype Pills (counts + active visual state + deduplicated totals)
   if (typeof countPoisBySubType === "function" && typeof countUniquePoisForSubTypes === "function") {
     const applyReg = Boolean(state.filterStationsByRegion && hasR);
+    const poiAccentCls = {
+      airport: "border-sky-400 bg-sky-500/20",
+      port: "border-teal-400 bg-teal-500/20",
+      reservoir: "border-blue-400 bg-blue-500/20",
+      lake: "border-emerald-400 bg-emerald-500/20"
+    };
     document.querySelectorAll(".poi-subtype-btn").forEach((btn) => {
       const cat = btn.getAttribute("data-poi-cat");
       const sub = btn.getAttribute("data-poi-sub");
-      const activeSet = cat === "airport" ? state.airportSubTypes : state.portSubTypes;
+      const activeSet = typeof getEnabledSubTypesForCategory === "function" ? getEnabledSubTypesForCategory(cat) : null;
       const isOn = Boolean(activeSet && activeSet.has(sub));
       const cnt = countPoisBySubType(cat, sub, applyReg);
       const cntEl = btn.querySelector(".poi-sub-count");
       if (cntEl) cntEl.textContent = String(cnt);
-      const onCls = cat === "airport"
-        ? "poi-subtype-btn p-2.5 rounded-xl border border-sky-400 bg-sky-500/20 text-white text-xs font-bold flex items-center justify-between gap-1.5 shadow-sm"
-        : "poi-subtype-btn p-2.5 rounded-xl border border-teal-400 bg-teal-500/20 text-white text-xs font-bold flex items-center justify-between gap-1.5 shadow-sm";
+      const onCls = `poi-subtype-btn p-2.5 rounded-xl border ${poiAccentCls[cat] || "border-sky-400 bg-sky-500/20"} text-white text-xs font-bold flex items-center justify-between gap-1.5 shadow-sm`;
       const offCls = "poi-subtype-btn p-2.5 rounded-xl border border-slate-700 bg-slate-950/80 hover:bg-slate-800 text-slate-300 text-xs font-bold flex items-center justify-between gap-1.5";
       btn.className = isOn ? onCls : offCls;
     });
 
     const apUnique = countUniquePoisForSubTypes("airport", state.airportSubTypes, applyReg);
     const ptUnique = countUniquePoisForSubTypes("port", state.portSubTypes, applyReg);
-    const apBadgeTxt = `去重總計：${apUnique} 座`;
-    const ptBadgeTxt = `去重總計：${ptUnique} 座`;
+    const resUnique = countUniquePoisForSubTypes("reservoir", state.reservoirSubTypes, applyReg);
+    const lkUnique = countUniquePoisForSubTypes("lake", state.lakeSubTypes, applyReg);
     ["simple-airport-total-badge", "adv-airport-total-badge"].forEach((id) => {
       const el = document.getElementById(id);
-      if (el) el.textContent = apBadgeTxt;
+      if (el) el.textContent = `去重總計：${apUnique} 座`;
     });
     ["simple-port-total-badge", "adv-port-total-badge"].forEach((id) => {
       const el = document.getElementById(id);
-      if (el) el.textContent = ptBadgeTxt;
+      if (el) el.textContent = `去重總計：${ptUnique} 座`;
+    });
+    ["simple-reservoir-total-badge", "adv-reservoir-total-badge"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = `已選：${resUnique} 座`;
+    });
+    ["simple-lake-total-badge", "adv-lake-total-badge"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = `已選：${lkUnique} 座`;
     });
 
     const advHint = document.getElementById("simple-port-adv-hint");
@@ -115,7 +139,23 @@ function syncConfigButtonsUI() {
         .map((k) => (getPoiSubTypeMeta("port", k) || {}).shortLabel || k);
       advHint.textContent = advOn.length > 0
         ? `進階港類已開啟：${advOn.join("、")}`
-        : "如需第二類漁港(小)、工業港、石化天然氣港，可至進階設定勾選";
+        : "如需第二類漁港(精選24/212處)、工業港、石化天然氣港，可至進階設定勾選";
+    }
+    const resAdvHint = document.getElementById("simple-reservoir-adv-hint");
+    if (resAdvHint) {
+      const advOn = ["res_other", "res_offshore"]
+        .filter((k) => state.reservoirSubTypes && state.reservoirSubTypes.has(k))
+        .map((k) => (getPoiSubTypeMeta("reservoir", k) || {}).shortLabel || k);
+      resAdvHint.textContent = advOn.length > 0
+        ? `進階水庫已開啟：${advOn.join("、")}`
+        : "如需其他本島水庫（如澄清湖、虎頭埤、鳳山）或離島水庫，可至進階設定勾選";
+    }
+    const lkAdvHint = document.getElementById("simple-lake-adv-hint");
+    if (lkAdvHint) {
+      const hasAlpine = Boolean(state.lakeSubTypes && state.lakeSubTypes.has("lake_alpine"));
+      lkAdvHint.textContent = hasAlpine
+        ? "進階高山秘境湖泊已開啟（嘉明湖、翠峰湖、松蘿湖等）"
+        : "如需高山秘境湖泊（嘉明湖、翠峰湖、松蘿湖、水漾森林等），可至進階設定勾選";
     }
   }
 
@@ -625,6 +665,14 @@ function renderScopeModalGrid() {
   if (typeof isPoiCategoryActive === "function" && isPoiCategoryActive("port")) {
     const ptCnt = getActiveQuizPois("port").length;
     counterParts.push(`⚓ 港口 (${ptCnt} 座)`);
+  }
+  if (typeof isPoiCategoryActive === "function" && isPoiCategoryActive("reservoir")) {
+    const resCnt = getActiveQuizPois("reservoir").length;
+    counterParts.push(`💧 水庫 (${resCnt} 座)`);
+  }
+  if (typeof isPoiCategoryActive === "function" && isPoiCategoryActive("lake")) {
+    const lkCnt = getActiveQuizPois("lake").length;
+    counterParts.push(`🏞️ 湖泊 (${lkCnt} 座)`);
   }
   const fullCounterText = counterParts.length > 0 ? `題庫：${counterParts.join(" ＋ ")}` : "請至少選擇一項題庫";
   if (counterEl) {
@@ -1407,7 +1455,7 @@ function bindAllUIEvents() {
     document.getElementById("session-restore-banner")?.classList.add("hidden");
   });
 
-  // Multi-select Topic Chips (行政區 / 車站 / 機場 / 港口)
+  // Multi-select Topic Chips (行政區 / 車站 / 機場 / 港口 / 水庫 / 湖泊)
   document.querySelectorAll(".topic-chip-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       if (!canLocalModifyGameConfig()) {
@@ -1419,18 +1467,24 @@ function bindAllUIEvents() {
       let nextS = Boolean(state.stationQuizEnabled);
       let nextA = Boolean(state.airportQuizEnabled);
       let nextP = Boolean(state.portQuizEnabled);
+      let nextRes = Boolean(state.reservoirQuizEnabled);
+      let nextLk = Boolean(state.lakeQuizEnabled);
       let nextCounties = new Set(state.selectedCounties);
       let nextTownIds = new Set(state.selectedTownIds);
       let nextLines = new Set(state.quizStationLines);
       let nextApSubs = new Set(state.airportSubTypes);
       let nextPtSubs = new Set(state.portSubTypes);
+      let nextResSubs = new Set(state.reservoirSubTypes);
+      let nextLkSubs = new Set(state.lakeSubTypes);
 
       if (topic === "region") nextR = !nextR;
       else if (topic === "station") nextS = !nextS;
       else if (topic === "airport") nextA = !nextA;
       else if (topic === "port") nextP = !nextP;
+      else if (topic === "reservoir") nextRes = !nextRes;
+      else if (topic === "lake") nextLk = !nextLk;
 
-      if (!nextR && !nextS && !nextA && !nextP) {
+      if (!nextR && !nextS && !nextA && !nextP && !nextRes && !nextLk) {
         setFeedback("至少需保留 1 種挑戰題庫！", "warn");
         return;
       }
@@ -1448,6 +1502,12 @@ function bindAllUIEvents() {
       if (nextP && nextPtSubs.size === 0) {
         nextPtSubs = new Set(["intl_commercial", "intl_aux", "fishery_cat1"]);
       }
+      if (nextRes && nextResSubs.size === 0) {
+        nextResSubs = new Set(["res_major"]);
+      }
+      if (nextLk && nextLkSubs.size === 0) {
+        nextLkSubs = new Set(["lake_scenic"]);
+      }
 
       if (state.isHost && state.roomCode) {
         requestOrApplyConfigChange(
@@ -1456,11 +1516,15 @@ function bindAllUIEvents() {
             stationQuizEnabled: nextS,
             airportQuizEnabled: nextA,
             portQuizEnabled: nextP,
+            reservoirQuizEnabled: nextRes,
+            lakeQuizEnabled: nextLk,
             selectedCounties: nextR ? Array.from(nextCounties) : [],
             selectedTownIds: nextR ? Array.from(nextTownIds) : [],
             quizStationLines: nextS ? Array.from(nextLines) : [],
             airportSubTypes: Array.from(nextApSubs),
-            portSubTypes: Array.from(nextPtSubs)
+            portSubTypes: Array.from(nextPtSubs),
+            reservoirSubTypes: Array.from(nextResSubs),
+            lakeSubTypes: Array.from(nextLkSubs)
           },
           "挑戰題庫"
         );
@@ -1471,18 +1535,22 @@ function bindAllUIEvents() {
       state.stationQuizEnabled = nextS;
       state.airportQuizEnabled = nextA;
       state.portQuizEnabled = nextP;
+      state.reservoirQuizEnabled = nextRes;
+      state.lakeQuizEnabled = nextLk;
       state.selectedCounties = nextCounties;
       state.selectedTownIds = nextTownIds;
       state.quizStationLines = nextLines;
       state.airportSubTypes = nextApSubs;
       state.portSubTypes = nextPtSubs;
+      state.reservoirSubTypes = nextResSubs;
+      state.lakeSubTypes = nextLkSubs;
       if (typeof syncLegacyQuizTargetMode === "function") syncLegacyQuizTargetMode();
       renderScopeModalGrid();
       if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
     });
   });
 
-  // Airport & Port Subtype Pills (shared across Simple & Advanced tabs)
+  // POI Subtype Pills (Airport / Port / Reservoir / Lake — shared across Simple & Advanced tabs)
   document.querySelectorAll(".poi-subtype-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       if (!canLocalModifyGameConfig()) {
@@ -1491,10 +1559,12 @@ function bindAllUIEvents() {
       }
       const cat = btn.getAttribute("data-poi-cat");
       const sub = btn.getAttribute("data-poi-sub");
-      const targetSet = cat === "airport" ? new Set(state.airportSubTypes) : new Set(state.portSubTypes);
+      const curSet = typeof getEnabledSubTypesForCategory === "function" ? getEnabledSubTypesForCategory(cat) : new Set();
+      const targetSet = new Set(curSet);
+      const catLabel = (POI_CATEGORY_META[cat] && POI_CATEGORY_META[cat].label) || "地標";
       if (targetSet.has(sub)) {
         if (targetSet.size <= 1) {
-          setFeedback(`至少需保留 1 項${cat === "airport" ? "機場" : "港口"}子分類！`, "warn");
+          setFeedback(`至少需保留 1 項${catLabel}子分類！`, "warn");
           return;
         }
         targetSet.delete(sub);
@@ -1503,27 +1573,37 @@ function bindAllUIEvents() {
       }
 
       if (state.isHost && state.roomCode) {
-        const patch = cat === "airport"
-          ? { airportQuizEnabled: true, airportSubTypes: Array.from(targetSet) }
-          : { portQuizEnabled: true, portSubTypes: Array.from(targetSet) };
-        requestOrApplyConfigChange(patch, cat === "airport" ? "機場分類" : "港口分類");
+        const patch =
+          cat === "airport"
+            ? { airportQuizEnabled: true, airportSubTypes: Array.from(targetSet) }
+            : cat === "port"
+            ? { portQuizEnabled: true, portSubTypes: Array.from(targetSet) }
+            : cat === "reservoir"
+            ? { reservoirQuizEnabled: true, reservoirSubTypes: Array.from(targetSet) }
+            : { lakeQuizEnabled: true, lakeSubTypes: Array.from(targetSet) };
+        requestOrApplyConfigChange(patch, `${catLabel}分類`);
         return;
       }
 
-      if (cat === "airport") {
-        state.airportSubTypes = targetSet;
-      } else {
-        state.portSubTypes = targetSet;
-      }
+      if (cat === "airport") state.airportSubTypes = targetSet;
+      else if (cat === "port") state.portSubTypes = targetSet;
+      else if (cat === "reservoir") state.reservoirSubTypes = targetSet;
+      else if (cat === "lake") state.lakeSubTypes = targetSet;
       renderScopeModalGrid();
       if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
     });
   });
 
-  document.getElementById("btn-jump-port-advanced")?.addEventListener("click", () => {
-    setSettingsTab("advanced");
-    const sec = document.getElementById("scope-port-section");
-    if (sec) sec.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  [
+    ["btn-jump-port-advanced", "scope-port-section"],
+    ["btn-jump-reservoir-advanced", "scope-reservoir-section"],
+    ["btn-jump-lake-advanced", "scope-lake-section"]
+  ].forEach(([btnId, secId]) => {
+    document.getElementById(btnId)?.addEventListener("click", () => {
+      setSettingsTab("advanced");
+      const sec = document.getElementById(secId);
+      if (sec) sec.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
   });
 
   // ============================================================================

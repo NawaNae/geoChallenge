@@ -64,9 +64,9 @@ function updateScoreAndProgressUI() {
     document.getElementById("stat-county-bar").style.width = `${Math.min(100, parseFloat(regionPct))}%`;
 
     const secLabel = activeSt.length > 0 && activePois.length > 0
-      ? "🚉✈️ 車站與地標"
+      ? "🚉📍 車站與地標"
       : activePois.length > 0
-      ? "✈️⚓ 機場與港口"
+      ? "📍 地標完成度"
       : "🚉 車站完成度";
     const secUnit = activeSt.length > 0 && activePois.length === 0 ? "站" : "處";
     document.getElementById("stat-town-label").textContent = secLabel;
@@ -74,27 +74,32 @@ function updateScoreAndProgressUI() {
     document.getElementById("stat-town-pct").textContent = `${stPct}%`;
     document.getElementById("stat-town-bar").style.width = `${Math.min(100, parseFloat(stPct))}%`;
   } else if (regionTotal === 0 && activePois.length > 0 && activeSt.length === 0) {
-    // Pure POI Mode (Airport / Port)
-    const apAll = activePois.filter((p) => p.category === "airport");
-    const ptAll = activePois.filter((p) => p.category === "port");
-    const apCur = apAll.filter((p) => vUnlockedPois.has(p.id)).length;
-    const ptCur = ptAll.filter((p) => vUnlockedPois.has(p.id)).length;
-    const apPct = apAll.length > 0 ? ((apCur / apAll.length) * 100).toFixed(1) : "0.0";
-    const ptPct = ptAll.length > 0 ? ((ptCur / ptAll.length) * 100).toFixed(1) : "0.0";
+    // Pure POI Mode (Airport / Port / Reservoir / Lake)
+    const activeCats = ["airport", "port", "reservoir", "lake"]
+      .map((cat) => ({ cat, items: typeof getActiveQuizPois === "function" ? getActiveQuizPois(cat) : [] }))
+      .filter((entry) => entry.items.length > 0);
 
-    if (apAll.length > 0 && ptAll.length > 0) {
-      if (cLabelEl) cLabelEl.textContent = "✈️ 機場進度";
-      document.getElementById("stat-county-count").textContent = `${apCur} / ${apAll.length} 座`;
-      document.getElementById("stat-county-pct").textContent = `${apPct}%`;
-      document.getElementById("stat-county-bar").style.width = `${Math.min(100, parseFloat(apPct))}%`;
+    if (activeCats.length === 2) {
+      const [c1, c2] = activeCats;
+      const m1 = POI_CATEGORY_META[c1.cat] || { icon: "📍", label: c1.cat };
+      const m2 = POI_CATEGORY_META[c2.cat] || { icon: "📍", label: c2.cat };
+      const cur1 = c1.items.filter((p) => vUnlockedPois.has(p.id)).length;
+      const cur2 = c2.items.filter((p) => vUnlockedPois.has(p.id)).length;
+      const pct1 = ((cur1 / c1.items.length) * 100).toFixed(1);
+      const pct2 = ((cur2 / c2.items.length) * 100).toFixed(1);
 
-      document.getElementById("stat-town-label").textContent = "⚓ 港口進度";
-      document.getElementById("stat-town-count").textContent = `${ptCur} / ${ptAll.length} 座`;
-      document.getElementById("stat-town-pct").textContent = `${ptPct}%`;
-      document.getElementById("stat-town-bar").style.width = `${Math.min(100, parseFloat(ptPct))}%`;
+      if (cLabelEl) cLabelEl.textContent = `${m1.icon} ${m1.label}進度`;
+      document.getElementById("stat-county-count").textContent = `${cur1} / ${c1.items.length} 座`;
+      document.getElementById("stat-county-pct").textContent = `${pct1}%`;
+      document.getElementById("stat-county-bar").style.width = `${Math.min(100, parseFloat(pct1))}%`;
+
+      document.getElementById("stat-town-label").textContent = `${m2.icon} ${m2.label}進度`;
+      document.getElementById("stat-town-count").textContent = `${cur2} / ${c2.items.length} 座`;
+      document.getElementById("stat-town-pct").textContent = `${pct2}%`;
+      document.getElementById("stat-town-bar").style.width = `${Math.min(100, parseFloat(pct2))}%`;
     } else {
-      const isAp = apAll.length > 0;
-      if (cLabelEl) cLabelEl.textContent = isAp ? "✈️ 機場總進度" : "⚓ 港口總進度";
+      const singleMeta = activeCats.length === 1 ? POI_CATEGORY_META[activeCats[0].cat] : null;
+      if (cLabelEl) cLabelEl.textContent = singleMeta ? `${singleMeta.icon} ${singleMeta.label}總進度` : "📍 地標總進度（去重）";
       document.getElementById("stat-county-count").textContent = `${unlockedPoiCount} / ${activePois.length} 座`;
       document.getElementById("stat-county-pct").textContent = `${grandPct}%`;
       document.getElementById("stat-county-bar").style.width = `${Math.min(100, parseFloat(grandPct))}%`;
@@ -362,7 +367,7 @@ function renderCountyProgressSidebar() {
 
   if (titleEl) {
     const parts = [];
-    if (activePois.length > 0) parts.push("機場港口");
+    if (activePois.length > 0) parts.push("地標");
     if (activeSt.length > 0) parts.push("車站路線");
     if (scopeCounties.length > 0) parts.push("各縣市");
     titleEl.textContent = parts.length > 0 ? `${parts.join("與")}完成度明細` : "挑戰進度明細";
@@ -371,11 +376,11 @@ function renderCountyProgressSidebar() {
   if (activePois.length > 0) {
     const poiHeader = document.createElement("div");
     poiHeader.className = "text-[11px] font-extrabold text-sky-300 uppercase tracking-wider px-1 pt-0.5";
-    poiHeader.textContent = "✈️⚓ 機場與港口完成度（去重統計）";
+    poiHeader.textContent = "📍 地標完成度（自動去重統計）";
     container.appendChild(poiHeader);
 
-    ["airport", "port"].forEach((cat) => {
-      const catPois = activePois.filter((p) => p.category === cat);
+    ["airport", "port", "reservoir", "lake"].forEach((cat) => {
+      const catPois = typeof getActiveQuizPois === "function" ? getActiveQuizPois(cat) : activePois.filter((p) => p.category === cat);
       if (catPois.length === 0) return;
       const meta = POI_CATEGORY_META[cat];
       const unlockedCnt = catPois.filter((p) => vUnlockedPois.has(p.id)).length;

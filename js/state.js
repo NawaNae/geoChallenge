@@ -123,8 +123,12 @@ const state = {
   stationQuizEnabled: false,
   airportQuizEnabled: false,
   portQuizEnabled: false,
+  reservoirQuizEnabled: false,
+  lakeQuizEnabled: false,
   airportSubTypes: new Set(["intl", "domestic", "military"]),
   portSubTypes: new Set(["intl_commercial", "intl_aux", "fishery_cat1"]),
+  reservoirSubTypes: new Set(["res_major"]),
+  lakeSubTypes: new Set(["lake_scenic"]),
   quizTargetMode: "region", // Derived legacy mode: 'region' | 'station' | 'mixed'
   settingsTab: "simple",    // 'simple' | 'advanced' (Default 'simple' per user spec)
   showRawOpenRailwayTile: false,
@@ -212,7 +216,9 @@ function syncLegacyQuizTargetMode() {
   const hasS = Boolean(state.stationQuizEnabled && state.quizStationLines && state.quizStationLines.size > 0);
   const hasA = Boolean(state.airportQuizEnabled && state.airportSubTypes && state.airportSubTypes.size > 0);
   const hasP = Boolean(state.portQuizEnabled && state.portSubTypes && state.portSubTypes.size > 0);
-  const activeCount = (hasR ? 1 : 0) + (hasS ? 1 : 0) + (hasA ? 1 : 0) + (hasP ? 1 : 0);
+  const hasRes = Boolean(state.reservoirQuizEnabled && state.reservoirSubTypes && state.reservoirSubTypes.size > 0);
+  const hasLk = Boolean(state.lakeQuizEnabled && state.lakeSubTypes && state.lakeSubTypes.size > 0);
+  const activeCount = (hasR ? 1 : 0) + (hasS ? 1 : 0) + (hasA ? 1 : 0) + (hasP ? 1 : 0) + (hasRes ? 1 : 0) + (hasLk ? 1 : 0);
   if (activeCount === 1 && hasR) {
     state.quizTargetMode = "region";
   } else if (activeCount === 1 && hasS) {

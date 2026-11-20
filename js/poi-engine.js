@@ -1,5 +1,5 @@
 // ================================================================
-// POI ENGINE — Airports & Ports Quiz, Deduplication & Map Markers
+// POI ENGINE — Airports, Ports, Reservoirs & Lakes Quiz & Markers
 // ================================================================
 // Strictly zero innerHTML, file:// compatible, MVC separated.
 
@@ -44,6 +44,12 @@ function getEnabledSubTypesForCategory(category) {
   if (category === "port") {
     return state.portSubTypes && typeof state.portSubTypes.has === "function" ? state.portSubTypes : new Set();
   }
+  if (category === "reservoir") {
+    return state.reservoirSubTypes && typeof state.reservoirSubTypes.has === "function" ? state.reservoirSubTypes : new Set();
+  }
+  if (category === "lake") {
+    return state.lakeSubTypes && typeof state.lakeSubTypes.has === "function" ? state.lakeSubTypes : new Set();
+  }
   return new Set();
 }
 
@@ -54,11 +60,40 @@ function isPoiCategoryActive(category) {
   if (category === "port") {
     return Boolean(state.portQuizEnabled && getEnabledSubTypesForCategory("port").size > 0);
   }
+  if (category === "reservoir") {
+    return Boolean(state.reservoirQuizEnabled && getEnabledSubTypesForCategory("reservoir").size > 0);
+  }
+  if (category === "lake") {
+    return Boolean(state.lakeQuizEnabled && getEnabledSubTypesForCategory("lake").size > 0);
+  }
   return false;
 }
 
 function hasAnyPoiQuizActive() {
-  return isPoiCategoryActive("airport") || isPoiCategoryActive("port");
+  return (
+    isPoiCategoryActive("airport") ||
+    isPoiCategoryActive("port") ||
+    isPoiCategoryActive("reservoir") ||
+    isPoiCategoryActive("lake")
+  );
+}
+
+function getPoiDisplayCategory(poi) {
+  if (!poi) return "airport";
+  const cats = typeof getPoiCategories === "function" ? getPoiCategories(poi) : [poi.category];
+  if (cats.length <= 1) return poi.category;
+  // Prefer the primary category if active; otherwise fall back to whichever matching category is active
+  if (isPoiCategoryActive(poi.category)) {
+    const subs = getEnabledSubTypesForCategory(poi.category);
+    if (poi.subTypes.some((st) => subs.has(st))) return poi.category;
+  }
+  for (const c of cats) {
+    if (isPoiCategoryActive(c)) {
+      const subs = getEnabledSubTypesForCategory(c);
+      if (poi.subTypes.some((st) => subs.has(st))) return c;
+    }
+  }
+  return poi.category;
 }
 
 // Counts items matching a single subType (overlapping multi-tag items increment EACH subType by +1)
@@ -66,7 +101,7 @@ function countPoisBySubType(category, subTypeId, applyRegionFilter = false) {
   const useRegion = applyRegionFilter && shouldFilterPoisByRegion();
   let count = 0;
   for (const poi of TAIWAN_POI_DATA) {
-    if (poi.category !== category) continue;
+    if (!poiMatchesCategory(poi, category)) continue;
     if (!poi.subTypes.includes(subTypeId)) continue;
     if (useRegion && !isPoiInSelectedRegion(poi)) continue;
     count++;
@@ -80,7 +115,7 @@ function countUniquePoisForSubTypes(category, subTypeSet, applyRegionFilter = fa
   const useRegion = applyRegionFilter && shouldFilterPoisByRegion();
   const seen = new Set();
   for (const poi of TAIWAN_POI_DATA) {
-    if (poi.category !== category) continue;
+    if (!poiMatchesCategory(poi, category)) continue;
     if (!poi.subTypes.some((st) => subTypeSet.has(st))) continue;
     if (useRegion && !isPoiInSelectedRegion(poi)) continue;
     seen.add(poi.id);
@@ -95,10 +130,20 @@ function getActiveQuizPois(categoryFilter = null) {
   const useRegion = shouldFilterPoisByRegion();
 
   for (const poi of TAIWAN_POI_DATA) {
-    if (categoryFilter && poi.category !== categoryFilter) continue;
-    if (!isPoiCategoryActive(poi.category)) continue;
-    const enabledSubs = getEnabledSubTypesForCategory(poi.category);
-    if (!poi.subTypes.some((st) => enabledSubs.has(st))) continue;
+    const cats = typeof getPoiCategories === "function" ? getPoiCategories(poi) : [poi.category];
+    if (categoryFilter && !cats.includes(categoryFilter)) continue;
+
+    const targetCats = categoryFilter ? [categoryFilter] : cats;
+    let matchedActive = false;
+    for (const c of targetCats) {
+      if (!isPoiCategoryActive(c)) continue;
+      const enabledSubs = getEnabledSubTypesForCategory(c);
+      if (poi.subTypes.some((st) => enabledSubs.has(st))) {
+        matchedActive = true;
+        break;
+      }
+    }
+    if (!matchedActive) continue;
     if (useRegion && !isPoiInSelectedRegion(poi)) continue;
     if (seen.has(poi.id)) continue;
     seen.add(poi.id);
@@ -120,13 +165,23 @@ function buildPoiMatchKeys(poi, allowBareStem) {
     poi.aliases.forEach(addKey);
   }
 
-  // Allow bare stems (e.g., "桃園" -> 桃園機場, "基隆" -> 基隆港) ONLY when region quiz is NOT active
+  // Allow bare stems (e.g., "桃園" -> 桃園機場, "石門" -> 石門水庫) ONLY when region quiz is NOT active
   // so typing a county/town name in mixed mode never hijacks administrative region answers.
   if (allowBareStem) {
-    const stem = normalizePoiText(poi.shortName)
+    const normShort = normalizePoiText(poi.shortName);
+    let stem = normShort
       .replace(/(國際機場|國內機場|空軍基地|陸軍航空基地|航空基地|航空站|機場|基地)$/g, "")
       .replace(/(液化天然氣接收港|液化天然氣接收站|工業專用港|國際商港|天然氣港|工業港|觀光漁港|漁港|商港|港)$/g, "");
-    if (stem && stem.length >= 2) {
+
+    // For reservoirs: strip 水庫/攔河堰/人工湖/壩, EXCEPT avoid colliding 鯉魚潭水庫 with 鯉魚潭 lakes when lake quiz is active
+    if (poiMatchesCategory(poi, "reservoir")) {
+      const resStem = normShort.replace(/(第二水庫|水庫|攔河堰|人工湖|大壩|壩)$/g, "");
+      const collidesWithLake = resStem === "鯉魚潭" && isPoiCategoryActive("lake");
+      if (resStem && resStem.length >= 2 && !collidesWithLake) {
+        keys.add(resStem);
+      }
+    }
+    if (stem && stem.length >= 2 && stem !== normShort) {
       keys.add(stem);
     }
   }
@@ -139,7 +194,7 @@ function matchSinglePoi(poi, normInput, allowBareStem) {
 }
 
 // Attempt to match & unlock an active POI from user input.
-// Returns { matched: boolean, alreadyUnlocked?: boolean, poi?: object, wrongTarget?: boolean }
+// Returns { matched: boolean, alreadyUnlocked?: boolean, poi?: object, unlockedList?: array, wrongTarget?: boolean }
 function tryMatchAndUnlockPoi(rawInput, isAutoCheck = false) {
   const activePois = getActiveQuizPois();
   if (activePois.length === 0) return { matched: false };
@@ -159,7 +214,7 @@ function tryMatchAndUnlockPoi(rawInput, isAutoCheck = false) {
         }
         state.unlockedPois.add(targetPoi.id);
         state.missedPois.delete(targetPoi.id);
-        return { matched: true, alreadyUnlocked: false, poi: targetPoi };
+        return { matched: true, alreadyUnlocked: false, poi: targetPoi, unlockedList: [targetPoi] };
       }
       return { matched: false, wrongTarget: true };
     }
@@ -191,21 +246,34 @@ function tryMatchAndUnlockPoi(rawInput, isAutoCheck = false) {
 }
 
 function getPoiSubTypeLabelList(poi) {
+  const cats = typeof getPoiCategories === "function" ? getPoiCategories(poi) : [poi.category];
   return poi.subTypes
     .map((st) => {
-      const meta = getPoiSubTypeMeta(poi.category, st);
-      return meta ? meta.shortLabel : st;
+      for (const c of cats) {
+        const meta = getPoiSubTypeMeta(c, st);
+        if (meta) return meta.shortLabel;
+      }
+      return st;
     })
     .join(" / ");
 }
 
+function getPoiGlyphForCategory(cat) {
+  if (cat === "airport") return "✈";
+  if (cat === "port") return "⚓";
+  if (cat === "reservoir") return "💧";
+  if (cat === "lake") return "🏞";
+  return "📍";
+}
+
 function createPoiPinElement(poi, status) {
+  const displayCat = getPoiDisplayCategory(poi);
   const wrap = document.createElement("div");
-  wrap.className = `tw-poi-pin tw-poi-${poi.category} tw-poi-state-${status}`;
+  wrap.className = `tw-poi-pin tw-poi-${displayCat} tw-poi-state-${status}`;
 
   const glyph = document.createElement("span");
   glyph.className = "tw-poi-glyph";
-  glyph.textContent = poi.category === "airport" ? "✈" : "⚓";
+  glyph.textContent = getPoiGlyphForCategory(displayCat);
   wrap.appendChild(glyph);
 
   if (status === "unlocked" || status === "missed") {
@@ -281,7 +349,8 @@ function handlePoiMarkerClick(poi) {
   if (!poi) return;
   const viewState = typeof getActiveViewState === "function" ? getActiveViewState() : state;
   const unlockedSet = viewState.unlockedPois || state.unlockedPois;
-  const catMeta = POI_CATEGORY_META[poi.category] || { icon: "📍", label: "地標" };
+  const displayCat = getPoiDisplayCategory(poi);
+  const catMeta = POI_CATEGORY_META[displayCat] || { icon: "📍", label: "地標" };
 
   if (state.role === "spectator" || state.isGameOver) {
     if (typeof setFeedback === "function") {
@@ -336,6 +405,16 @@ function getConcisePoiSummaryParts() {
     const labels = PORT_SUBTYPES.filter((s) => state.portSubTypes.has(s.id)).map((s) => s.shortLabel);
     const cnt = getActiveQuizPois("port").length;
     parts.push(`⚓ 港口(${labels.join("/")} ${cnt}座)`);
+  }
+  if (isPoiCategoryActive("reservoir")) {
+    const labels = RESERVOIR_SUBTYPES.filter((s) => state.reservoirSubTypes.has(s.id)).map((s) => s.shortLabel);
+    const cnt = getActiveQuizPois("reservoir").length;
+    parts.push(`💧 水庫(${labels.join("/")} ${cnt}座)`);
+  }
+  if (isPoiCategoryActive("lake")) {
+    const labels = LAKE_SUBTYPES.filter((s) => state.lakeSubTypes.has(s.id)).map((s) => s.shortLabel);
+    const cnt = getActiveQuizPois("lake").length;
+    parts.push(`🏞️ 湖泊(${labels.join("/")} ${cnt}座)`);
   }
   return parts;
 }
