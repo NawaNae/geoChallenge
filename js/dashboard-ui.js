@@ -236,7 +236,7 @@ function updateScoreAndProgressUI() {
 
 function selectAndZoomToCounty(c, autoCloseJumpMenu = false) {
   zoomToCountyCenter(c.name);
-  if (state.difficulty !== "county_only") {
+  if (state.difficulty !== "county_only" && state.difficulty !== "casual") {
     const prefixSelect = document.getElementById("prefix-select");
     const targetVal =
       state.difficulty === "master_hierarchy"
@@ -539,7 +539,7 @@ function renderCountyProgressSidebar() {
         borderClass: "p-2.5 rounded-xl bg-slate-900/75 hover:bg-slate-800/80 border border-slate-800 cursor-pointer transition flex flex-col gap-1",
         onClick: () => {
           zoomToCountyCenter(c.name);
-          if (state.difficulty !== "county_only" && state.role !== "spectator") {
+          if (state.difficulty !== "county_only" && state.difficulty !== "casual" && state.role !== "spectator") {
             const prefixSelect = document.getElementById("prefix-select");
             const targetVal =
               state.difficulty === "master_hierarchy"

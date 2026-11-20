@@ -505,6 +505,128 @@ for (const needed of ["", "區", "鄉", "鎮", "市", "站", "機場", "港", "�
 }
 
 // =========================================================================
+// 6. ALL CASUAL (簡單模式) WITHOUT SUFFIX — TOWNS, STATIONS, POIS & PREFIX UI
+// =========================================================================
+// 6a. All 368 towns in casual + ALL 6 categories mixed (no suffix, no prefix)
+resetState({
+  difficulty: "casual",
+  regionQuizEnabled: true,
+  stationQuizEnabled: true,
+  airportQuizEnabled: true,
+  portQuizEnabled: true,
+  reservoirQuizEnabled: true,
+  lakeQuizEnabled: true
+});
+for (const t of ALL_TOWNS) {
+  vm.runInContext(`state.unlockedTowns.delete(${JSON.stringify(t.id)})`, sb);
+  const ok = sb.evaluateGuess(t.baseName, false);
+  const unlocked = vm.runInContext(`state.unlockedTowns.has(${JSON.stringify(t.id)})`, sb);
+  check(ok && unlocked, "6a.CasualAllMixed.TownBare", `${t.fullCountyTown}: bare="${t.baseName}", fb="${sb.lastFeedback?.text}"`);
+}
+
+// 6b. All 561 stations in casual pure station mode (no suffix, no prefix)
+resetState({
+  difficulty: "casual",
+  regionQuizEnabled: false,
+  stationQuizEnabled: true
+});
+for (const st of allStations) {
+  vm.runInContext(`state.unlockedStations.delete(${JSON.stringify(st.key)})`, sb);
+  const ok = sb.evaluateGuess(st.baseName, false);
+  const unlocked = vm.runInContext(`state.unlockedStations.has(${JSON.stringify(st.key)})`, sb);
+  check(ok && unlocked, "6b.CasualPureStation.Bare", `${st.displayName}: bare="${st.baseName}", fb="${sb.lastFeedback?.text}"`);
+}
+
+// 6c. All 561 stations in casual + ALL 6 categories mixed (no suffix, no prefix)
+resetState({
+  difficulty: "casual",
+  regionQuizEnabled: true,
+  stationQuizEnabled: true,
+  airportQuizEnabled: true,
+  portQuizEnabled: true,
+  reservoirQuizEnabled: true,
+  lakeQuizEnabled: true
+});
+for (const st of allStations) {
+  vm.runInContext(`state.unlockedStations.delete(${JSON.stringify(st.key)}); state.unlockedTowns.clear();`, sb);
+  const ok = sb.evaluateGuess(st.baseName, false);
+  const unlocked = vm.runInContext(`state.unlockedStations.has(${JSON.stringify(st.key)})`, sb);
+  check(ok && unlocked, "6c.CasualAllMixed.StationBare", `${st.displayName}: bare="${st.baseName}", fb="${sb.lastFeedback?.text}"`);
+}
+
+// 6d. All 326 POIs in casual + ALL 6 categories mixed (no suffix, no prefix)
+resetState({
+  difficulty: "casual",
+  regionQuizEnabled: true,
+  stationQuizEnabled: true,
+  airportQuizEnabled: true,
+  portQuizEnabled: true,
+  reservoirQuizEnabled: true,
+  lakeQuizEnabled: true
+});
+for (const poi of TAIWAN_POI_DATA) {
+  vm.runInContext(`state.unlockedPois.delete(${JSON.stringify(poi.id)})`, sb);
+  const ok = sb.evaluateGuess(poi.shortName, false);
+  const unlocked = vm.runInContext(`state.unlockedPois.has(${JSON.stringify(poi.id)})`, sb);
+  check(ok && unlocked, "6d.CasualAllMixed.PoiDirect", `${poi.id} (${poi.shortName}): fb="${sb.lastFeedback?.text}"`);
+}
+
+// 6e. All 326 POIs in casual pure POI mode (no suffix, bare stems + direct)
+resetState({
+  difficulty: "casual",
+  regionQuizEnabled: false,
+  stationQuizEnabled: false,
+  airportQuizEnabled: true,
+  portQuizEnabled: true,
+  reservoirQuizEnabled: true,
+  lakeQuizEnabled: true
+});
+for (const poi of TAIWAN_POI_DATA) {
+  vm.runInContext(`state.unlockedPois.delete(${JSON.stringify(poi.id)})`, sb);
+  const okDirect = sb.evaluateGuess(poi.shortName, false);
+  const unlockedDirect = vm.runInContext(`state.unlockedPois.has(${JSON.stringify(poi.id)})`, sb);
+  check(okDirect && unlockedDirect, "6e.CasualPurePoi.Direct", `${poi.id} (${poi.shortName}): fb="${sb.lastFeedback?.text}"`);
+
+  const cats = poi.categories || [poi.category];
+  let bareStem = null;
+  if (cats.includes("airport")) {
+    bareStem = poi.shortName.replace(/(國際機場|國內機場|空軍基地|陸軍航空基地|航空基地|航空站|機場|基地)$/g, "");
+  } else if (cats.includes("port")) {
+    bareStem = poi.shortName.replace(/(液化天然氣接收港|液化天然氣接收站|工業專用港|國際商港|天然氣港|工業港|觀光漁港|漁港|商港|港)$/g, "");
+  } else if (cats.includes("reservoir")) {
+    const s = poi.shortName.replace(/(第二水庫|水庫|攔河堰|人工湖|大壩|壩)$/g, "");
+    if (s !== "鯉魚潭") bareStem = s;
+  } else if (cats.includes("lake") && poi.shortName.endsWith("湖")) {
+    bareStem = poi.shortName.slice(0, -1);
+  }
+  if (bareStem && bareStem.length >= 2 && bareStem !== poi.shortName) {
+    vm.runInContext(`state.unlockedPois.delete(${JSON.stringify(poi.id)})`, sb);
+    const okBare = sb.evaluateGuess(bareStem, false);
+    const unlockedBare = vm.runInContext(`state.unlockedPois.has(${JSON.stringify(poi.id)})`, sb);
+    check(okBare && unlockedBare, "6e.CasualPurePoi.BareStem", `${poi.id} (${poi.shortName}): bare="${bareStem}", fb="${sb.lastFeedback?.text}"`);
+  }
+}
+
+// 6f. Prefix dropdown hidden & cleared in casual mode, visible in non-casual modes
+resetState({ difficulty: "casual", regionQuizEnabled: true, prefix: "臺北市" });
+sb.updatePrefixDropdownUI();
+check(
+  sb.document.getElementById("prefix-container").classList.contains("hidden") &&
+    sb.document.getElementById("prefix-select").value === "",
+  "6f.CasualPrefixHidden",
+  `Expected #prefix-container hidden and #prefix-select cleared in casual mode`
+);
+for (const diff of ["county_only", "hard_suffix", "hard_full", "master_hierarchy"]) {
+  resetState({ difficulty: diff, regionQuizEnabled: true });
+  sb.updatePrefixDropdownUI();
+  check(
+    !sb.document.getElementById("prefix-container").classList.contains("hidden"),
+    "6f.NonCasualPrefixVisible",
+    `Expected #prefix-container visible in ${diff} mode`
+  );
+}
+
+// =========================================================================
 // SUMMARY
 // =========================================================================
 const elapsedMs = Date.now() - t0;

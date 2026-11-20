@@ -26,9 +26,24 @@ function isCountyRevealed(countyName) {
 
 function updatePrefixDropdownUI() {
   const select = document.getElementById("prefix-select");
+  const prefixContainer = document.getElementById("prefix-container");
   const pillsWrap = document.getElementById("unlocked-prefix-pills");
   const guideBar = document.getElementById("hierarchy-guide-bar");
   if (!select) return;
+
+  const hidePrefix = state.difficulty === "casual";
+  if (prefixContainer) prefixContainer.classList.toggle("hidden", hidePrefix);
+  if (hidePrefix) {
+    select.replaceChildren();
+    const defaultOpt = document.createElement("option");
+    defaultOpt.value = "";
+    defaultOpt.textContent = "無固定前綴 (自由打)";
+    select.appendChild(defaultOpt);
+    select.value = "";
+    if (guideBar) guideBar.classList.add("hidden");
+    updateLiveCombinedPreview();
+    return;
+  }
 
   const currentVal = select.value;
   select.replaceChildren();
@@ -365,21 +380,52 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
   if (isPoiQuizActive && !isTargetingOtherFromPoi && (isTargetingPoi || isPurePoiQuiz || looksLikePoiInput)) {
     const poiRes = tryMatchAndUnlockPoi(coreWithSuffix, isAutoCheck);
     if (poiRes && poiRes.matched) {
+      const canFallbackInCasual = !isTargetingPoi && !isPurePoiQuiz && state.difficulty === "casual";
       if (poiRes.alreadyUnlocked) {
-        if (!isAutoCheck) setFeedback(`已經解鎖過「${poiRes.poi.name}」囉！`, "warn");
-        return false;
-      }
-      const p = poiRes.poi;
-      const displayCat = typeof getPoiDisplayCategory === "function" ? getPoiDisplayCategory(p) : p.category;
-      const catMeta = POI_CATEGORY_META[displayCat] || { icon: "📍", label: "地標" };
-      state.lastTargetLat = p.lat;
-      state.lastTargetLng = p.lng;
-      if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
-      const unlockedList = Array.isArray(poiRes.unlockedList) && poiRes.unlockedList.length > 1 ? poiRes.unlockedList : null;
-      const unlockMsg = unlockedList
-        ? `${catMeta.icon} 同時解鎖 ${unlockedList.length} 處${catMeta.label}：${unlockedList.map((x) => x.name).join("、")}`
-        : `${catMeta.icon} 解鎖${catMeta.label}：${p.name}（${p.countyName}${p.townName}）`;
-      onSuccessfulUnlock(unlockMsg, p.shortName, Boolean(isTargetingPoi));
+        if (canFallbackInCasual) {
+          // Let casual mixed mode fall through so同名行政區或車站仍可解鎖（例如「大湖公園」站）
+        } else {
+          if (!isAutoCheck) setFeedback(`已經解鎖過「${poiRes.poi.name}」囉！`, "warn");
+          return false;
+        }
+      } else {
+        const p = poiRes.poi;
+        const displayCat = typeof getPoiDisplayCategory === "function" ? getPoiDisplayCategory(p) : p.category;
+        const catMeta = POI_CATEGORY_META[displayCat] || { icon: "📍", label: "地標" };
+        state.lastTargetLat = p.lat;
+        state.lastTargetLng = p.lng;
+        if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
+
+        let bonusText = "";
+        if (canFallbackInCasual) {
+          if (state.regionQuizEnabled) {
+            const bonusTowns = getScopeTowns().filter(
+              (t) => !state.unlockedTowns.has(t.id) && (cleanCore === normTw(t.baseName) || cleanCore === normTw(t.townName))
+            );
+            if (bonusTowns.length > 0) {
+              bonusTowns.forEach((t) => {
+                state.unlockedTowns.add(t.id);
+                state.unlockedCounties.add(t.countyName);
+              });
+              bonusText += ` ＋ 🗺️ ${bonusTowns.map((t) => t.fullCountyTown).join("、")}`;
+            }
+          }
+          if (isStationQuizActive) {
+            const cStripped = cleanStationBaseName(core);
+            const bonusSt = getActiveQuizStations().filter((st) => !state.unlockedStations.has(st.key) && st.baseName === cStripped);
+            if (bonusSt.length > 0) {
+              bonusSt.forEach((st) => state.unlockedStations.add(st.key));
+              updateRoadAndRailwayTileOverlays();
+              bonusText += ` ＋ 🚉 車站「${bonusSt[0].displayName}」`;
+            }
+          }
+        }
+
+        const unlockedList = Array.isArray(poiRes.unlockedList) && poiRes.unlockedList.length > 1 ? poiRes.unlockedList : null;
+        const unlockMsg = unlockedList
+          ? `${catMeta.icon} 同時解鎖 ${unlockedList.length} 處${catMeta.label}：${unlockedList.map((x) => x.name).join("、")}${bonusText}`
+          : `${catMeta.icon} 解鎖${catMeta.label}：${p.name}（${p.countyName}${p.townName}）${bonusText}`;
+        onSuccessfulUnlock(unlockMsg, p.shortName, Boolean(isTargetingPoi));
       if (isTargetingPoi) {
         if (state.playMode === "target_random") {
           pickNextTargetRegion();
@@ -389,7 +435,8 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
           if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
         }
       }
-      return true;
+        return true;
+      }
     }
     if (isTargetingPoi || isPurePoiQuiz) {
       if (!isAutoCheck) {
@@ -1139,7 +1186,7 @@ function handlePolygonClick(townObj) {
           : `${townObj.province}${townObj.countyName}`
         : townObj.countyName;
     const select = document.getElementById("prefix-select");
-    if (select && state.difficulty !== "county_only") {
+    if (select && state.difficulty !== "county_only" && state.difficulty !== "casual") {
       select.value = prefixVal;
       updateLiveCombinedPreview();
       setFeedback(`已將前綴鎖定為「${prefixVal}」，請輸入該區名稱！`, "info");

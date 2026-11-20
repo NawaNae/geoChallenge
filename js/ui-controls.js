@@ -1280,7 +1280,8 @@ function bindAllUIEvents() {
       setFeedback(`🏷️ 左右鍵快速切換後綴：「${nextSuffix || "無後綴"}」`, "info");
       inputEl.focus({ preventScroll: true });
     } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      if (!prefixSelectEl || prefixSelectEl.options.length <= 1) return;
+      const prefixContainerEl = document.getElementById("prefix-container");
+      if (!prefixSelectEl || (prefixContainerEl && prefixContainerEl.classList.contains("hidden")) || prefixSelectEl.options.length <= 1) return;
       e.preventDefault();
       const totalOpts = prefixSelectEl.options.length;
       const curIdx = prefixSelectEl.selectedIndex >= 0 ? prefixSelectEl.selectedIndex : 0;
@@ -1331,6 +1332,17 @@ function bindAllUIEvents() {
     if (state.isImeComposing || state.role === "spectator") return;
     evaluateGuess(answerInput.value, false);
   });
+
+  // Clicking non-interactive space in the input dock (e.g. gap before input) focuses #answer-input
+  const inputDockCard = document.getElementById("input-dock-card");
+  if (inputDockCard) {
+    inputDockCard.addEventListener("mousedown", (e) => {
+      if (state.role === "spectator" || state.isGameOver) return;
+      if (e.target.closest("input, select, button, label, a, option")) return;
+      e.preventDefault();
+      answerInput.focus({ preventScroll: true });
+    });
+  }
 
   prefixSelect.addEventListener("change", () => {
     updateLiveCombinedPreview();

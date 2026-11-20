@@ -158,6 +158,9 @@ const EXACT_PORT_SHORT_NAMES = new Set(
     .filter((p) => (p.categories ? p.categories.includes("port") : p.category === "port"))
     .map((p) => normalizePoiText(p.shortName))
 );
+const EXACT_TOWN_BASE_NAMES = new Set(
+  (typeof ALL_TOWNS !== "undefined" ? ALL_TOWNS : []).map((t) => normalizePoiText(t.baseName))
+);
 
 function buildPoiMatchKeys(poi, allowBareStem, requireSuffix = false) {
   const keys = new Set();
@@ -188,20 +191,27 @@ function buildPoiMatchKeys(poi, allowBareStem, requireSuffix = false) {
       keys.add(`${stem}機場`);
     }
     if (poiMatchesCategory(poi, "port")) {
-      const genericPort = `${stem}港`;
-      if (genericPort === normShort || !EXACT_PORT_SHORT_NAMES.has(genericPort)) {
+      const genericPort = stem.endsWith("港") ? stem : `${stem}港`;
+      const collidesWithTownInCasual = !requireSuffix && state.regionQuizEnabled && EXACT_TOWN_BASE_NAMES.has(genericPort);
+      if ((genericPort === normShort || !EXACT_PORT_SHORT_NAMES.has(genericPort)) && !collidesWithTownInCasual) {
         keys.add(genericPort);
       }
     }
   }
 
-  // Allow bare stems (e.g., "桃園" -> 桃園機場, "石門" -> 石門水庫) ONLY in non-suffix difficulties and when region quiz is OFF
+  // Allow bare stems (e.g., "桃園" -> 桃園機場, "石門" -> 石門水庫, "澄清" -> 澄清湖) ONLY in non-suffix difficulties and when region quiz is OFF
   if (allowBareStem && !requireSuffix) {
     if (poiMatchesCategory(poi, "reservoir")) {
       const resStem = normShort.replace(/(第二水庫|水庫|攔河堰|人工湖|大壩|壩)$/g, "");
       const collidesWithLake = resStem === "鯉魚潭" && isPoiCategoryActive("lake");
       if (resStem && resStem.length >= 2 && !collidesWithLake) {
         keys.add(resStem);
+      }
+    }
+    if (poiMatchesCategory(poi, "lake") && normShort.endsWith("湖")) {
+      const lakeStem = normShort.slice(0, -1);
+      if (lakeStem.length >= 2) {
+        keys.add(lakeStem);
       }
     }
     if (stem && stem.length >= 2 && stem !== normShort) {
