@@ -117,12 +117,12 @@ function syncConfigButtonsUI() {
 
     const advHint = document.getElementById("simple-port-adv-hint");
     if (advHint) {
-      const advOn = ["fishery_cat2", "industrial", "petro_lng"]
+      const advOn = ["fishery_cat2", "fishery_cat2_other", "industrial", "petro_lng"]
         .filter((k) => state.portSubTypes && state.portSubTypes.has(k))
         .map((k) => (getPoiSubTypeMeta("port", k) || {}).shortLabel || k);
       advHint.textContent = advOn.length > 0
         ? `進階港類已開啟：${advOn.join("、")}`
-        : "如需第二類漁港(精選24/212處)、工業港、石化天然氣港，可至進階設定勾選";
+        : "如需第二類漁港（精選 24 處／其餘 188 處，共 212 處）、工業港、石化天然氣港，可至進階設定勾選";
     }
     const resAdvHint = document.getElementById("simple-reservoir-adv-hint");
     if (resAdvHint) {

@@ -1254,7 +1254,7 @@ function detectPoiThemeProfile() {
     }
     if (cat === "port") {
       const subs = state.portSubTypes instanceof Set ? state.portSubTypes : new Set();
-      const onlyFishery = subs.size > 0 && Array.from(subs).every((s) => s === "fishery_cat1" || s === "fishery_cat2");
+      const onlyFishery = subs.size > 0 && Array.from(subs).every((s) => s === "fishery_cat1" || s === "fishery_cat2" || s === "fishery_cat2_other");
       const onlyCommercial = subs.size > 0 && Array.from(subs).every((s) => s === "intl_commercial" || s === "intl_aux");
       if (onlyFishery) {
         return makeTierTitles("台灣漁港", "🐟 台灣漁港討海大霸主", "🐟 全台漁港制霸宗師", "🐟 台灣漁港通關大師", "🐟 台灣漁港專家", "🐟 台灣漁港達人", "🐟 漁港見習釣客", "🐟 漁村尋訪旅人");
