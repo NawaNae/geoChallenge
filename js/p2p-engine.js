@@ -899,6 +899,8 @@ function updateSpectatorPlayerSelectUI() {
 
 function applySpectatorInputLock() {
   const isSpectator = state.role === "spectator" && Boolean(state.roomCode);
+  const answerForm = document.getElementById("answer-form");
+  const footerActions = document.getElementById("input-footer-actions");
   const answerInput = document.getElementById("answer-input");
   const banner = document.getElementById("spectator-mode-banner");
   const bannerText = document.getElementById("spectator-banner-text");
@@ -927,6 +929,12 @@ function applySpectatorInputLock() {
     }
   }
 
+  if (answerForm) {
+    answerForm.classList.toggle("hidden", isSpectator);
+  }
+  if (footerActions) {
+    footerActions.classList.toggle("hidden", isSpectator);
+  }
   if (answerInput) {
     answerInput.disabled = isSpectator;
     if (isSpectator) {

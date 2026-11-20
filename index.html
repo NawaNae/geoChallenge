@@ -319,22 +319,27 @@
                 <span id="live-preview-combined" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 pointer-events-none"></span>
               </div>
 
-              <div id="suffix-container" class="flex items-center gap-1 shrink-0">
+              <div id="suffix-container" class="hidden flex items-center gap-1 shrink-0">
                 <input
                   id="suffix-input"
                   type="text"
-                  maxlength="2"
+                  maxlength="4"
                   placeholder="後綴"
-                  data-tip="預設補上後綴；若主輸入框已打完整名稱（如虎尾鎮）會自動智慧覆蓋"
+                  data-tip="預設補上後綴；若主輸入框已打完整名稱（如虎尾鎮、石岡壩）會自動智慧覆蓋"
                   class="w-16 sm:w-20 bg-slate-800/95 text-amber-300 placeholder-slate-400 text-xs sm:text-sm font-semibold text-center rounded-xl px-2 py-2.5 border border-slate-600/80 focus:outline-none focus:border-amber-400 transition"
                 />
-                <div class="flex items-center bg-slate-800/90 rounded-xl p-0.5 border border-slate-700">
-                  <button type="button" data-suffix="" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold bg-sky-500 text-white">無</button>
-                  <button type="button" data-suffix="區" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white">區</button>
-                  <button type="button" data-suffix="鄉" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white">鄉</button>
-                  <button type="button" data-suffix="鎮" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white">鎮</button>
-                  <button type="button" data-suffix="市" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white">市</button>
-                  <button type="button" data-suffix="站" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-amber-300 hover:text-white" data-tip="猜車站時可快速補上『站』後綴">站</button>
+                <div id="suffix-quick-group" class="flex flex-wrap items-center bg-slate-800/90 rounded-xl p-0.5 border border-slate-700">
+                  <button type="button" data-suffix="" data-suffix-topic="always" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold bg-sky-500 text-white">無</button>
+                  <button type="button" data-suffix="區" data-suffix-topic="region" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white">區</button>
+                  <button type="button" data-suffix="鄉" data-suffix-topic="region" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white">鄉</button>
+                  <button type="button" data-suffix="鎮" data-suffix-topic="region" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white">鎮</button>
+                  <button type="button" data-suffix="市" data-suffix-topic="region" class="suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white">市</button>
+                  <button type="button" data-suffix="站" data-suffix-topic="station" class="suffix-quick-btn hidden px-1.5 py-1 rounded-lg text-[11px] font-bold text-amber-300 hover:text-white" data-tip="猜車站時可快速補上『站』後綴">站</button>
+                  <button type="button" data-suffix="機場" data-suffix-topic="airport" class="suffix-quick-btn hidden px-1.5 py-1 rounded-lg text-[11px] font-bold text-sky-300 hover:text-white" data-tip="猜機場時可快速補上『機場』後綴">機場</button>
+                  <button type="button" data-suffix="港" data-suffix-topic="port" class="suffix-quick-btn hidden px-1.5 py-1 rounded-lg text-[11px] font-bold text-teal-300 hover:text-white" data-tip="猜港口時可快速補上『港』後綴">港</button>
+                  <button type="button" data-suffix="漁港" data-suffix-topic="port" class="suffix-quick-btn hidden px-1.5 py-1 rounded-lg text-[11px] font-bold text-teal-300 hover:text-white" data-tip="猜漁港時可快速補上『漁港』後綴">漁港</button>
+                  <button type="button" data-suffix="水庫" data-suffix-topic="reservoir" class="suffix-quick-btn hidden px-1.5 py-1 rounded-lg text-[11px] font-bold text-blue-300 hover:text-white" data-tip="猜水庫時可快速補上『水庫』後綴（石岡壩等特殊後綴直接手輸即可）">水庫</button>
+                  <button type="button" data-suffix="湖" data-suffix-topic="lake" class="suffix-quick-btn hidden px-1.5 py-1 rounded-lg text-[11px] font-bold text-emerald-300 hover:text-white" data-tip="猜湖泊時可快速補上『湖』後綴（潭、池、埤等直接手輸即可）">湖</button>
                 </div>
               </div>
 
@@ -350,7 +355,7 @@
                 <span id="feedback-dot" class="w-2 h-2 rounded-full shrink-0 bg-sky-400"></span>
                 <span id="feedback-text" class="truncate">提示：輸入行政區或車站名稱自動比對，支援台/臺通用！</span>
               </div>
-              <div class="flex items-center gap-2.5 shrink-0">
+              <div id="input-footer-actions" class="flex items-center gap-2.5 shrink-0">
                 <label class="flex items-center gap-1 text-slate-300 cursor-pointer select-none" data-tip="開啟時，注音按下Enter確認組字後即自動比對答案">
                   <input id="chk-auto-submit" type="checkbox" checked class="rounded bg-slate-800 border-slate-600 text-sky-500 focus:ring-0" />
                   <span>自動判定</span>
@@ -841,7 +846,7 @@
                     <span class="text-[10px] text-slate-400 mt-0.5">22 縣市 / 368 區</span>
                   </button>
                   <button type="button" class="geo-union-btn" role="checkbox" aria-checked="true" aria-label="複選切換🗺️ 行政區">
-                    <span class="geo-union-pill topic-check">✓ ON</span>
+                    <span class="geo-union-pill topic-check">✓</span>
                   </button>
                 </div>
                 <div data-topic="station" data-accent="pink" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜台鐵、高鐵、捷運與輕軌車站（開啟預設台鐵主線＋捷運）">
@@ -850,7 +855,7 @@
                     <span class="text-[10px] text-slate-400 mt-0.5">台鐵主線 / 捷運</span>
                   </button>
                   <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換🚉 車站">
-                    <span class="geo-union-pill topic-check">+ OFF</span>
+                    <span class="geo-union-pill topic-check">+</span>
                   </button>
                 </div>
                 <div data-topic="airport" data-accent="sky" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜台灣國際、國內與軍用機場（軍民合用自動去重）">
@@ -859,7 +864,7 @@
                     <span class="text-[10px] text-slate-400 mt-0.5">國際 / 國內 / 軍用</span>
                   </button>
                   <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換✈️ 機場">
-                    <span class="geo-union-pill topic-check">+ OFF</span>
+                    <span class="geo-union-pill topic-check">+</span>
                   </button>
                 </div>
                 <div data-topic="port" data-accent="teal" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜台灣國際商港、國際輔助港與官方9座第一類漁港（進階可選精選24座第二類漁港及工業/天然氣港）">
@@ -868,7 +873,7 @@
                     <span class="text-[10px] text-slate-400 mt-0.5">商港 / 輔助 / 漁港</span>
                   </button>
                   <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換⚓ 港口">
-                    <span class="geo-union-pill topic-check">+ OFF</span>
+                    <span class="geo-union-pill topic-check">+</span>
                   </button>
                 </div>
                 <div data-topic="reservoir" data-accent="blue" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜台灣主要水庫（進階可選其他本島水庫與離島水庫，與湖泊重疊項目自動去重）">
@@ -877,7 +882,7 @@
                     <span class="text-[10px] text-slate-400 mt-0.5">主要 / 本島 / 離島</span>
                   </button>
                   <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換💧 水庫">
-                    <span class="geo-union-pill topic-check">+ OFF</span>
+                    <span class="geo-union-pill topic-check">+</span>
                   </button>
                 </div>
                 <div data-topic="lake" data-accent="emerald" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜台灣知名觀光平地湖泊（進階可選高山秘境湖泊，與水庫重疊項目自動去重）">
@@ -886,7 +891,7 @@
                     <span class="text-[10px] text-slate-400 mt-0.5">觀光平地 / 高山秘境</span>
                   </button>
                   <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換🏞️ 湖泊">
-                    <span class="geo-union-pill topic-check">+ OFF</span>
+                    <span class="geo-union-pill topic-check">+</span>
                   </button>
                 </div>
               </div>
@@ -958,9 +963,12 @@
             <div id="settings-pane-simple" class="space-y-3">
               <!-- Simple Region Selection: 北 / 中 / 南 / 東 / 外島 / 山 / 西部平原 / 東部平原 / 全臺 -->
               <div id="simple-region-box" class="p-3.5 rounded-2xl bg-slate-900/90 border border-amber-500/30 space-y-2.5">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-wrap items-center justify-between gap-2">
                   <label class="text-xs sm:text-sm font-extrabold text-amber-300">🗺️ 選擇區域範圍</label>
-                  <span class="text-[11px] text-slate-400">點左側單選 · 點右側開關複選</span>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[11px] text-slate-400 hidden sm:inline">點左側單選 · 點右側開關複選</span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="region" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="region" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   <div data-simple-region="all" data-accent="sky" data-state="off" class="simple-region-btn geo-select-card" data-tip="全臺灣 22 縣市共 368 鄉鎮市區">
@@ -1019,7 +1027,8 @@
                       <input id="chk-simple-filter-station-region" type="checkbox" class="w-3.5 h-3.5 rounded bg-slate-900 border-amber-400 text-amber-500 accent-amber-400 cursor-pointer" />
                       <span>📍 僅猜所選區域內的鐵道</span>
                     </label>
-                    <span class="text-[11px] text-slate-400">點左側單選 · 點右側複選</span>
+                    <span class="text-[11px] text-slate-400 hidden sm:inline">點左側單選 · 點右側複選</span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="station" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="station" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
                   </div>
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1066,9 +1075,12 @@
               <div id="simple-airport-box" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-sky-500/30 space-y-2.5">
                 <div class="flex flex-wrap items-center justify-between gap-1.5">
                   <label class="text-xs sm:text-sm font-extrabold text-sky-300">✈️ 選擇機場分類</label>
-                  <span id="simple-airport-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-sky-500/15 text-sky-200 border border-sky-400/40 font-mono-num">
-                    去重總計：24 座
-                  </span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="simple-airport-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-sky-500/15 text-sky-200 border border-sky-400/40 font-mono-num">
+                      去重總計：24 座
+                    </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="airport" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="airport" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-3 gap-2">
                   <div data-poi-cat="airport" data-poi-sub="intl" data-accent="sky" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="桃園、松山、臺中清泉崗、高雄國際機場">
@@ -1091,9 +1103,12 @@
               <div id="simple-port-box" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-teal-500/30 space-y-2.5">
                 <div class="flex flex-wrap items-center justify-between gap-1.5">
                   <label class="text-xs sm:text-sm font-extrabold text-teal-300">⚓ 選擇港口分類（預設）</label>
-                  <span id="simple-port-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-teal-500/15 text-teal-200 border border-teal-400/40 font-mono-num">
-                    去重總計：16 座
-                  </span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="simple-port-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-teal-500/15 text-teal-200 border border-teal-400/40 font-mono-num">
+                      去重總計：16 座
+                    </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="port" data-scope-mode="simple" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="port" data-scope-mode="simple" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div data-poi-cat="port" data-poi-sub="intl_commercial" data-accent="teal" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="基隆港、臺中港、高雄港、花蓮港">
@@ -1121,9 +1136,12 @@
               <div id="simple-reservoir-box" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-blue-500/30 space-y-2.5">
                 <div class="flex flex-wrap items-center justify-between gap-1.5">
                   <label class="text-xs sm:text-sm font-extrabold text-blue-300">💧 選擇水庫分類（預設主要水庫）</label>
-                  <span id="simple-reservoir-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-blue-500/15 text-blue-200 border border-blue-400/40 font-mono-num">
-                    已選：21 座
-                  </span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="simple-reservoir-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-blue-500/15 text-blue-200 border border-blue-400/40 font-mono-num">
+                      已選：21 座
+                    </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="reservoir" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="reservoir" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div data-poi-cat="reservoir" data-poi-sub="res_major" data-accent="blue" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="經濟部水利署主要水情監測水庫（石門、翡翠、曾文、日月潭、德基、鯉魚潭等 21 座）">
@@ -1151,9 +1169,12 @@
               <div id="simple-lake-box" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-emerald-500/30 space-y-2.5">
                 <div class="flex flex-wrap items-center justify-between gap-1.5">
                   <label class="text-xs sm:text-sm font-extrabold text-emerald-300">🏞️ 選擇湖泊分類（與水庫重疊自動去重）</label>
-                  <span id="simple-lake-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-200 border border-emerald-400/40 font-mono-num">
-                    已選：22 座
-                  </span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="simple-lake-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-200 border border-emerald-400/40 font-mono-num">
+                      已選：22 座
+                    </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="lake" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="lake" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div data-poi-cat="lake" data-poi-sub="lake_scenic" data-accent="emerald" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="日月潭、花蓮/埔里鯉魚潭、大坡池、梅花湖、夢幻湖、蓮池潭、澄清湖等 22 座">
@@ -1230,6 +1251,7 @@
                     <span id="scope-station-status-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300">
                       不猜車站
                     </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="station" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="station" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
                   </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-1.5">
@@ -1259,9 +1281,12 @@
               <div id="scope-airport-section" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-sky-500/30 space-y-2.5">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <label class="text-xs font-bold text-sky-300">✈️ 機場分類細選（軍民合用自動去重）</label>
-                  <span id="adv-airport-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-sky-500/15 text-sky-200 border border-sky-400/40 font-mono-num">
-                    去重總計：24 座
-                  </span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="adv-airport-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-sky-500/15 text-sky-200 border border-sky-400/40 font-mono-num">
+                      去重總計：24 座
+                    </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="airport" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="airport" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-3 gap-2">
                   <div data-poi-cat="airport" data-poi-sub="intl" data-accent="sky" data-state="off" class="poi-subtype-btn geo-select-card">
@@ -1283,9 +1308,12 @@
               <div id="scope-port-section" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-teal-500/30 space-y-2.5">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <label class="text-xs font-bold text-teal-300">⚓ 港口分類細選（預設＋進階港類，雙屬性自動去重）</label>
-                  <span id="adv-port-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-teal-500/15 text-teal-200 border border-teal-400/40 font-mono-num">
-                    去重總計：16 座
-                  </span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="adv-port-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-teal-500/15 text-teal-200 border border-teal-400/40 font-mono-num">
+                      去重總計：16 座
+                    </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="port" data-scope-mode="adv" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="port" data-scope-mode="adv" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
                 </div>
                 <div class="text-[11px] font-bold text-slate-400">預設港類</div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1323,9 +1351,12 @@
               <div id="scope-reservoir-section" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-blue-500/30 space-y-2.5">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <label class="text-xs font-bold text-blue-300">💧 水庫分類細選（與湖泊重疊自動去重）</label>
-                  <span id="adv-reservoir-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-blue-500/15 text-blue-200 border border-blue-400/40 font-mono-num">
-                    已選：21 座
-                  </span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="adv-reservoir-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-blue-500/15 text-blue-200 border border-blue-400/40 font-mono-num">
+                      已選：21 座
+                    </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="reservoir" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="reservoir" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div data-poi-cat="reservoir" data-poi-sub="res_major" data-accent="blue" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="經濟部水利署主要水情監測水庫（21 座）">
@@ -1347,9 +1378,12 @@
               <div id="scope-lake-section" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-emerald-500/30 space-y-2.5">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <label class="text-xs font-bold text-emerald-300">🏞️ 湖泊分類細選（與水庫重疊自動去重）</label>
-                  <span id="adv-lake-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-200 border border-emerald-400/40 font-mono-num">
-                    已選：22 座
-                  </span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="adv-lake-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-200 border border-emerald-400/40 font-mono-num">
+                      已選：22 座
+                    </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="lake" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="lake" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div data-poi-cat="lake" data-poi-sub="lake_scenic" data-accent="emerald" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="觀光與平地湖泊（22 座，含日月潭、澄清湖、虎頭埤、青草湖、美濃湖、龍鑾潭）">

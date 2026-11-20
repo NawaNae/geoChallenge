@@ -39,7 +39,7 @@ function syncConfigButtonsUI() {
     const unionBtn = card.querySelector(".geo-union-btn");
     if (unionBtn) unionBtn.setAttribute("aria-checked", isOn ? "true" : "false");
     const chk = card.querySelector(".topic-check");
-    if (chk) chk.textContent = isOn ? "✓ ON" : "+ OFF";
+    if (chk) chk.textContent = isOn ? "✓" : "+";
   });
 
   const regSec = document.getElementById("scope-region-section");
@@ -167,6 +167,8 @@ function syncConfigButtonsUI() {
     const el = document.getElementById(cid);
     if (el) el.checked = Boolean(state.allowTargetHints);
   });
+
+  if (typeof updateSuffixControlsUI === "function") updateSuffixControlsUI();
 
   document.querySelectorAll(".hub-timer-btn").forEach((btn) => {
     const tMode = btn.getAttribute("data-timermode");
@@ -1259,26 +1261,22 @@ function bindAllUIEvents() {
     const inputEl = document.getElementById("answer-input");
     if (!inputEl || inputEl.value.length > 0) return;
 
-    const suffixList = ["", "區", "鄉", "鎮", "市", "站"];
+    const suffixContainerEl = document.getElementById("suffix-container");
     const suffixInputEl = document.getElementById("suffix-input");
     const prefixSelectEl = document.getElementById("prefix-select");
 
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      const suffixList = typeof getActiveQuickSuffixes === "function" ? getActiveQuickSuffixes() : [];
+      if (!suffixContainerEl || suffixContainerEl.classList.contains("hidden") || suffixList.length <= 1) return;
       e.preventDefault();
       const curSuffix = suffixInputEl ? suffixInputEl.value : "";
       let idx = suffixList.indexOf(curSuffix);
-      if (idx === -1) idx = 0;
+      if (idx < 0) idx = 0;
       const step = e.key === "ArrowRight" ? 1 : -1;
       const nextIdx = (idx + step + suffixList.length) % suffixList.length;
       const nextSuffix = suffixList[nextIdx];
       if (suffixInputEl) suffixInputEl.value = nextSuffix;
-      document.querySelectorAll(".suffix-quick-btn").forEach((b) => {
-        b.className =
-          b.getAttribute("data-suffix") === nextSuffix
-            ? "suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold bg-sky-500 text-white"
-            : "suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white";
-      });
-      updateLiveCombinedPreview();
+      if (typeof updateSuffixControlsUI === "function") updateSuffixControlsUI();
       setFeedback(`🏷️ 左右鍵快速切換後綴：「${nextSuffix || "無後綴"}」`, "info");
       inputEl.focus({ preventScroll: true });
     } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -1347,13 +1345,8 @@ function bindAllUIEvents() {
     btn.addEventListener("click", () => {
       const s = btn.getAttribute("data-suffix");
       suffixInput.value = s;
-      document.querySelectorAll(".suffix-quick-btn").forEach((b) => {
-        b.className =
-          b.getAttribute("data-suffix") === s
-            ? "suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold bg-sky-500 text-white"
-            : "suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white";
-      });
-      updateLiveCombinedPreview();
+      if (typeof updateSuffixControlsUI === "function") updateSuffixControlsUI();
+      else updateLiveCombinedPreview();
       answerInput.focus({ preventScroll: true });
     });
   });
@@ -1774,6 +1767,59 @@ function bindAllUIEvents() {
 
   document.getElementById("btn-qst-none")?.addEventListener("click", () => {
     applyStationScopeSelection([], false);
+  });
+
+  // Unified Select All / Clear buttons for Region, Station, Airport, Port, Reservoir & Lake
+  document.querySelectorAll(".scope-bulk-btn[data-scope-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!canLocalModifyGameConfig()) {
+        setFeedback("⚠️ 目前由房主統一管理題庫範圍", "warn");
+        return;
+      }
+      const action = btn.getAttribute("data-scope-action");
+      const target = btn.getAttribute("data-scope-target");
+      const mode = btn.getAttribute("data-scope-mode") || "all";
+
+      if (target === "region") {
+        applyRegionScopeSelection(action === "select-all" ? SIMPLE_REGION_MAP.all() : [], false);
+        return;
+      }
+      if (target === "station") {
+        const allLines = action === "select-all"
+          ? TAIWAN_SELECTABLE_LINES.filter((l) => !l.isHighway).map((l) => l.id)
+          : [];
+        applyStationScopeSelection(allLines, false);
+        return;
+      }
+      if (["airport", "port", "reservoir", "lake"].includes(target)) {
+        const subMetaMap = {
+          airport: typeof AIRPORT_SUBTYPES !== "undefined" ? AIRPORT_SUBTYPES.map((s) => s.id) : [],
+          port: mode === "simple"
+            ? ["intl_commercial", "intl_aux", "fishery_cat1"]
+            : (typeof PORT_SUBTYPES !== "undefined" ? PORT_SUBTYPES.map((s) => s.id) : []),
+          reservoir: typeof RESERVOIR_SUBTYPES !== "undefined" ? RESERVOIR_SUBTYPES.map((s) => s.id) : [],
+          lake: typeof LAKE_SUBTYPES !== "undefined" ? LAKE_SUBTYPES.map((s) => s.id) : []
+        };
+        const nextSet = action === "select-all" ? new Set(subMetaMap[target] || []) : new Set();
+        const catLabel = (typeof POI_CATEGORY_META !== "undefined" && POI_CATEGORY_META[target] && POI_CATEGORY_META[target].label) || "地標";
+        if (state.roomCode && !state.isHost) {
+          const patch =
+            target === "airport" ? { airportSubTypes: Array.from(nextSet) } :
+            target === "port" ? { portSubTypes: Array.from(nextSet) } :
+            target === "reservoir" ? { reservoirSubTypes: Array.from(nextSet) } :
+            { lakeSubTypes: Array.from(nextSet) };
+          requestOrApplyConfigChange(patch, `${catLabel}分類`);
+          return;
+        }
+        if (target === "airport") state.airportSubTypes = nextSet;
+        else if (target === "port") state.portSubTypes = nextSet;
+        else if (target === "reservoir") state.reservoirSubTypes = nextSet;
+        else state.lakeSubTypes = nextSet;
+        renderScopeModalGrid();
+        if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
+        if (state.isHost && state.roomCode) onHostSettingChange(`${catLabel}分類`);
+      }
+    });
   });
 
   document.getElementById("chk-raw-rail-tile")?.addEventListener("change", (e) => {

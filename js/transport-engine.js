@@ -670,6 +670,28 @@ const STATION_NAME_ALIASES = {
 
 function isStationMatch(st, core, comb, cNorm, combNorm, cStripped, combStripped) {
   if (!st || !st.baseName) return false;
+  const requireSuffix = typeof isSuffixRequiredDifficulty === "function" ? isSuffixRequiredDifficulty() : false;
+
+  if (requireSuffix) {
+    const suffixedInputs = [];
+    if (cNorm && cNorm.endsWith("站")) suffixedInputs.push({ raw: cNorm, stripped: cStripped });
+    if (combNorm && combNorm.endsWith("站")) suffixedInputs.push({ raw: combNorm, stripped: combStripped });
+    if (suffixedInputs.length === 0) return false;
+
+    const aliases = STATION_NAME_ALIASES[st.baseName] || [];
+    const slashParts = st.baseName.includes("/") ? [st.baseName.replace(/\//g, ""), ...st.baseName.split("/").filter(Boolean)] : [];
+    const dispNorm = normTw(st.displayName);
+
+    return suffixedInputs.some(({ raw, stripped }) => {
+      if (stripped === st.baseName) return true;
+      if (raw === dispNorm) return true;
+      if (raw === normTw(`${st.baseName}站`) || raw === normTw(`${st.baseName}車站`)) return true;
+      if (slashParts.some((part) => part === stripped)) return true;
+      if (aliases.some((a) => a === stripped || normTw(`${a}站`) === raw || normTw(`${a}車站`) === raw)) return true;
+      return false;
+    });
+  }
+
   if (cStripped === st.baseName || combStripped === st.baseName) return true;
   if (cNorm === normTw(st.displayName) || combNorm === normTw(st.displayName)) return true;
   if (cNorm === normTw(`${st.baseName}站`) || combNorm === normTw(`${st.baseName}站`)) return true;

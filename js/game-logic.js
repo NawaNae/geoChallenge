@@ -125,11 +125,79 @@ function updatePrefixDropdownUI() {
   if (prefixOptions.some((o) => o.val === currentVal)) {
     select.value = currentVal;
   }
+  if (typeof updateSuffixControlsUI === "function") updateSuffixControlsUI();
 }
 
 const VALID_TOWN_SUFFIXES = new Set(["區", "鄉", "鎮", "市"]);
 const EXACT_TOWN_NAMES_SET = new Set(ALL_TOWNS.map((t) => normTw(t.townName)));
 const EXACT_COUNTY_NAMES_SET = new Set(TAIWAN_ADMIN_DATA.map((c) => normTw(c.name)));
+const EXISTING_POI_OR_STATION_SUFFIX_RE = /(站|機場|基地|航空站|桃機|松機|港|碼頭|水庫|攔河堰|大壩|壩|湖|潭|池|埤|窟|森林|眼淚)$/;
+
+function isSuffixRequiredDifficulty(diff = state.difficulty) {
+  return diff === "hard_suffix" || diff === "hard_full" || diff === "master_hierarchy";
+}
+
+function getActiveQuickSuffixes() {
+  if (!isSuffixRequiredDifficulty()) return [];
+  const list = [""];
+  if (state.regionQuizEnabled) list.push("區", "鄉", "鎮", "市");
+  if (state.stationQuizEnabled && state.quizStationLines && state.quizStationLines.size > 0) list.push("站");
+  if (typeof isPoiCategoryActive === "function") {
+    if (isPoiCategoryActive("airport")) list.push("機場");
+    if (isPoiCategoryActive("port")) list.push("港", "漁港");
+    if (isPoiCategoryActive("reservoir")) list.push("水庫");
+    if (isPoiCategoryActive("lake")) list.push("湖");
+  }
+  return list;
+}
+
+function updateSuffixControlsUI() {
+  const container = document.getElementById("suffix-container");
+  const suffixInput = document.getElementById("suffix-input");
+  if (!container) return;
+
+  const activeList = getActiveQuickSuffixes();
+  const shouldShow = activeList.length > 0;
+  container.classList.toggle("hidden", !shouldShow);
+
+  if (!shouldShow) {
+    if (suffixInput && suffixInput.value) suffixInput.value = "";
+    document.querySelectorAll(".suffix-quick-btn").forEach((b) => {
+      const isNone = b.getAttribute("data-suffix") === "";
+      b.className = isNone
+        ? "suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold bg-sky-500 text-white"
+        : "suffix-quick-btn hidden px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white";
+    });
+    if (typeof updateLiveCombinedPreview === "function") updateLiveCombinedPreview();
+    return;
+  }
+
+  const activeSet = new Set(activeList);
+  if (suffixInput && suffixInput.value && !activeSet.has(suffixInput.value)) {
+    suffixInput.value = "";
+  }
+  const curVal = suffixInput ? suffixInput.value : "";
+
+  document.querySelectorAll(".suffix-quick-btn").forEach((b) => {
+    const val = b.getAttribute("data-suffix");
+    const visible = activeSet.has(val);
+    b.classList.toggle("hidden", !visible);
+    if (!visible) return;
+    const isSel = val === curVal;
+    const topic = b.getAttribute("data-suffix-topic") || "";
+    const inactiveColor =
+      topic === "station" ? "text-amber-300" :
+      topic === "airport" ? "text-sky-300" :
+      topic === "port" ? "text-teal-300" :
+      topic === "reservoir" ? "text-blue-300" :
+      topic === "lake" ? "text-emerald-300" :
+      "text-slate-300";
+    b.className = isSel
+      ? "suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold bg-sky-500 text-white"
+      : `suffix-quick-btn px-1.5 py-1 rounded-lg text-[11px] font-bold ${inactiveColor} hover:text-white`;
+  });
+  if (typeof updateLiveCombinedPreview === "function") updateLiveCombinedPreview();
+}
 
 function buildCombinedInput(prefix, core, suffix) {
   let c = normTw(core);
@@ -156,8 +224,12 @@ function buildCombinedInput(prefix, core, suffix) {
         break;
       }
     }
-    if (EXACT_TOWN_NAMES_SET.has(townPart)) {
-      // User explicitly typed a complete valid town name (e.g. typed 虎尾鎮 while 鄉 was selected) -> keep it!
+    if (
+      EXACT_TOWN_NAMES_SET.has(townPart) ||
+      EXISTING_POI_OR_STATION_SUFFIX_RE.test(c) ||
+      /^[A-Za-z]{3,4}$/.test(c)
+    ) {
+      // User explicitly typed a complete town/POI/station name or IATA code (e.g. 虎尾鎮, 石岡壩, TPE) -> keep it!
     } else {
       c = c + s;
     }
@@ -225,6 +297,7 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
   if (!core) return false;
 
   const combined = buildCombinedInput(prefix, core, suffix);
+  const coreWithSuffix = buildCombinedInput("", core, suffix);
   const cleanCore = normTw(core);
 
   if (!state.timerRunning && state.elapsedSec === 0) {
@@ -242,10 +315,11 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
   const isStationQuizActive = Boolean(state.stationQuizEnabled && state.quizStationLines && state.quizStationLines.size > 0);
   const isPurePoiQuiz = isPoiQuizActive && !state.regionQuizEnabled && !isStationQuizActive;
   const isTargetingPoi = (state.playMode === "target_click" || state.playMode === "target_random") && Boolean(state.targetPoiId);
-  const looksLikePoiInput = /(機場|基地|航空站|桃機|松機|清泉崗|漁港|商港|工業港|天然氣港|接收港|接收站|港|一接|二接|三接|水庫|攔河堰|人工湖|大壩|壩|湖|潭|池|埤|窟|水漾森林|天使的眼淚)$/.test(core) || /^[A-Za-z]{3,4}$/.test(core);
+  const poiSuffixRe = /(機場|基地|航空站|桃機|松機|清泉崗|漁港|商港|工業港|天然氣港|接收港|接收站|港|一接|二接|三接|水庫|攔河堰|人工湖|大壩|壩|湖|潭|池|埤|窟|水漾森林|天使的眼淚)$/;
+  const looksLikePoiInput = poiSuffixRe.test(coreWithSuffix) || poiSuffixRe.test(core) || /^[A-Za-z]{3,4}$/.test(core);
 
   if (isPoiQuizActive && (isTargetingPoi || isPurePoiQuiz || looksLikePoiInput)) {
-    const poiRes = tryMatchAndUnlockPoi(core, isAutoCheck);
+    const poiRes = tryMatchAndUnlockPoi(coreWithSuffix, isAutoCheck);
     if (poiRes && poiRes.matched) {
       if (poiRes.alreadyUnlocked) {
         if (!isAutoCheck) setFeedback(`已經解鎖過「${poiRes.poi.name}」囉！`, "warn");
@@ -288,14 +362,15 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
   // CASE 0: PURE STATION QUIZ MODE (0 counties selected) OR TARGETED STATION DOT (only in target modes) OR "站" SUFFIX
   const isPureStationQuiz = !state.regionQuizEnabled && !isPoiQuizActive && isStationQuizActive;
   const isTargetingStation = (state.playMode === "target_click" || state.playMode === "target_random") && Boolean(state.targetStationKey);
+  const looksLikeStationInput = core.endsWith("站") || coreWithSuffix.endsWith("站") || suffix === "站";
   if (
     isStationQuizActive &&
-    (isPureStationQuiz || isTargetingStation || core.endsWith("站") || suffix === "站")
+    (isPureStationQuiz || isTargetingStation || looksLikeStationInput)
   ) {
-    if (tryMatchAndUnlockStation(core, combined, isAutoCheck)) {
+    if (tryMatchAndUnlockStation(core, coreWithSuffix, isAutoCheck)) {
       return true;
     }
-    if (isPureStationQuiz || isTargetingStation || core.endsWith("站") || suffix === "站") {
+    if (isPureStationQuiz || isTargetingStation || looksLikeStationInput) {
       if (!isAutoCheck) {
         triggerWrongFeedback(
           isTargetingStation

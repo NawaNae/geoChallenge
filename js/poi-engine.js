@@ -152,7 +152,14 @@ function getActiveQuizPois(categoryFilter = null) {
   return result;
 }
 
-function buildPoiMatchKeys(poi, allowBareStem) {
+const POI_SUFFIXED_ALIAS_RE = /(機場|基地|航空站|桃機|松機|港|碼頭|一接|二接|三接|接收站|水庫|壩|堰|湖|潭|池|埤|窟|森林|眼淚|公園|洞庫|營區|水沙連|埤尾|大水堀|池端)$/;
+const EXACT_PORT_SHORT_NAMES = new Set(
+  (typeof TAIWAN_POI_DATA !== "undefined" ? TAIWAN_POI_DATA : [])
+    .filter((p) => (p.categories ? p.categories.includes("port") : p.category === "port"))
+    .map((p) => normalizePoiText(p.shortName))
+);
+
+function buildPoiMatchKeys(poi, allowBareStem, requireSuffix = false) {
   const keys = new Set();
   const addKey = (s) => {
     const n = normalizePoiText(s);
@@ -162,18 +169,34 @@ function buildPoiMatchKeys(poi, allowBareStem) {
   addKey(poi.shortName);
   if (poi.code) addKey(poi.code);
   if (Array.isArray(poi.aliases)) {
-    poi.aliases.forEach(addKey);
+    poi.aliases.forEach((a) => {
+      if (requireSuffix && !POI_SUFFIXED_ALIAS_RE.test(a) && !/^[A-Za-z]{3,4}$/.test(a)) {
+        return;
+      }
+      addKey(a);
+    });
   }
 
-  // Allow bare stems (e.g., "桃園" -> 桃園機場, "石門" -> 石門水庫) ONLY when region quiz is NOT active
-  // so typing a county/town name in mixed mode never hijacks administrative region answers.
-  if (allowBareStem) {
-    const normShort = normalizePoiText(poi.shortName);
-    let stem = normShort
-      .replace(/(國際機場|國內機場|空軍基地|陸軍航空基地|航空基地|航空站|機場|基地)$/g, "")
-      .replace(/(液化天然氣接收港|液化天然氣接收站|工業專用港|國際商港|天然氣港|工業港|觀光漁港|漁港|商港|港)$/g, "");
+  const normShort = normalizePoiText(poi.shortName);
+  const stem = normShort
+    .replace(/(國際機場|國內機場|空軍基地|陸軍航空基地|航空基地|航空站|機場|基地)$/g, "")
+    .replace(/(液化天然氣接收港|液化天然氣接收站|工業專用港|國際商港|天然氣港|工業港|觀光漁港|漁港|商港|港)$/g, "");
 
-    // For reservoirs: strip 水庫/攔河堰/人工湖/壩, EXCEPT avoid colliding 鯉魚潭水庫 with 鯉魚潭 lakes when lake quiz is active
+  // Flexible suffixed matching so users don't get stuck on rigid sub-suffixes (e.g. 新竹機場 for 新竹基地, 正濱港 for 正濱漁港)
+  if (stem && stem.length >= 2 && stem !== normShort) {
+    if (poiMatchesCategory(poi, "airport")) {
+      keys.add(`${stem}機場`);
+    }
+    if (poiMatchesCategory(poi, "port")) {
+      const genericPort = `${stem}港`;
+      if (genericPort === normShort || !EXACT_PORT_SHORT_NAMES.has(genericPort)) {
+        keys.add(genericPort);
+      }
+    }
+  }
+
+  // Allow bare stems (e.g., "桃園" -> 桃園機場, "石門" -> 石門水庫) ONLY in non-suffix difficulties and when region quiz is OFF
+  if (allowBareStem && !requireSuffix) {
     if (poiMatchesCategory(poi, "reservoir")) {
       const resStem = normShort.replace(/(第二水庫|水庫|攔河堰|人工湖|大壩|壩)$/g, "");
       const collidesWithLake = resStem === "鯉魚潭" && isPoiCategoryActive("lake");
@@ -188,8 +211,8 @@ function buildPoiMatchKeys(poi, allowBareStem) {
   return keys;
 }
 
-function matchSinglePoi(poi, normInput, allowBareStem) {
-  const keys = buildPoiMatchKeys(poi, allowBareStem);
+function matchSinglePoi(poi, normInput, allowBareStem, requireSuffix = false) {
+  const keys = buildPoiMatchKeys(poi, allowBareStem, requireSuffix);
   return keys.has(normInput);
 }
 
@@ -202,13 +225,14 @@ function tryMatchAndUnlockPoi(rawInput, isAutoCheck = false) {
   const normInput = normalizePoiText(rawInput);
   if (!normInput || normInput.length < 2) return { matched: false };
 
-  const allowBareStem = !state.regionQuizEnabled;
+  const requireSuffix = typeof isSuffixRequiredDifficulty === "function" ? isSuffixRequiredDifficulty() : false;
+  const allowBareStem = !requireSuffix && !state.regionQuizEnabled;
 
   // Target mode: check ONLY the currently targeted POI first
   if ((state.playMode === "target_random" || state.playMode === "target_click") && state.targetPoiId) {
     const targetPoi = TAIWAN_POI_BY_ID.get(state.targetPoiId);
     if (targetPoi && activePois.some((p) => p.id === targetPoi.id)) {
-      if (matchSinglePoi(targetPoi, normInput, true)) {
+      if (matchSinglePoi(targetPoi, normInput, !requireSuffix, requireSuffix)) {
         if (state.unlockedPois.has(targetPoi.id)) {
           return { matched: true, alreadyUnlocked: true, poi: targetPoi };
         }
@@ -221,7 +245,7 @@ function tryMatchAndUnlockPoi(rawInput, isAutoCheck = false) {
   }
 
   // Free recall mode (or no POI target locked)
-  const candidates = activePois.filter((p) => matchSinglePoi(p, normInput, allowBareStem));
+  const candidates = activePois.filter((p) => matchSinglePoi(p, normInput, allowBareStem, requireSuffix));
   if (candidates.length === 0) return { matched: false };
 
   const unlockedNew = [];
