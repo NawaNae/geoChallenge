@@ -1,0 +1,60 @@
+name: Pull from Google Drive
+
+on:
+  repository_dispatch:
+    types: [sync-from-drive]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pull-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y rclone rsync unzip
+
+      - name: Download ZIP from Google Drive
+        env:
+          GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
+          GDRIVE_INCOMING_FOLDER_ID: ${{ secrets.GDRIVE_INCOMING_FOLDER_ID }}
+        run: |
+          printf '%s' "$GDRIVE_SA_JSON" > /tmp/sa.json
+          export RCLONE_CONFIG_GDRIVE_TYPE=drive
+          export RCLONE_CONFIG_GDRIVE_SCOPE=drive.readonly
+          export RCLONE_CONFIG_GDRIVE_SERVICE_ACCOUNT_FILE=/tmp/sa.json
+          export RCLONE_CONFIG_GDRIVE_ROOT_FOLDER_ID="$GDRIVE_INCOMING_FOLDER_ID"
+
+          if ! rclone lsf gdrive: | grep -qx "geoMaster_updated.zip"; then
+            echo "No geoMaster_updated.zip found, skipping."
+            exit 0
+          fi
+
+          rclone copyto gdrive:geoMaster_updated.zip /tmp/incoming.zip
+          mkdir -p /tmp/incoming_src
+          unzip -o /tmp/incoming.zip -d /tmp/incoming_src
+
+          # 若 ZIP 內多包了一層資料夾，自動剝除那一層
+          SRC=/tmp/incoming_src
+          if [ "$(ls -A /tmp/incoming_src | wc -l)" -eq 1 ] && [ -d "/tmp/incoming_src/$(ls -A /tmp/incoming_src)" ]; then
+            SRC="/tmp/incoming_src/$(ls -A /tmp/incoming_src)"
+          fi
+
+          rsync -av --exclude='.git' --exclude='.github' "$SRC/" ./
+          rm -f /tmp/sa.json /tmp/incoming.zip
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: sync updates from Google Drive"
+          git push
