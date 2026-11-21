@@ -886,7 +886,13 @@ function bindAllUIEvents() {
     });
   });
 
-  function setDistrictBordersVisible(visible) {
+  function setDistrictBordersVisible(visible, forceBypassLock = false) {
+    if (!forceBypassLock && state.p2pBorderRule === "force_off" && state.role !== "spectator" && visible) {
+      setFeedback("🔒 本場對戰房主已指定「關閉區界」模式，無法開啟區界！", "warn");
+      const chkModalLock = document.getElementById("chk-modal-borders");
+      if (chkModalLock) chkModalLock.checked = false;
+      return;
+    }
     state.showDistrictBorders = visible;
     const bBtn = document.getElementById("btn-toggle-borders");
     if (bBtn) {
@@ -907,6 +913,7 @@ function bindAllUIEvents() {
     }
     refreshAllPolygonStyles();
   }
+  window.setDistrictBordersVisible = setDistrictBordersVisible;
 
   function renderTransportModalChecklist() {
     const container = document.getElementById("transport-lines-checklist");
@@ -2056,6 +2063,7 @@ function bindAllUIEvents() {
     const lruleEl = document.getElementById("p2p-layer-rule-select");
     const flayerEl = document.getElementById("p2p-forced-layer-select");
     const rruleEl = document.getElementById("p2p-rail-rule-select");
+    const bruleEl = document.getElementById("p2p-border-rule-select");
     // Picking a specific basemap implies locking to it so both host and guests actually switch.
     if (autoLock && lruleEl && lruleEl.value !== "locked") {
       lruleEl.value = "locked";
@@ -2063,16 +2071,18 @@ function bindAllUIEvents() {
     const lrule = lruleEl ? lruleEl.value : state.p2pLayerRule;
     const flayer = flayerEl ? flayerEl.value : state.p2pForcedLayer;
     const rrule = rruleEl ? rruleEl.value : state.p2pRailRule;
+    const brule = bruleEl ? bruleEl.value : state.p2pBorderRule;
     if (state.isHost && state.roomCode) {
-      requestOrApplyConfigChange({ layerRule: lrule, forcedLayer: flayer, railRule: rrule }, label);
+      requestOrApplyConfigChange({ layerRule: lrule, forcedLayer: flayer, railRule: rrule, borderRule: brule }, label);
       return;
     }
-    applyP2PLayerRule(lrule, flayer, rrule);
+    applyP2PLayerRule(lrule, flayer, rrule, brule);
     if (typeof renderRoomConciseSettingsSummary === "function") renderRoomConciseSettingsSummary();
   };
   document.getElementById("p2p-layer-rule-select")?.addEventListener("change", () => handleLayerRuleChange("底圖限制", false));
   document.getElementById("p2p-forced-layer-select")?.addEventListener("change", () => handleLayerRuleChange("指定底圖", true));
   document.getElementById("p2p-rail-rule-select")?.addEventListener("change", () => handleLayerRuleChange("路網規則", false));
+  document.getElementById("p2p-border-rule-select")?.addEventListener("change", () => handleLayerRuleChange("區界限制", false));
 
 
   // Host Start Battle

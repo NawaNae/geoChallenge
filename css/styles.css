@@ -80,7 +80,7 @@ body.perf-lite .apple-glass-pill {
   overflow: hidden;
   border-radius: 0;
   contain: layout paint;
-  transition: height 0.08s ease-out;
+  transition: none;
 }
 
 /* Mobile Virtual Keyboard Active Mode:

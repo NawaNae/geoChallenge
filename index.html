@@ -736,7 +736,7 @@
               </span>
               <span id="p2p-guest-settings-note" class="hidden text-[10px] text-slate-400">🔒 僅房主可調</span>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label class="text-[10px] text-slate-400 font-semibold block mb-1">🗺️ 底圖切換限制</label>
                 <select id="p2p-layer-rule-select" class="w-full bg-slate-950 text-white text-[11px] font-semibold rounded-xl px-2.5 py-1.5 border border-slate-700">
@@ -760,6 +760,13 @@
                   <option value="ban_rail">🚫 禁所有路網</option>
                   <option value="force_lines">🛤️ 強制完整路網</option>
                   <option value="force_rail_only">🚄 強制純軌道路網</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-400 font-semibold block mb-1">📐 行政區界線限制</label>
+                <select id="p2p-border-rule-select" class="w-full bg-slate-950 text-emerald-200 text-[11px] font-semibold rounded-xl px-2.5 py-1.5 border border-slate-700">
+                  <option value="free">🔓 自由開關區界</option>
+                  <option value="force_off">🚫 強制關閉區界</option>
                 </select>
               </div>
             </div>

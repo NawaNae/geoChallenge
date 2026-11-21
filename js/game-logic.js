@@ -24,6 +24,13 @@ function isCountyRevealed(countyName) {
   return false;
 }
 
+function isPrefixRequiredMode() {
+  return Boolean(
+    state.regionQuizEnabled &&
+    (state.difficulty === "hard_full" || state.difficulty === "master_hierarchy")
+  );
+}
+
 function updatePrefixDropdownUI() {
   const select = document.getElementById("prefix-select");
   const prefixContainer = document.getElementById("prefix-container");
@@ -31,7 +38,7 @@ function updatePrefixDropdownUI() {
   const guideBar = document.getElementById("hierarchy-guide-bar");
   if (!select) return;
 
-  const hidePrefix = state.difficulty === "casual";
+  const hidePrefix = !isPrefixRequiredMode();
   if (prefixContainer) prefixContainer.classList.toggle("hidden", hidePrefix);
   if (hidePrefix) {
     select.replaceChildren();
@@ -316,7 +323,7 @@ function buildCombinedInput(prefix, core, suffix) {
 }
 
 function updateLiveCombinedPreview() {
-  const prefix = document.getElementById("prefix-select").value;
+  const prefix = isPrefixRequiredMode() ? (document.getElementById("prefix-select")?.value || "") : "";
   const core = document.getElementById("answer-input").value.trim();
   const suffix = document.getElementById("suffix-input").value.trim();
   const badge = document.getElementById("live-preview-combined");
@@ -345,7 +352,7 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
   if (isAutoCheck && state.isImeComposing) return false;
   if (state.isGameOver) return false;
 
-  const prefix = document.getElementById("prefix-select").value;
+  const prefix = isPrefixRequiredMode() ? (document.getElementById("prefix-select")?.value || "") : "";
   const suffix = document.getElementById("suffix-input").value.trim();
   const core = rawInput.trim();
   if (!core) return false;
@@ -1212,7 +1219,7 @@ function handlePolygonClick(townObj) {
           : `${townObj.province}${townObj.countyName}`
         : townObj.countyName;
     const select = document.getElementById("prefix-select");
-    if (select && state.difficulty !== "county_only" && state.difficulty !== "casual") {
+    if (select && isPrefixRequiredMode()) {
       select.value = prefixVal;
       updateLiveCombinedPreview();
       setFeedback(`已將前綴鎖定為「${prefixVal}」，請輸入該區名稱！`, "info");

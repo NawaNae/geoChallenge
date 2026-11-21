@@ -99,7 +99,8 @@ const state = {
   hideMrtLinesOnOpenRail: false, // User toggle: hide MRT lines on openrail loaded, keep colored dots
   p2pLayerRule: "free",       // 'free' | 'locked'
   p2pForcedLayer: "vector",
-  p2pRailRule: "free",        // 'free' | 'ban_roads_only' | 'ban_rail' | 'force_lines' | 'force_rail_only'
+  p2pRailRule: "free", // 'free' | 'ban_roads_only' | 'ban_rail' | 'force_lines' | 'force_rail_only'
+  p2pBorderRule: "free", // 'free' | 'force_off'
   leaderLineMode: "smart",    // 'smart' | 'all_callout' | 'inline_only'
   // Performance & Label Display Settings (Local only, never synced in P2P)
   dragSyncMode: "realtime_raf",// 'hide_on_move' (高效能移動時隱藏) | 'realtime_raf' (即時同步跟隨)

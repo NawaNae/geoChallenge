@@ -225,6 +225,7 @@ function getHostSyncConfig(isSettingChange = false, changeLabel = "", changeDeta
   const lruleEl = document.getElementById("p2p-layer-rule-select");
   const flayerEl = document.getElementById("p2p-forced-layer-select");
   const rruleEl = document.getElementById("p2p-rail-rule-select");
+  const bruleEl = document.getElementById("p2p-border-rule-select");
   return {
     quizTargetMode: typeof syncLegacyQuizTargetMode === "function" ? syncLegacyQuizTargetMode() : (state.quizTargetMode || "region"),
     regionQuizEnabled: Boolean(state.regionQuizEnabled),
@@ -256,6 +257,7 @@ function getHostSyncConfig(isSettingChange = false, changeLabel = "", changeDeta
     layerRule: lruleEl ? lruleEl.value : state.p2pLayerRule,
     forcedLayer: flayerEl ? flayerEl.value : state.p2pForcedLayer,
     railRule: rruleEl ? rruleEl.value : state.p2pRailRule,
+    borderRule: bruleEl ? bruleEl.value : state.p2pBorderRule,
     isSettingChange: Boolean(isSettingChange),
     changeLabel: changeLabel || "",
     changeDetail: changeDetail || ""
@@ -825,7 +827,7 @@ function leaveP2PRoom(silentReason = null) {
   document.getElementById("modal-room")?.classList.add("hidden");
   document.getElementById("modal-join-entry")?.classList.add("hidden");
 
-  applyP2PLayerRule("free", state.mapLayer || "vector", "free");
+  applyP2PLayerRule("free", state.mapLayer || "vector", "free", "free");
   updateP2PPanelVisibility();
   updateP2PLobbyUI();
   refreshAllPolygonStyles();
@@ -961,11 +963,11 @@ function toggleSpectatorRole() {
   ensureLocalPlayerInRoster();
   if (nextRole === "player") {
     state.spectatingPlayerId = null;
-    applyP2PLayerRule(state.p2pLayerRule, state.p2pForcedLayer, state.p2pRailRule);
+    applyP2PLayerRule(state.p2pLayerRule, state.p2pForcedLayer, state.p2pRailRule, state.p2pBorderRule);
   } else {
     const sorted = getSortedActiveBattlePlayers();
     state.spectatingPlayerId = sorted[0]?.id || null;
-    applyP2PLayerRule(state.p2pLayerRule, state.p2pForcedLayer, state.p2pRailRule);
+    applyP2PLayerRule(state.p2pLayerRule, state.p2pForcedLayer, state.p2pRailRule, state.p2pBorderRule);
   }
   syncPrimaryOpponentFromRoster();
   sendP2PMessage("SYNC_ROLE_CHANGE", {
@@ -1020,7 +1022,7 @@ function updateP2PPanelVisibility() {
   applySpectatorInputLock();
 }
 
-function syncSpectatorInitialLayers(rule, forcedLayer, railRule) {
+function syncSpectatorInitialLayers(rule, forcedLayer, railRule, borderRule) {
   const defaultBase = forcedLayer || "vector";
   setMapBaseLayer(defaultBase, true);
   if (railRule === "ban_rail") {
@@ -1030,23 +1032,29 @@ function syncSpectatorInitialLayers(rule, forcedLayer, railRule) {
   } else if (railRule === "force_rail_only" || railRule === "ban_roads_only") {
     state.transportMode = "rail_only";
   }
+  if (borderRule === "force_off" && typeof setDistrictBordersVisible === "function") {
+    setDistrictBordersVisible(false, true);
+  }
   state.spectatorLayerInitialized = true;
   updateRoadAndRailwayTileOverlays();
 }
 
-function applyP2PLayerRule(rule, forcedLayer, railRule) {
+function applyP2PLayerRule(rule, forcedLayer, railRule, borderRule) {
   state.p2pLayerRule = rule || "free";
   state.p2pForcedLayer = forcedLayer || "vector";
   if (railRule) state.p2pRailRule = railRule;
+  if (borderRule) state.p2pBorderRule = borderRule;
 
   const badge = document.getElementById("layer-lock-badge");
   const switcher = document.getElementById("layer-switcher-pill");
   const railBtn = document.getElementById("btn-toggle-rail");
   const cfgBtn = document.getElementById("btn-open-transport-cfg");
+  const borderBtn = document.getElementById("btn-toggle-borders");
+  const chkModalBorders = document.getElementById("chk-modal-borders");
 
   if (state.role === "spectator" && state.roomCode) {
     if (!state.spectatorLayerInitialized) {
-      syncSpectatorInitialLayers(state.p2pLayerRule, state.p2pForcedLayer, state.p2pRailRule);
+      syncSpectatorInitialLayers(state.p2pLayerRule, state.p2pForcedLayer, state.p2pRailRule, state.p2pBorderRule);
     }
     if (badge) {
       badge.classList.remove("hidden");
@@ -1056,6 +1064,8 @@ function applyP2PLayerRule(rule, forcedLayer, railRule) {
     if (switcher) switcher.classList.remove("opacity-60", "pointer-events-none");
     if (railBtn) railBtn.classList.remove("pointer-events-none", "opacity-50", "opacity-60");
     if (cfgBtn) cfgBtn.classList.remove("pointer-events-none", "opacity-50");
+    if (borderBtn) borderBtn.classList.remove("opacity-60");
+    if (chkModalBorders) chkModalBorders.disabled = false;
     updateRoadAndRailwayTileOverlays();
     return;
   }
@@ -1064,33 +1074,28 @@ function applyP2PLayerRule(rule, forcedLayer, railRule) {
     badge.className = "hidden apple-glass-pill px-2.5 py-1 rounded-xl text-[11px] font-bold text-rose-300 border border-rose-500/40 pointer-events-auto";
   }
 
+  const lockParts = [];
   if (state.p2pLayerRule === "locked") {
     setMapBaseLayer(state.p2pForcedLayer, true);
-    if (badge) {
-      badge.classList.remove("hidden");
-      badge.textContent = "🔒 對戰已鎖定圖層";
-    }
+    lockParts.push("🔒 已鎖定圖層");
     if (switcher) switcher.classList.add("opacity-60");
   } else {
-    if (badge && state.p2pRailRule === "free") badge.classList.add("hidden");
     if (switcher) switcher.classList.remove("opacity-60");
   }
 
   if (state.p2pRailRule && state.p2pRailRule !== "free") {
     const hasStations = state.stationQuizEnabled && state.quizStationLines.size > 0;
-    if (badge) {
-      badge.classList.remove("hidden");
-      badge.textContent =
-        state.p2pRailRule === "ban_rail"
-          ? hasStations
-            ? "🚫 已禁路網 (僅顯示車站點)"
-            : "🚫 已禁用所有路網"
-          : state.p2pRailRule === "ban_roads_only"
-          ? "🛑 已禁用公路網"
-          : state.p2pRailRule === "force_rail_only"
-          ? "🚄 強制純軌道路網"
-          : "🛤️ 強制完整路網";
-    }
+    lockParts.push(
+      state.p2pRailRule === "ban_rail"
+        ? hasStations
+          ? "🚫 禁路網(僅車站點)"
+          : "🚫 禁用路網"
+        : state.p2pRailRule === "ban_roads_only"
+        ? "🛑 禁用公路網"
+        : state.p2pRailRule === "force_rail_only"
+        ? "🚄 強制純軌道"
+        : "🛣️ 強制完整路網"
+    );
     updateRoadAndRailwayTileOverlays();
     if (railBtn) {
       if (
@@ -1110,6 +1115,30 @@ function applyP2PLayerRule(rule, forcedLayer, railRule) {
   } else {
     if (railBtn) railBtn.classList.remove("pointer-events-none", "opacity-50", "opacity-60");
     if (cfgBtn) cfgBtn.classList.remove("pointer-events-none", "opacity-50");
+  }
+
+  if (state.p2pBorderRule === "force_off") {
+    if (typeof setDistrictBordersVisible === "function") {
+      setDistrictBordersVisible(false, true);
+    } else {
+      state.showDistrictBorders = false;
+      refreshAllPolygonStyles();
+    }
+    lockParts.push("🚫 強制關閉區界");
+    if (borderBtn) borderBtn.classList.add("opacity-60");
+    if (chkModalBorders) chkModalBorders.disabled = true;
+  } else {
+    if (borderBtn) borderBtn.classList.remove("opacity-60");
+    if (chkModalBorders) chkModalBorders.disabled = false;
+  }
+
+  if (badge) {
+    if (lockParts.length > 0) {
+      badge.classList.remove("hidden");
+      badge.textContent = lockParts.join(" · ");
+    } else {
+      badge.classList.add("hidden");
+    }
   }
 }
 
@@ -1212,6 +1241,9 @@ function describeConfigDiff(patch) {
     const newTimerDesc = patch.timerMode === "up" ? "正計時" : `倒數 ${Math.round((patch.countdownTotalSec || state.countdownTotalSec) / 60)} 分鐘`;
     lines.push(newTimerDesc);
   }
+  if (patch.borderRule && patch.borderRule !== state.p2pBorderRule) {
+    lines.push(patch.borderRule === "force_off" ? "強制關閉行政區界" : "開放自由開關區界");
+  }
   if (patch.layerRule || patch.forcedLayer || patch.railRule) {
     lines.push("已更新圖層/路網限制");
   }
@@ -1255,6 +1287,7 @@ function buildProposedConfigFromPatch(patch) {
   if (patch.layerRule) base.layerRule = patch.layerRule;
   if (patch.forcedLayer) base.forcedLayer = patch.forcedLayer;
   if (patch.railRule) base.railRule = patch.railRule;
+  if (patch.borderRule) base.borderRule = patch.borderRule;
 
   if (!patch.quizTargetMode) {
     if (patch.quizStationLines && patch.quizStationLines.length > 0 && base.quizTargetMode === "region") {
@@ -1908,6 +1941,7 @@ function updateP2PLobbyUI() {
   const layerRuleSelect = document.getElementById("p2p-layer-rule-select");
   const forcedLayerSelect = document.getElementById("p2p-forced-layer-select");
   const railRuleSelect = document.getElementById("p2p-rail-rule-select");
+  const borderRuleSelect = document.getElementById("p2p-border-rule-select");
   const roleSwitchBar = document.getElementById("p2p-role-switch-bar");
   const roleSwitchBtn = document.getElementById("btn-p2p-switch-role");
   const specStatusText = document.getElementById("p2p-spectator-status-text");
@@ -1980,6 +2014,7 @@ function updateP2PLobbyUI() {
     if (layerRuleSelect) layerRuleSelect.disabled = false;
     if (forcedLayerSelect) forcedLayerSelect.disabled = false;
     if (railRuleSelect) railRuleSelect.disabled = false;
+    if (borderRuleSelect) borderRuleSelect.disabled = false;
 
     if (startBtn) {
       startBtn.classList.remove("hidden");
@@ -2072,6 +2107,7 @@ function updateP2PLobbyUI() {
   if (layerRuleSelect) layerRuleSelect.value = state.p2pLayerRule || "free";
   if (forcedLayerSelect) forcedLayerSelect.value = state.p2pForcedLayer || "vector";
   if (railRuleSelect) railRuleSelect.value = state.p2pRailRule || "free";
+  if (borderRuleSelect) borderRuleSelect.value = state.p2pBorderRule || "free";
 }
 
 function toggleP2PReady() {
@@ -2524,7 +2560,8 @@ function hostP2PRoom(existingCode = "", existingPassword = null, restoredPlayers
   const lrule = document.getElementById("p2p-layer-rule-select")?.value || "free";
   const flayer = document.getElementById("p2p-forced-layer-select")?.value || "vector";
   const rrule = document.getElementById("p2p-rail-rule-select")?.value || "free";
-  applyP2PLayerRule(lrule, flayer, rrule);
+  const brule = document.getElementById("p2p-border-rule-select")?.value || "free";
+  applyP2PLayerRule(lrule, flayer, rrule, brule);
 
   const roomInput = document.getElementById("p2p-room-code-input");
   if (roomInput) roomInput.value = code;
@@ -3310,9 +3347,14 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   const summaryEl = document.getElementById("scope-summary-label");
   if (summaryEl) summaryEl.textContent = summaryLabel;
 
-  if (cfg.layerRule || cfg.railRule || cfg.forcedLayer) {
+  if (cfg.layerRule || cfg.railRule || cfg.forcedLayer || cfg.borderRule) {
     state.spectatorLayerInitialized = false;
-    applyP2PLayerRule(cfg.layerRule || state.p2pLayerRule, cfg.forcedLayer || state.p2pForcedLayer, cfg.railRule || state.p2pRailRule);
+    applyP2PLayerRule(
+      cfg.layerRule || state.p2pLayerRule,
+      cfg.forcedLayer || state.p2pForcedLayer,
+      cfg.railRule || state.p2pRailRule,
+      cfg.borderRule || state.p2pBorderRule
+    );
   }
 
   resetGame();

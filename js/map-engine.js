@@ -150,8 +150,28 @@ function initMap() {
   let maxMobileUnkeyboardedH = window.innerHeight;
   let lastOrientationWidth = window.innerWidth;
   let kbSyncRaf = null;
+  let wasMobileKbOpen = false;
+  let kbSettleTimers = [];
 
-  function syncMobileKeyboardViewport() {
+  function refreshMapViewportAndOverlays() {
+    if (!map) return;
+    map.invalidateSize({ pan: false, animate: false });
+    if (canvasRenderer && typeof canvasRenderer._update === "function") {
+      try { canvasRenderer._update(); } catch (_) {}
+    }
+    renderSmartLabelsAndLeaderLines();
+  }
+
+  function scheduleKbSettleResync() {
+    kbSettleTimers.forEach((id) => clearTimeout(id));
+    kbSettleTimers = [120, 360].map((ms) =>
+      setTimeout(() => {
+        syncMobileKeyboardViewport(false);
+      }, ms)
+    );
+  }
+
+  function syncMobileKeyboardViewport(allowScheduleSettle = true) {
     if (kbSyncRaf) cancelAnimationFrame(kbSyncRaf);
     kbSyncRaf = requestAnimationFrame(() => {
       const mapContainerEl = document.getElementById("map-container");
@@ -162,11 +182,11 @@ function initMap() {
 
       // Desktop / Tablet (>= 640px): clear mobile inline height overrides
       if (window.innerWidth >= 640) {
+        wasMobileKbOpen = false;
         document.body.classList.remove("mobile-kb-open");
         mapContainerEl.style.height = "";
         if (mainStageEl) mainStageEl.style.transform = "";
-        if (map) map.invalidateSize({ pan: false });
-        renderSmartLabelsAndLeaderLines();
+        refreshMapViewportAndOverlays();
         return;
       }
 
@@ -190,15 +210,10 @@ function initMap() {
         (activeEl.tagName === "INPUT" || activeEl.tagName === "SELECT");
 
       const heightDrop = maxMobileUnkeyboardedH - vHeight;
-      const isKbOpen = heightDrop > 105 || (isDockInputFocused && vHeight < window.screen.height * 0.70);
+      const isKbOpen = heightDrop > 105 || (isDockInputFocused && vHeight < maxMobileUnkeyboardedH * 0.78);
 
       document.documentElement.style.setProperty("--vvh", `${Math.round(vHeight)}px`);
-
-      if (isKbOpen) {
-        document.body.classList.add("mobile-kb-open");
-      } else {
-        document.body.classList.remove("mobile-kb-open");
-      }
+      document.body.classList.toggle("mobile-kb-open", isKbOpen);
 
       // Measure actual header & dock height after class toggle and set exact remaining map height
       const headerH = headerEl.offsetHeight || 44;
@@ -208,22 +223,42 @@ function initMap() {
       mapContainerEl.style.height = `${targetMapH}px`;
 
       if (isKbOpen || isDockInputFocused) {
-        // Prevent browser from scrolling the top of the map & layer buttons off-screen
         if (window.scrollY > 0) {
           window.scrollTo(0, 0);
         }
         if (mainStageEl) {
           mainStageEl.style.transform = vOffsetTop > 1 ? `translateY(${Math.round(vOffsetTop)}px)` : "";
         }
-      } else if (mainStageEl) {
-        mainStageEl.style.transform = "";
+      } else {
+        if (wasMobileKbOpen && window.scrollY > 0) {
+          window.scrollTo(0, 0);
+        }
+        if (mainStageEl) {
+          mainStageEl.style.transform = "";
+        }
       }
 
-      if (map) {
-        map.invalidateSize({ pan: false });
-        renderSmartLabelsAndLeaderLines();
+      // Force synchronous layout flush before Leaflet reads container size
+      void mapContainerEl.offsetHeight;
+      refreshMapViewportAndOverlays();
+
+      const kbJustClosed = wasMobileKbOpen && !isKbOpen;
+      wasMobileKbOpen = isKbOpen;
+      if (kbJustClosed && allowScheduleSettle) {
+        scheduleKbSettleResync();
       }
     });
+  }
+
+  // Observe real container size changes (handles Android back-button keyboard close without blur)
+  const mapContainerForObs = document.getElementById("map-container");
+  if (mapContainerForObs && typeof ResizeObserver !== "undefined") {
+    let obsRaf = null;
+    const mapResizeObserver = new ResizeObserver(() => {
+      if (obsRaf) cancelAnimationFrame(obsRaf);
+      obsRaf = requestAnimationFrame(refreshMapViewportAndOverlays);
+    });
+    mapResizeObserver.observe(mapContainerForObs);
   }
 
   window.addEventListener("resize", syncMobileKeyboardViewport);
@@ -530,6 +565,7 @@ function computePolygonStyle(townObj) {
 
   if (isTarget) {
     return {
+      stroke: true,
       color: "#fef08a",
       weight: 2.6,
       fillColor: "#f59e0b",
@@ -539,6 +575,7 @@ function computePolygonStyle(townObj) {
 
   if (isUnlocked) {
     return {
+      stroke: true,
       color: "#ffffff",
       weight: 1.15,
       fillColor: baseCountyColor,
@@ -548,6 +585,7 @@ function computePolygonStyle(townObj) {
 
   if (isMissed) {
     return {
+      stroke: true,
       color: "#fda4af",
       weight: 1.1,
       fillColor: "#e11d48",
@@ -558,6 +596,7 @@ function computePolygonStyle(townObj) {
   if (state.difficulty === "master_hierarchy") {
     if (countyUnlockedInMaster) {
       return {
+        stroke: true,
         color: baseCountyColor,
         weight: 1.1,
         fillColor: baseCountyColor,
@@ -566,6 +605,7 @@ function computePolygonStyle(townObj) {
     }
     if (provinceUnlockedInMaster) {
       return {
+        stroke: true,
         color: "rgba(148, 163, 184, 0.55)",
         weight: 0.8,
         fillColor: "#1e293b",
