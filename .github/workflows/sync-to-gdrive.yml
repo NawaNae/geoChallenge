@@ -4,10 +4,15 @@ on:
   push:
     branches:
       - main
+  workflow_run:
+    workflows: ["Pull from Google Drive"]
+    types: [completed]
+  workflow_dispatch:
 
 jobs:
   sync-gdrive:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: 檢出完整 Git 歷史
