@@ -75,7 +75,7 @@ function updateScoreAndProgressUI() {
     document.getElementById("stat-town-bar").style.width = `${Math.min(100, parseFloat(stPct))}%`;
   } else if (regionTotal === 0 && activePois.length > 0 && activeSt.length === 0) {
     // Pure POI Mode (Airport / Port / Reservoir / Lake)
-    const activeCats = ["airport", "port", "reservoir", "lake"]
+    const activeCats = ["airport", "port", "reservoir", "lake", "settlement"]
       .map((cat) => ({ cat, items: typeof getActiveQuizPois === "function" ? getActiveQuizPois(cat) : [] }))
       .filter((entry) => entry.items.length > 0);
 
@@ -379,7 +379,7 @@ function renderCountyProgressSidebar() {
     poiHeader.textContent = "📍 地標完成度（自動去重統計）";
     container.appendChild(poiHeader);
 
-    ["airport", "port", "reservoir", "lake"].forEach((cat) => {
+    ["airport", "port", "reservoir", "lake", "settlement"].forEach((cat) => {
       const catPois = typeof getActiveQuizPois === "function" ? getActiveQuizPois(cat) : activePois.filter((p) => p.category === cat);
       if (catPois.length === 0) return;
       const meta = POI_CATEGORY_META[cat];
@@ -659,7 +659,7 @@ function finishGame(reason = "victory") {
   const accuracy = totalAttempts > 0 ? Math.round((correctAttempts / totalAttempts) * 100) : 100;
   const maxStreak = (state.stats && state.stats.maxStreak) || 0;
   const poiBreakdown = {};
-  ["airport", "port", "reservoir", "lake"].forEach((cat) => {
+  ["airport", "port", "reservoir", "lake", "settlement"].forEach((cat) => {
     if (typeof isPoiCategoryActive === "function" && isPoiCategoryActive(cat) && typeof getActiveQuizPois === "function") {
       const list = getActiveQuizPois(cat);
       const unlocked = list.filter((p) => state.unlockedPois.has(p.id)).length;
@@ -761,9 +761,9 @@ function computeClearedBlocksStats(scopeCountiesArg, scopeTownsArg, activeStArg)
   let completedPoiCats = 0;
   let totalScopePoiCats = 0;
   const clearedPoiLabels = [];
-  const poiCatNames = { airport: "機場", port: "港口", reservoir: "水庫", lake: "湖泊" };
+  const poiCatNames = { airport: "機場", port: "港口", reservoir: "水庫", lake: "湖泊", settlement: "傳統聚落" };
   if (typeof isPoiCategoryActive === "function" && typeof getActiveQuizPois === "function") {
-    ["airport", "port", "reservoir", "lake"].forEach((cat) => {
+    ["airport", "port", "reservoir", "lake", "settlement"].forEach((cat) => {
       if (!isPoiCategoryActive(cat)) return;
       const list = getActiveQuizPois(cat);
       if (list.length > 0) {
@@ -1223,7 +1223,8 @@ function formatBreakdownSummary(stats, verbose = false) {
     ["airport", "機場", "機場"],
     ["port", "港口", "港"],
     ["reservoir", "水庫", "水庫"],
-    ["lake", "湖泊", "湖"]
+    ["lake", "湖泊", "湖"],
+    ["settlement", "傳統聚落", "聚落"]
   ];
   catMeta.forEach(([key, fullLbl, shortLbl]) => {
     const item = pb[key];
@@ -1237,7 +1238,7 @@ function formatBreakdownSummary(stats, verbose = false) {
 
 function detectPoiThemeProfile() {
   if (typeof isPoiCategoryActive !== "function") return null;
-  const activeCats = ["airport", "port", "reservoir", "lake"].filter((c) => isPoiCategoryActive(c));
+  const activeCats = ["airport", "port", "reservoir", "lake", "settlement"].filter((c) => isPoiCategoryActive(c));
   if (activeCats.length === 0) return null;
 
   if (activeCats.length === 1) {
@@ -1274,6 +1275,13 @@ function detectPoiThemeProfile() {
       }
       return makeTierTitles("台灣湖泊", "🏞️ 台灣山海湖光制霸神", "🏞️ 全台湖泊極速制霸宗師", "🏞️ 台灣湖泊通關大師", "🏞️ 台灣湖泊地理專家", "🏞️ 台灣湖泊達人", "🏞️ 湖畔見習旅人", "🏞️ 尋湖啟程旅人");
     }
+    if (cat === "settlement") {
+      const subs = state.settlementSubTypes instanceof Set ? state.settlementSubTypes : new Set();
+      if (subs.size === 1 && subs.has("historic_oaza")) {
+        return makeTierTitles("台灣歷史大字與傳統部落", "🏘️ 台灣古地名與部落宗師", "🏘️ 歷史大字極速制霸神", "🏘️ 台灣歷史聚落通關大師", "🏘️ 台灣古地名專家", "🏘️ 在地文史達人", "🏘️ 聚落見習旅人", "🏘️ 古道啟程旅人");
+      }
+      return makeTierTitles("台灣幹線路牌聚落", "🪧 台灣幹線路牌最高神人", "🪧 台灣路牌通 · 聚落制霸宗師", "🪧 台灣路牌聚落通關大師", "🪧 台灣幹線路牌專家", "🪧 台灣路牌通", "🪧 公路見習旅人", "🪧 聚落啟程旅人");
+    }
   }
 
   const catSet = new Set(activeCats);
@@ -1283,7 +1291,7 @@ function detectPoiThemeProfile() {
   if (activeCats.length === 2 && catSet.has("reservoir") && catSet.has("lake")) {
     return makeTierTitles("台灣水庫與湖泊", "💧 台灣山川湖庫水神", "🏞️ 全台湖庫極速制霸宗師", "💧 水庫湖泊通關大師", "🏞️ 台灣湖庫地理專家", "💧 台灣湖庫水景達人");
   }
-  const names = { airport: "機場", port: "港口", reservoir: "水庫", lake: "湖泊" };
+  const names = { airport: "機場", port: "港口", reservoir: "水庫", lake: "湖泊", settlement: "傳統聚落" };
   const label = activeCats.map((c) => names[c]).join("・");
   return makeTierTitles(label, "🏆 台灣海陸空地標大宗師", "🧭 全台地標極速制霸霸主", `🏆 ${label}通關大師`, `🧭 ${label}地理專家`, `🧭 ${label}探索達人`);
 }
@@ -1581,7 +1589,7 @@ function showSettlementModal() {
   }
   if (activeSt.length > 0) scopeParts.push(`${activeSt.length}站`);
   if (typeof isPoiCategoryActive === "function" && typeof getActiveQuizPois === "function") {
-    [["airport", "機場"], ["port", "港"], ["reservoir", "水庫"], ["lake", "湖"]].forEach(([cat, lbl]) => {
+    [["airport", "機場"], ["port", "港"], ["reservoir", "水庫"], ["lake", "湖"], ["settlement", "聚落"]].forEach(([cat, lbl]) => {
       if (isPoiCategoryActive(cat)) {
         const cnt = getActiveQuizPois(cat).length;
         if (cnt > 0) scopeParts.push(`${cnt}${lbl}`);

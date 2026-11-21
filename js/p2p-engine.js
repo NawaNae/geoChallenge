@@ -61,7 +61,8 @@ function getLocalGrandCounts() {
     ["airport", "機場"],
     ["port", "港口"],
     ["reservoir", "水庫"],
-    ["lake", "湖泊"]
+    ["lake", "湖泊"],
+    ["settlement", "傳統聚落"]
   ].forEach(([catKey, label]) => {
     const catList = typeof getActiveQuizPois === "function" ? getActiveQuizPois(catKey) : activePois.filter((p) => p.category === catKey);
     if (catList.length > 0) {
@@ -232,10 +233,12 @@ function getHostSyncConfig(isSettingChange = false, changeLabel = "", changeDeta
     portQuizEnabled: Boolean(state.portQuizEnabled),
     reservoirQuizEnabled: Boolean(state.reservoirQuizEnabled),
     lakeQuizEnabled: Boolean(state.lakeQuizEnabled),
+    settlementQuizEnabled: Boolean(state.settlementQuizEnabled),
     airportSubTypes: Array.from(state.airportSubTypes || []),
     portSubTypes: Array.from(state.portSubTypes || []),
     reservoirSubTypes: Array.from(state.reservoirSubTypes || []),
     lakeSubTypes: Array.from(state.lakeSubTypes || []),
+    settlementSubTypes: Array.from(state.settlementSubTypes || []),
     showStationTerminusHints: Boolean(state.showStationTerminusHints),
     filterStationsByRegion: Boolean(state.filterStationsByRegion),
     allowTargetHints: Boolean(state.allowTargetHints),
@@ -1227,10 +1230,12 @@ function buildProposedConfigFromPatch(patch) {
   if (typeof patch.portQuizEnabled === "boolean") base.portQuizEnabled = patch.portQuizEnabled;
   if (typeof patch.reservoirQuizEnabled === "boolean") base.reservoirQuizEnabled = patch.reservoirQuizEnabled;
   if (typeof patch.lakeQuizEnabled === "boolean") base.lakeQuizEnabled = patch.lakeQuizEnabled;
+  if (typeof patch.settlementQuizEnabled === "boolean") base.settlementQuizEnabled = patch.settlementQuizEnabled;
   if (Array.isArray(patch.airportSubTypes)) base.airportSubTypes = patch.airportSubTypes.slice();
   if (Array.isArray(patch.portSubTypes)) base.portSubTypes = patch.portSubTypes.slice();
   if (Array.isArray(patch.reservoirSubTypes)) base.reservoirSubTypes = patch.reservoirSubTypes.slice();
   if (Array.isArray(patch.lakeSubTypes)) base.lakeSubTypes = patch.lakeSubTypes.slice();
+  if (Array.isArray(patch.settlementSubTypes)) base.settlementSubTypes = patch.settlementSubTypes.slice();
   if (patch.difficulty) base.difficulty = patch.difficulty;
   if (patch.playMode) base.playMode = patch.playMode;
   if (patch.selectedCounties) base.selectedCounties = Array.from(patch.selectedCounties);
@@ -3228,6 +3233,9 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   if (typeof cfg.lakeQuizEnabled === "boolean") {
     state.lakeQuizEnabled = cfg.lakeQuizEnabled;
   }
+  if (typeof cfg.settlementQuizEnabled === "boolean") {
+    state.settlementQuizEnabled = cfg.settlementQuizEnabled;
+  }
   if (Array.isArray(cfg.airportSubTypes)) {
     state.airportSubTypes = new Set(cfg.airportSubTypes);
   }
@@ -3239,6 +3247,9 @@ function applyRemoteSyncConfig(cfg, fromCountdown = false, isAuthorized = false)
   }
   if (Array.isArray(cfg.lakeSubTypes)) {
     state.lakeSubTypes = new Set(cfg.lakeSubTypes);
+  }
+  if (Array.isArray(cfg.settlementSubTypes)) {
+    state.settlementSubTypes = new Set(cfg.settlementSubTypes);
   }
 
   if (typeof cfg.stationQuizEnabled === "boolean") {

@@ -50,6 +50,9 @@ function getEnabledSubTypesForCategory(category) {
   if (category === "lake") {
     return state.lakeSubTypes && typeof state.lakeSubTypes.has === "function" ? state.lakeSubTypes : new Set();
   }
+  if (category === "settlement") {
+    return state.settlementSubTypes && typeof state.settlementSubTypes.has === "function" ? state.settlementSubTypes : new Set();
+  }
   return new Set();
 }
 
@@ -66,6 +69,9 @@ function isPoiCategoryActive(category) {
   if (category === "lake") {
     return Boolean(state.lakeQuizEnabled && getEnabledSubTypesForCategory("lake").size > 0);
   }
+  if (category === "settlement") {
+    return Boolean(state.settlementQuizEnabled && getEnabledSubTypesForCategory("settlement").size > 0);
+  }
   return false;
 }
 
@@ -74,7 +80,8 @@ function hasAnyPoiQuizActive() {
     isPoiCategoryActive("airport") ||
     isPoiCategoryActive("port") ||
     isPoiCategoryActive("reservoir") ||
-    isPoiCategoryActive("lake")
+    isPoiCategoryActive("lake") ||
+    isPoiCategoryActive("settlement")
   );
 }
 
@@ -171,13 +178,37 @@ function buildPoiMatchKeys(poi, allowBareStem, requireSuffix = false) {
   addKey(poi.name);
   addKey(poi.shortName);
   if (poi.code) addKey(poi.code);
+  const isSettlement = poiMatchesCategory(poi, "settlement");
   if (Array.isArray(poi.aliases)) {
     poi.aliases.forEach((a) => {
-      if (requireSuffix && !POI_SUFFIXED_ALIAS_RE.test(a) && !/^[A-Za-z]{3,4}$/.test(a)) {
+      if (!isSettlement && requireSuffix && !POI_SUFFIXED_ALIAS_RE.test(a) && !/^[A-Za-z]{3,4}$/.test(a)) {
         return;
       }
       addKey(a);
     });
+  }
+
+  // Settlement disambiguation prefixes: support County / Town prefixes (e.g. 楊梅富岡, 桃園富岡, 臺東富岡, 新竹南寮, 湖西南寮)
+  if (isSettlement) {
+    const baseLabels = new Set();
+    [poi.name, poi.shortName, ...(Array.isArray(poi.aliases) ? poi.aliases : [])].forEach((s) => {
+      const n = normalizePoiText(s);
+      if (n && n.length >= 2) baseLabels.add(n);
+    });
+    const cFull = normalizePoiText(poi.countyName || "");
+    const cShort = cFull.replace(/[縣市]$/, "");
+    const tFull = normalizePoiText(poi.townName || "");
+    const tBase = tFull.replace(/[鄉鎮市區]$/, "");
+    const safeTBase = tBase.length >= 2 ? tBase : "";
+    const prefixes = new Set([cFull, cShort, tFull, safeTBase, cFull + tFull, cShort + tFull, ...(safeTBase ? [cShort + safeTBase, cFull + safeTBase] : [])]);
+    prefixes.delete("");
+    for (const lbl of baseLabels) {
+      for (const pre of prefixes) {
+        if (!lbl.startsWith(pre)) {
+          keys.add(pre + lbl);
+        }
+      }
+    }
   }
 
   const normShort = normalizePoiText(poi.shortName);
@@ -258,9 +289,25 @@ function tryMatchAndUnlockPoi(rawInput, isAutoCheck = false) {
   const candidates = activePois.filter((p) => matchSinglePoi(p, normInput, allowBareStem, requireSuffix));
   if (candidates.length === 0) return { matched: false };
 
+  // Duplicate settlement name disambiguation guard (e.g. 桃園楊梅「富岡」 vs 臺東市「富岡」)
+  // Never mis-lock a unique settlement when >=2 active settlements share the exact same bare name.
+  const stlCandidates = candidates.filter((p) => poiMatchesCategory(p, "settlement"));
+  const nonStlCandidates = candidates.filter((p) => !poiMatchesCategory(p, "settlement"));
+  let effectiveCandidates = candidates;
+  if (stlCandidates.length >= 2) {
+    if (nonStlCandidates.length === 0) {
+      return {
+        matched: false,
+        ambiguousSettlement: true,
+        ambiguousCandidates: stlCandidates
+      };
+    }
+    effectiveCandidates = nonStlCandidates;
+  }
+
   const unlockedNew = [];
   let alreadyCount = 0;
-  for (const poi of candidates) {
+  for (const poi of effectiveCandidates) {
     if (state.unlockedPois.has(poi.id)) {
       alreadyCount++;
     } else {
@@ -274,7 +321,7 @@ function tryMatchAndUnlockPoi(rawInput, isAutoCheck = false) {
     return { matched: true, alreadyUnlocked: false, poi: unlockedNew[0], unlockedList: unlockedNew };
   }
   if (alreadyCount > 0) {
-    return { matched: true, alreadyUnlocked: true, poi: candidates[0] };
+    return { matched: true, alreadyUnlocked: true, poi: effectiveCandidates[0] };
   }
   return { matched: false };
 }
@@ -297,6 +344,7 @@ function getPoiGlyphForCategory(cat) {
   if (cat === "port") return "⚓";
   if (cat === "reservoir") return "💧";
   if (cat === "lake") return "🏞";
+  if (cat === "settlement") return "🪧";
   return "📍";
 }
 
@@ -449,6 +497,11 @@ function getConcisePoiSummaryParts() {
     const labels = LAKE_SUBTYPES.filter((s) => state.lakeSubTypes.has(s.id)).map((s) => s.shortLabel);
     const cnt = getActiveQuizPois("lake").length;
     parts.push(`🏞️ 湖泊(${labels.join("/")} ${cnt}座)`);
+  }
+  if (isPoiCategoryActive("settlement")) {
+    const labels = SETTLEMENT_SUBTYPES.filter((s) => state.settlementSubTypes.has(s.id)).map((s) => s.shortLabel);
+    const cnt = getActiveQuizPois("settlement").length;
+    parts.push(`🪧 傳統聚落(${labels.join("/")} ${cnt}處)`);
   }
   return parts;
 }

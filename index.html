@@ -894,6 +894,15 @@
                     <span class="geo-union-pill topic-check">+</span>
                   </button>
                 </div>
+                <div data-topic="settlement" data-accent="lime" data-state="off" class="topic-chip-btn geo-select-card" data-tip="猜省道／縣道綠色指示路牌常見聚落（如路上厝、王功、九份、內灣、知本等），進階可選歷史大字與傳統部落">
+                  <button type="button" class="geo-solo-btn" aria-label="單選🪧 傳統聚落">
+                    <span class="text-xs sm:text-sm font-extrabold text-lime-300">🪧 傳統聚落</span>
+                    <span class="text-[10px] text-slate-400 mt-0.5">路牌聚落 / 歷史大字</span>
+                  </button>
+                  <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false" aria-label="複選切換🪧 傳統聚落">
+                    <span class="geo-union-pill topic-check">+</span>
+                  </button>
+                </div>
               </div>
               <div id="mixed-region-rail-switch-bar" class="hidden mt-2.5 pt-2.5 border-t border-slate-800/90 flex flex-wrap items-center justify-between gap-2">
                 <label class="inline-flex items-center gap-2 text-xs font-extrabold text-amber-200 cursor-pointer select-none" data-tip="開啟後，僅會出題位於目前已選行政區（如北部、西部濱海、山區、單一縣市）境內的車站、機場與港口">
@@ -1193,6 +1202,35 @@
                   </button>
                 </div>
               </div>
+
+              <!-- Simple Settlement Box -->
+              <div id="simple-settlement-box" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-lime-500/30 space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-1.5">
+                  <label class="text-xs sm:text-sm font-extrabold text-lime-300">🪧 選擇傳統聚落／路牌地名（不與 368 鄉鎮重疊）</label>
+                  <div class="flex items-center gap-1.5">
+                    <span id="simple-settlement-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-lime-500/15 text-lime-200 border border-lime-400/40 font-mono-num">
+                      已選：117 處
+                    </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="settlement" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="settlement" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div data-poi-cat="settlement" data-poi-sub="signage_major" data-accent="lime" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="省道與主要縣道綠牌高頻聚落（路上/路上厝、王功、九份、金瓜石、十分、福隆、南崁、內壢、富岡、內灣、白沙屯、清泉崗、關子嶺、墾丁、楓港、知本、太魯閣等 117 處）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🪧 幹線路牌聚落（精選）</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">117</span></span></button>
+                  </div>
+                  <div data-poi-cat="settlement" data-poi-sub="historic_oaza" data-accent="lime" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="日治大字、老聚落與原住民族傳統部落（大稻埕、艋舺、景美、六家、中港、頂番婆、霧社、伊達邵、司馬庫斯、萬金、利稻、都歷、奇美、靜浦等 94 處）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🏘️ 歷史大字與傳統部落</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">94</span></span></button>
+                  </div>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-slate-400">
+                  <span id="simple-settlement-adv-hint">如需日治大字、老聚落與原住民傳統部落（大稻埕、霧社、司馬庫斯、利稻等），可至進階設定勾選</span>
+                  <button id="btn-jump-settlement-advanced" type="button" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-lime-300 font-bold border border-lime-500/30 transition">
+                    🛠️ 進階聚落 ➔
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- =============================================================== -->
@@ -1397,6 +1435,29 @@
                   <div data-poi-cat="lake" data-poi-sub="lake_alpine" data-accent="emerald" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="高山與秘境湖泊（12 座：嘉明湖、翠峰湖、松蘿湖、明池、七彩湖、翠池、大小鬼湖等）">
                     <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">⛰️ 高山與秘境湖泊</span></button>
                     <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">12</span></span></button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Advanced Settlement Section -->
+              <div id="scope-settlement-section" class="hidden p-3.5 rounded-2xl bg-slate-900/90 border border-lime-500/30 space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <label class="text-xs font-bold text-lime-300">🪧 傳統聚落與路牌地名細選（不與 368 鄉鎮重疊）</label>
+                  <div class="flex items-center gap-1.5">
+                    <span id="adv-settlement-total-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-lime-500/15 text-lime-200 border border-lime-400/40 font-mono-num">
+                      已選：117 處
+                    </span>
+                    <button type="button" data-scope-action="select-all" data-scope-target="settlement" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-bold transition">全選</button><button type="button" data-scope-action="clear" data-scope-target="settlement" class="scope-bulk-btn px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition">清除</button>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div data-poi-cat="settlement" data-poi-sub="signage_major" data-accent="lime" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="省道與主要縣道綠牌高頻聚落（117 處：路上厝、王功、九份、十分、福隆、南崁、內壢、富岡、內灣、白沙屯、清泉崗、關子嶺、墾丁、楓港、知本、太魯閣等）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🪧 幹線路牌聚落（精選）</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">117</span></span></button>
+                  </div>
+                  <div data-poi-cat="settlement" data-poi-sub="historic_oaza" data-accent="lime" data-state="off" class="poi-subtype-btn geo-select-card" data-tip="日治大字、老聚落與原住民族傳統部落（94 處：大稻埕、艋舺、景美、六家、中港、頂番婆、霧社、伊達邵、司馬庫斯、萬金、利稻、都歷、奇美、靜浦等）">
+                    <button type="button" class="geo-solo-btn"><span class="text-xs font-bold">🏘️ 歷史大字與傳統部落（進階）</span></button>
+                    <button type="button" class="geo-union-btn" role="checkbox" aria-checked="false"><span class="geo-union-pill"><span class="poi-sub-state">+</span><span class="poi-sub-count font-mono-num">94</span></span></button>
                   </div>
                 </div>
               </div>

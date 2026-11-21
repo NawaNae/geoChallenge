@@ -128,6 +128,7 @@ function resetState(opts = {}) {
     portQuizEnabled = false,
     reservoirQuizEnabled = false,
     lakeQuizEnabled = false,
+    settlementQuizEnabled = false,
     prefix = "",
     suffix = "",
     unlockAllHierarchy = false
@@ -161,6 +162,8 @@ function resetState(opts = {}) {
     state.reservoirSubTypes = new Set(RESERVOIR_SUBTYPES.map(s => s.id));
     state.lakeQuizEnabled = ${JSON.stringify(lakeQuizEnabled)};
     state.lakeSubTypes = new Set(LAKE_SUBTYPES.map(s => s.id));
+    state.settlementQuizEnabled = ${JSON.stringify(settlementQuizEnabled)};
+    state.settlementSubTypes = new Set(SETTLEMENT_SUBTYPES.map(s => s.id));
     state.unlockedPois = new Set();
     state.missedPois = new Set();
     state.targetId = null;
@@ -177,6 +180,32 @@ const ALL_TOWNS = vm.runInContext("ALL_TOWNS", sb);
 const TAIWAN_POI_DATA = vm.runInContext("TAIWAN_POI_DATA", sb);
 const EXACT_PORT_SHORT_NAMES = vm.runInContext("EXACT_PORT_SHORT_NAMES", sb);
 const STATION_NAME_ALIASES = vm.runInContext("STATION_NAME_ALIASES", sb);
+const SETTLEMENT_SUBTYPES = vm.runInContext("SETTLEMENT_SUBTYPES", sb);
+
+// Build map of duplicate settlement shortNames so generic loops use disambiguated prefix when both homonyms are active
+const settlementShortNameCounts = new Map();
+for (const p of TAIWAN_POI_DATA) {
+  if (p.category === "settlement") {
+    const k = p.shortName.replace(/台/g, "臺");
+    settlementShortNameCounts.set(k, (settlementShortNameCounts.get(k) || 0) + 1);
+  }
+}
+function getCanonicalPoiInput(poi) {
+  if (poi.category === "settlement") {
+    const k = poi.shortName.replace(/台/g, "臺");
+    // Check if another active settlement has the same name/shortName/alias
+    const dup = TAIWAN_POI_DATA.filter(
+      (o) => o.category === "settlement" && o.id !== poi.id && [o.name, o.shortName, ...(o.aliases || [])].some((a) => a.replace(/台/g, "臺") === k)
+    );
+    if (dup.length > 0) {
+      const tBase = poi.townName.replace(/[鄉鎮市區]$/, "");
+      const cShort = poi.countyName.replace(/[縣市]$/, "");
+      const pre = (tBase.length >= 2 && tBase !== cShort) ? tBase : cShort;
+      return pre + poi.shortName;
+    }
+  }
+  return poi.shortName;
+}
 
 const failures = [];
 let totalChecks = 0;
@@ -198,7 +227,8 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 for (const t of ALL_TOWNS) {
   const suffixChar = t.townName.slice(-1);
@@ -228,7 +258,8 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 for (const t of ALL_TOWNS) {
   const suffixChar = t.townName.slice(-1);
@@ -248,6 +279,7 @@ resetState({
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
   lakeQuizEnabled: true,
+  settlementQuizEnabled: true,
   unlockAllHierarchy: true
 });
 for (const t of ALL_TOWNS) {
@@ -287,7 +319,8 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 const allStations = vm.runInContext("getActiveQuizStations()", sb);
 assert.ok(allStations.length > 500, `Expected >500 stations, got ${allStations.length}`);
@@ -351,21 +384,22 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 for (const poi of TAIWAN_POI_DATA) {
   // 3a. Direct shortName (suffix="")
   vm.runInContext(`state.unlockedPois.delete(${JSON.stringify(poi.id)})`, sb);
   sb.document.getElementById("prefix-select").value = "";
   sb.document.getElementById("suffix-input").value = "";
-  let ok = sb.evaluateGuess(poi.shortName, false);
+  let ok = sb.evaluateGuess(getCanonicalPoiInput(poi), false);
   let unlocked = vm.runInContext(`state.unlockedPois.has(${JSON.stringify(poi.id)})`, sb);
   check(ok && unlocked, "3a.PoiDirectShortName(hard_suffix+mixed)", `${poi.id} (${poi.shortName}): fb="${sb.lastFeedback?.text}"`);
 
   // 3b. Direct shortName with wrong suffix="區" (smart override)
   vm.runInContext(`state.unlockedPois.delete(${JSON.stringify(poi.id)})`, sb);
   sb.document.getElementById("suffix-input").value = "區";
-  ok = sb.evaluateGuess(poi.shortName, false);
+  ok = sb.evaluateGuess(getCanonicalPoiInput(poi), false);
   unlocked = vm.runInContext(`state.unlockedPois.has(${JSON.stringify(poi.id)})`, sb);
   check(ok && unlocked, "3b.PoiDirect+WrongSuffix(區)", `${poi.id} (${poi.shortName}): fb="${sb.lastFeedback?.text}"`);
 
@@ -434,7 +468,8 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 
 // 4a. Target town: 內湖區 / 南港區 / 大湖鄉 / 大埤鄉 with quick suffix
@@ -471,7 +506,8 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 for (const [core, sfx, expected] of [
   ["台西", "鄉", "臺西鄉"],
@@ -497,7 +533,8 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 const activeSuffixes = sb.getActiveQuickSuffixes();
 for (const needed of ["", "區", "鄉", "鎮", "市", "站", "機場", "港", "漁港", "水庫", "湖"]) {
@@ -515,7 +552,8 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 for (const t of ALL_TOWNS) {
   vm.runInContext(`state.unlockedTowns.delete(${JSON.stringify(t.id)})`, sb);
@@ -545,7 +583,8 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 for (const st of allStations) {
   vm.runInContext(`state.unlockedStations.delete(${JSON.stringify(st.key)}); state.unlockedTowns.clear();`, sb);
@@ -562,11 +601,12 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 for (const poi of TAIWAN_POI_DATA) {
   vm.runInContext(`state.unlockedPois.delete(${JSON.stringify(poi.id)})`, sb);
-  const ok = sb.evaluateGuess(poi.shortName, false);
+  const ok = sb.evaluateGuess(getCanonicalPoiInput(poi), false);
   const unlocked = vm.runInContext(`state.unlockedPois.has(${JSON.stringify(poi.id)})`, sb);
   check(ok && unlocked, "6d.CasualAllMixed.PoiDirect", `${poi.id} (${poi.shortName}): fb="${sb.lastFeedback?.text}"`);
 }
@@ -579,11 +619,12 @@ resetState({
   airportQuizEnabled: true,
   portQuizEnabled: true,
   reservoirQuizEnabled: true,
-  lakeQuizEnabled: true
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
 });
 for (const poi of TAIWAN_POI_DATA) {
   vm.runInContext(`state.unlockedPois.delete(${JSON.stringify(poi.id)})`, sb);
-  const okDirect = sb.evaluateGuess(poi.shortName, false);
+  const okDirect = sb.evaluateGuess(getCanonicalPoiInput(poi), false);
   const unlockedDirect = vm.runInContext(`state.unlockedPois.has(${JSON.stringify(poi.id)})`, sb);
   check(okDirect && unlockedDirect, "6e.CasualPurePoi.Direct", `${poi.id} (${poi.shortName}): fb="${sb.lastFeedback?.text}"`);
 
@@ -629,6 +670,176 @@ for (const diff of ["county_only", "hard_suffix", "hard_full", "master_hierarchy
 // =========================================================================
 // SUMMARY
 // =========================================================================
+
+// =========================================================================
+// 7. SETTLEMENT (傳統聚落 / 路牌地名) EXHAUSTIVE DETERMINISTIC SUITE
+// =========================================================================
+const ALL_SETTLEMENTS = TAIWAN_POI_DATA.filter((p) => p.category === "settlement");
+const TOWN_BASE_SET = new Set(ALL_TOWNS.map((t) => t.baseName.replace(/台/g, "臺")));
+const TOWN_FULL_SET = new Set(ALL_TOWNS.map((t) => t.townName.replace(/台/g, "臺")));
+
+// 7a. Coordinate bounds, subtype distribution & 100% ALL_TOWNS alignment
+const signageMajorList = ALL_SETTLEMENTS.filter((p) => p.subTypes.includes("signage_major"));
+const historicOazaList = ALL_SETTLEMENTS.filter((p) => p.subTypes.includes("historic_oaza"));
+check(
+  signageMajorList.length >= 100 && signageMajorList.length <= 120,
+  "7a.Settlement.SubTypeCounts",
+  `Expected signage_major 100..120, got ${signageMajorList.length}`
+);
+check(
+  historicOazaList.length >= 80 && historicOazaList.length <= 130,
+  "7a.Settlement.SubTypeCounts",
+  `Expected historic_oaza 80..130, got ${historicOazaList.length}`
+);
+const seenStlIds = new Set();
+for (const stl of ALL_SETTLEMENTS) {
+  check(!seenStlIds.has(stl.id), "7a.Settlement.UniqueId", `Duplicate id: ${stl.id}`);
+  seenStlIds.add(stl.id);
+  check(
+    typeof stl.lat === "number" && stl.lat >= 21.8 && stl.lat <= 26.5 &&
+      typeof stl.lng === "number" && stl.lng >= 118.0 && stl.lng <= 122.2,
+    "7a.Settlement.CoordBounds",
+    `${stl.id} (${stl.name}) out of Taiwan bounds: (${stl.lat}, ${stl.lng})`
+  );
+  const resolvedTownId = sb.resolvePoiTownId(stl);
+  check(
+    Boolean(resolvedTownId),
+    "7a.Settlement.AdminAlignment",
+    `${stl.id} (${stl.name}) countyName+townName not found in ALL_TOWNS: ${stl.countyName}${stl.townName}`
+  );
+}
+
+// 7b. Strict zero-collision with 368 town baseName / townName
+for (const stl of ALL_SETTLEMENTS) {
+  const namesToCheck = [stl.name, stl.shortName, ...(stl.aliases || [])];
+  for (const nm of namesToCheck) {
+    const norm = nm.replace(/台/g, "臺");
+    check(
+      !TOWN_BASE_SET.has(norm) && !TOWN_FULL_SET.has(norm),
+      "7b.Settlement.NoTownCollision",
+      `${stl.id} alias "${nm}" collides with a 368 town baseName/townName`
+    );
+  }
+}
+
+// 7c. Signage shortName <-> Historic Oaza fullName dual-alias matching across difficulties
+const aliasPairs = [
+  ["stl_lushang", "路上", "路上厝"],
+  ["stl_shifen", "十分", "十分寮"],
+  ["stl_laohukou", "老湖口", "大窩口"],
+  ["stl_tianxiang", "天祥", "塔比多"],
+  ["stl_zhiben", "知本", "卡大地布"],
+  ["stl_sankeng", "三坑", "三坑子"],
+  ["stl_itathao", "伊達邵", "德化社"]
+];
+for (const diff of ["casual", "hard_suffix", "hard_full"]) {
+  resetState({ difficulty: diff, regionQuizEnabled: false, settlementQuizEnabled: true });
+  for (const [id, a1, a2] of aliasPairs) {
+    vm.runInContext(`state.unlockedPois.delete(${JSON.stringify(id)})`, sb);
+    const ok1 = sb.evaluateGuess(a1, false);
+    const u1 = vm.runInContext(`state.unlockedPois.has(${JSON.stringify(id)})`, sb);
+    check(ok1 && u1, `7c.Settlement.DualAlias(${diff})`, `${id} alias1="${a1}", fb="${sb.lastFeedback?.text}"`);
+
+    vm.runInContext(`state.unlockedPois.delete(${JSON.stringify(id)})`, sb);
+    const ok2 = sb.evaluateGuess(a2, false);
+    const u2 = vm.runInContext(`state.unlockedPois.has(${JSON.stringify(id)})`, sb);
+    check(ok2 && u2, `7c.Settlement.DualAlias(${diff})`, `${id} alias2="${a2}", fb="${sb.lastFeedback?.text}"`);
+  }
+}
+
+// 7d. Duplicate settlement name disambiguation (楊梅富岡 vs 臺東富岡, 新竹南寮 vs 湖西南寮)
+for (const diff of ["casual", "hard_suffix", "hard_full"]) {
+  resetState({ difficulty: diff, regionQuizEnabled: false, settlementQuizEnabled: true });
+
+  // Bare "富岡" must NOT unlock either stl_fugang_ty or stl_fugang_tt
+  const bareFugang = sb.evaluateGuess("富岡", false);
+  const tyAfterBare = vm.runInContext('state.unlockedPois.has("stl_fugang_ty")', sb);
+  const ttAfterBare = vm.runInContext('state.unlockedPois.has("stl_fugang_tt")', sb);
+  check(
+    !bareFugang && !tyAfterBare && !ttAfterBare,
+    `7d.Settlement.DisambigBare(${diff})`,
+    `Bare "富岡" should not lock either settlement (ty=${tyAfterBare}, tt=${ttAfterBare})`
+  );
+
+  // Prefixed "楊梅富岡" unlocks ONLY stl_fugang_ty
+  const okTy = sb.evaluateGuess("楊梅富岡", false);
+  const tyNow = vm.runInContext('state.unlockedPois.has("stl_fugang_ty")', sb);
+  const ttStillFalse = !vm.runInContext('state.unlockedPois.has("stl_fugang_tt")', sb);
+  check(okTy && tyNow && ttStillFalse, `7d.Settlement.DisambigPrefix(${diff})`, `"楊梅富岡" failed: fb="${sb.lastFeedback?.text}"`);
+
+  // Prefixed "臺東富岡" unlocks ONLY stl_fugang_tt
+  const okTt = sb.evaluateGuess("臺東富岡", false);
+  const ttNow = vm.runInContext('state.unlockedPois.has("stl_fugang_tt")', sb);
+  check(okTt && ttNow, `7d.Settlement.DisambigPrefix(${diff})`, `"臺東富岡" failed: fb="${sb.lastFeedback?.text}"`);
+
+  // Same for "南寮" (新竹南寮 vs 湖西南寮)
+  const bareNanliao = sb.evaluateGuess("南寮", false);
+  const hcAfterBare = vm.runInContext('state.unlockedPois.has("stl_nanliao")', sb);
+  const phAfterBare = vm.runInContext('state.unlockedPois.has("stl_nanliao_ph")', sb);
+  check(!bareNanliao && !hcAfterBare && !phAfterBare, `7d.Settlement.DisambigBare(${diff})`, `Bare "南寮" should not lock either`);
+
+  const okHc = sb.evaluateGuess("新竹南寮", false);
+  const okPh = sb.evaluateGuess("湖西南寮", false);
+  check(
+    okHc && okPh &&
+      vm.runInContext('state.unlockedPois.has("stl_nanliao")', sb) &&
+      vm.runInContext('state.unlockedPois.has("stl_nanliao_ph")', sb),
+    `7d.Settlement.DisambigPrefix(${diff})`,
+    `"新竹南寮" / "湖西南寮" failed`
+  );
+}
+
+// 7e. Cross-category mixed-mode collision guard (Settlement + Station + Port + Airport + Town all ON)
+resetState({
+  difficulty: "hard_suffix",
+  regionQuizEnabled: true,
+  stationQuizEnabled: true,
+  airportQuizEnabled: true,
+  portQuizEnabled: true,
+  reservoirQuizEnabled: true,
+  lakeQuizEnabled: true,
+  settlementQuizEnabled: true
+});
+const mixedChecks = [
+  { input: "知本", expectPoi: "stl_zhiben" },
+  { input: "知本站", expectStationBase: "知本" },
+  { input: "內壢", expectPoi: "stl_neili" },
+  { input: "內壢站", expectStationBase: "內壢" },
+  { input: "福隆", expectPoi: "stl_fulong" },
+  { input: "福隆站", expectStationBase: "福隆" },
+  { input: "福隆漁港", expectPoi: "pt_c2_44" },
+  { input: "王功", expectPoi: "stl_wanggong" },
+  { input: "王功漁港", expectPoi: "pt_wanggong" },
+  { input: "楊梅富岡", expectPoi: "stl_fugang_ty" },
+  { input: "臺東富岡", expectPoi: "stl_fugang_tt" },
+  { input: "富岡站", expectStationBase: "富岡" },
+  { input: "富岡漁港", expectPoi: "pt_fugang" },
+  { input: "清泉崗", expectPoi: "stl_qingquangang" },
+  { input: "清泉崗機場", expectPoi: "ap_rmq" }
+];
+for (const mc of mixedChecks) {
+  const ok = sb.evaluateGuess(mc.input, false);
+  if (mc.expectPoi) {
+    const u = vm.runInContext(`state.unlockedPois.has(${JSON.stringify(mc.expectPoi)})`, sb);
+    check(ok && u, "7e.Settlement.MixedCollision(hard_suffix)", `input="${mc.input}" expected POI ${mc.expectPoi}, fb="${sb.lastFeedback?.text}"`);
+  } else if (mc.expectStationBase) {
+    const u = vm.runInContext(
+      `Array.from(state.unlockedStations).some(k => k.includes(${JSON.stringify(mc.expectStationBase)}))`,
+      sb
+    );
+    check(ok && u, "7e.Settlement.MixedCollision(hard_suffix)", `input="${mc.input}" expected Station ${mc.expectStationBase}, fb="${sb.lastFeedback?.text}"`);
+  }
+}
+
+// 7f. Pure settlement mode does NOT force administrative quick suffixes
+resetState({ difficulty: "hard_suffix", regionQuizEnabled: false, settlementQuizEnabled: true });
+const stlQuickSuffixes = sb.getActiveQuickSuffixes();
+check(
+  stlQuickSuffixes.length === 1 && stlQuickSuffixes[0] === "",
+  "7f.Settlement.NoForcedAdminSuffix",
+  `Expected [""], got ${JSON.stringify(stlQuickSuffixes)}`
+);
+
 const elapsedMs = Date.now() - t0;
 console.log(`Ran ${totalChecks} exhaustive checks in ${elapsedMs}ms (${ALL_TOWNS.length} towns, ${allStations.length} stations, ${TAIWAN_POI_DATA.length} POIs).`);
 if (failures.length > 0) {

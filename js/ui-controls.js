@@ -29,8 +29,9 @@ function syncConfigButtonsUI() {
   const hasP = Boolean(state.portQuizEnabled);
   const hasRes = Boolean(state.reservoirQuizEnabled);
   const hasLk = Boolean(state.lakeQuizEnabled);
+  const hasStl = Boolean(state.settlementQuizEnabled);
 
-  const topicMap = { region: hasR, station: hasS, airport: hasA, port: hasP, reservoir: hasRes, lake: hasLk };
+  const topicMap = { region: hasR, station: hasS, airport: hasA, port: hasP, reservoir: hasRes, lake: hasLk, settlement: hasStl };
 
   document.querySelectorAll(".topic-chip-btn").forEach((card) => {
     const t = card.getAttribute("data-topic");
@@ -48,12 +49,14 @@ function syncConfigButtonsUI() {
   const ptSec = document.getElementById("scope-port-section");
   const resSec = document.getElementById("scope-reservoir-section");
   const lkSec = document.getElementById("scope-lake-section");
+  const stlSec = document.getElementById("scope-settlement-section");
   const simpleRegBox = document.getElementById("simple-region-box");
   const simpleStBox = document.getElementById("simple-station-box");
   const simpleApBox = document.getElementById("simple-airport-box");
   const simplePtBox = document.getElementById("simple-port-box");
   const simpleResBox = document.getElementById("simple-reservoir-box");
   const simpleLkBox = document.getElementById("simple-lake-box");
+  const simpleStlBox = document.getElementById("simple-settlement-box");
 
   if (regSec) regSec.classList.toggle("hidden", !hasR);
   if (stSec) stSec.classList.toggle("hidden", !hasS);
@@ -61,14 +64,16 @@ function syncConfigButtonsUI() {
   if (ptSec) ptSec.classList.toggle("hidden", !hasP);
   if (resSec) resSec.classList.toggle("hidden", !hasRes);
   if (lkSec) lkSec.classList.toggle("hidden", !hasLk);
+  if (stlSec) stlSec.classList.toggle("hidden", !hasStl);
   if (simpleRegBox) simpleRegBox.classList.toggle("hidden", !hasR);
   if (simpleStBox) simpleStBox.classList.toggle("hidden", !hasS);
   if (simpleApBox) simpleApBox.classList.toggle("hidden", !hasA);
   if (simplePtBox) simplePtBox.classList.toggle("hidden", !hasP);
   if (simpleResBox) simpleResBox.classList.toggle("hidden", !hasRes);
   if (simpleLkBox) simpleLkBox.classList.toggle("hidden", !hasLk);
+  if (simpleStlBox) simpleStlBox.classList.toggle("hidden", !hasStl);
 
-  const showRegionFilterSwitch = hasR && (hasS || hasA || hasP || hasRes || hasLk);
+  const showRegionFilterSwitch = hasR && (hasS || hasA || hasP || hasRes || hasLk || hasStl);
   const mixedSwitchBar = document.getElementById("mixed-region-rail-switch-bar");
   const wrapSimpleFilter = document.getElementById("wrap-simple-filter-st-region");
   const wrapAdvFilter = document.getElementById("wrap-adv-filter-st-region");
@@ -98,6 +103,7 @@ function syncConfigButtonsUI() {
     const ptUnique = countUniquePoisForSubTypes("port", state.portSubTypes, applyReg);
     const resUnique = countUniquePoisForSubTypes("reservoir", state.reservoirSubTypes, applyReg);
     const lkUnique = countUniquePoisForSubTypes("lake", state.lakeSubTypes, applyReg);
+    const stlUnique = countUniquePoisForSubTypes("settlement", state.settlementSubTypes, applyReg);
     ["simple-airport-total-badge", "adv-airport-total-badge"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.textContent = `去重總計：${apUnique} 座`;
@@ -113,6 +119,10 @@ function syncConfigButtonsUI() {
     ["simple-lake-total-badge", "adv-lake-total-badge"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.textContent = `已選：${lkUnique} 座`;
+    });
+    ["simple-settlement-total-badge", "adv-settlement-total-badge"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = `已選：${stlUnique} 處`;
     });
 
     const advHint = document.getElementById("simple-port-adv-hint");
@@ -139,6 +149,13 @@ function syncConfigButtonsUI() {
       lkAdvHint.textContent = hasAlpine
         ? "進階高山秘境湖泊已開啟（嘉明湖、翠峰湖、松蘿湖等）"
         : "如需高山秘境湖泊（嘉明湖、翠峰湖、松蘿湖、水漾森林等），可至進階設定勾選";
+    }
+    const stlAdvHint = document.getElementById("simple-settlement-adv-hint");
+    if (stlAdvHint) {
+      const hasHist = Boolean(state.settlementSubTypes && state.settlementSubTypes.has("historic_oaza"));
+      stlAdvHint.textContent = hasHist
+        ? "進階歷史大字與原住民傳統部落已開啟（大稻埕、霧社、司馬庫斯、利稻等）"
+        : "如需日治大字、老聚落與原住民傳統部落（大稻埕、霧社、司馬庫斯、利稻等），可至進階設定勾選";
     }
   }
 
@@ -647,6 +664,10 @@ function renderScopeModalGrid() {
   if (typeof isPoiCategoryActive === "function" && isPoiCategoryActive("lake")) {
     const lkCnt = getActiveQuizPois("lake").length;
     counterParts.push(`🏞️ 湖泊 (${lkCnt} 座)`);
+  }
+  if (typeof isPoiCategoryActive === "function" && isPoiCategoryActive("settlement")) {
+    const stlCnt = getActiveQuizPois("settlement").length;
+    counterParts.push(`🪧 傳統聚落 (${stlCnt} 處)`);
   }
   const fullCounterText = counterParts.length > 0 ? `題庫：${counterParts.join(" ＋ ")}` : "請至少選擇一項題庫";
   if (counterEl) {
@@ -1446,6 +1467,7 @@ function bindAllUIEvents() {
     let nextP = Boolean(state.portQuizEnabled);
     let nextRes = Boolean(state.reservoirQuizEnabled);
     let nextLk = Boolean(state.lakeQuizEnabled);
+    let nextStl = Boolean(state.settlementQuizEnabled);
     let nextCounties = new Set(state.selectedCounties);
     let nextTownIds = new Set(state.selectedTownIds);
     let nextLines = new Set(state.quizStationLines);
@@ -1453,6 +1475,7 @@ function bindAllUIEvents() {
     let nextPtSubs = new Set(state.portSubTypes);
     let nextResSubs = new Set(state.reservoirSubTypes);
     let nextLkSubs = new Set(state.lakeSubTypes);
+    let nextStlSubs = new Set(state.settlementSubTypes);
     let nextFilterByRegion = Boolean(state.filterStationsByRegion);
 
     if (isUnion) {
@@ -1462,6 +1485,7 @@ function bindAllUIEvents() {
       else if (topic === "port") nextP = !nextP;
       else if (topic === "reservoir") nextRes = !nextRes;
       else if (topic === "lake") nextLk = !nextLk;
+      else if (topic === "settlement") nextStl = !nextStl;
     } else {
       nextR = topic === "region";
       nextS = topic === "station";
@@ -1469,9 +1493,10 @@ function bindAllUIEvents() {
       nextP = topic === "port";
       nextRes = topic === "reservoir";
       nextLk = topic === "lake";
+      nextStl = topic === "settlement";
     }
 
-    if (!nextR && !nextS && !nextA && !nextP && !nextRes && !nextLk) {
+    if (!nextR && !nextS && !nextA && !nextP && !nextRes && !nextLk && !nextStl) {
       setFeedback("至少需保留 1 種挑戰題庫！", "warn");
       return;
     }
@@ -1499,6 +1524,9 @@ function bindAllUIEvents() {
     if (nextLk && nextLkSubs.size === 0) {
       nextLkSubs = new Set(["lake_scenic"]);
     }
+    if (nextStl && nextStlSubs.size === 0) {
+      nextStlSubs = new Set(["signage_major"]);
+    }
 
     if (state.isHost && state.roomCode) {
       requestOrApplyConfigChange(
@@ -1509,6 +1537,7 @@ function bindAllUIEvents() {
           portQuizEnabled: nextP,
           reservoirQuizEnabled: nextRes,
           lakeQuizEnabled: nextLk,
+          settlementQuizEnabled: nextStl,
           filterStationsByRegion: nextFilterByRegion,
           selectedCounties: nextR ? Array.from(nextCounties) : [],
           selectedTownIds: nextR ? Array.from(nextTownIds) : [],
@@ -1516,7 +1545,8 @@ function bindAllUIEvents() {
           airportSubTypes: Array.from(nextApSubs),
           portSubTypes: Array.from(nextPtSubs),
           reservoirSubTypes: Array.from(nextResSubs),
-          lakeSubTypes: Array.from(nextLkSubs)
+          lakeSubTypes: Array.from(nextLkSubs),
+          settlementSubTypes: Array.from(nextStlSubs)
         },
         "挑戰題庫"
       );
@@ -1529,6 +1559,7 @@ function bindAllUIEvents() {
     state.portQuizEnabled = nextP;
     state.reservoirQuizEnabled = nextRes;
     state.lakeQuizEnabled = nextLk;
+    state.settlementQuizEnabled = nextStl;
     state.filterStationsByRegion = nextFilterByRegion;
     state.selectedCounties = nextCounties;
     state.selectedTownIds = nextTownIds;
@@ -1537,6 +1568,7 @@ function bindAllUIEvents() {
     state.portSubTypes = nextPtSubs;
     state.reservoirSubTypes = nextResSubs;
     state.lakeSubTypes = nextLkSubs;
+    state.settlementSubTypes = nextStlSubs;
     if (typeof syncLegacyQuizTargetMode === "function") syncLegacyQuizTargetMode();
     renderScopeModalGrid();
     if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
@@ -1582,7 +1614,9 @@ function bindAllUIEvents() {
           ? { portQuizEnabled: true, portSubTypes: Array.from(targetSet) }
           : cat === "reservoir"
           ? { reservoirQuizEnabled: true, reservoirSubTypes: Array.from(targetSet) }
-          : { lakeQuizEnabled: true, lakeSubTypes: Array.from(targetSet) };
+          : cat === "lake"
+          ? { lakeQuizEnabled: true, lakeSubTypes: Array.from(targetSet) }
+          : { settlementQuizEnabled: true, settlementSubTypes: Array.from(targetSet) };
       requestOrApplyConfigChange(patch, `${catLabel}分類`);
       return;
     }
@@ -1591,6 +1625,7 @@ function bindAllUIEvents() {
     else if (cat === "port") state.portSubTypes = targetSet;
     else if (cat === "reservoir") state.reservoirSubTypes = targetSet;
     else if (cat === "lake") state.lakeSubTypes = targetSet;
+    else if (cat === "settlement") state.settlementSubTypes = targetSet;
     renderScopeModalGrid();
     if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
   };
@@ -1607,7 +1642,8 @@ function bindAllUIEvents() {
   [
     ["btn-jump-port-advanced", "scope-port-section"],
     ["btn-jump-reservoir-advanced", "scope-reservoir-section"],
-    ["btn-jump-lake-advanced", "scope-lake-section"]
+    ["btn-jump-lake-advanced", "scope-lake-section"],
+    ["btn-jump-settlement-advanced", "scope-settlement-section"]
   ].forEach(([btnId, secId]) => {
     document.getElementById(btnId)?.addEventListener("click", () => {
       setSettingsTab("advanced");
@@ -1803,14 +1839,15 @@ function bindAllUIEvents() {
         applyStationScopeSelection(allLines, false);
         return;
       }
-      if (["airport", "port", "reservoir", "lake"].includes(target)) {
+      if (["airport", "port", "reservoir", "lake", "settlement"].includes(target)) {
         const subMetaMap = {
           airport: typeof AIRPORT_SUBTYPES !== "undefined" ? AIRPORT_SUBTYPES.map((s) => s.id) : [],
           port: mode === "simple"
             ? ["intl_commercial", "intl_aux", "fishery_cat1"]
             : (typeof PORT_SUBTYPES !== "undefined" ? PORT_SUBTYPES.map((s) => s.id) : []),
           reservoir: typeof RESERVOIR_SUBTYPES !== "undefined" ? RESERVOIR_SUBTYPES.map((s) => s.id) : [],
-          lake: typeof LAKE_SUBTYPES !== "undefined" ? LAKE_SUBTYPES.map((s) => s.id) : []
+          lake: typeof LAKE_SUBTYPES !== "undefined" ? LAKE_SUBTYPES.map((s) => s.id) : [],
+          settlement: typeof SETTLEMENT_SUBTYPES !== "undefined" ? SETTLEMENT_SUBTYPES.map((s) => s.id) : []
         };
         const nextSet = action === "select-all" ? new Set(subMetaMap[target] || []) : new Set();
         const catLabel = (typeof POI_CATEGORY_META !== "undefined" && POI_CATEGORY_META[target] && POI_CATEGORY_META[target].label) || "地標";
@@ -1819,14 +1856,16 @@ function bindAllUIEvents() {
             target === "airport" ? { airportSubTypes: Array.from(nextSet) } :
             target === "port" ? { portSubTypes: Array.from(nextSet) } :
             target === "reservoir" ? { reservoirSubTypes: Array.from(nextSet) } :
-            { lakeSubTypes: Array.from(nextSet) };
+            target === "lake" ? { lakeSubTypes: Array.from(nextSet) } :
+            { settlementSubTypes: Array.from(nextSet) };
           requestOrApplyConfigChange(patch, `${catLabel}分類`);
           return;
         }
         if (target === "airport") state.airportSubTypes = nextSet;
         else if (target === "port") state.portSubTypes = nextSet;
         else if (target === "reservoir") state.reservoirSubTypes = nextSet;
-        else state.lakeSubTypes = nextSet;
+        else if (target === "lake") state.lakeSubTypes = nextSet;
+        else state.settlementSubTypes = nextSet;
         renderScopeModalGrid();
         if (typeof refreshPoiMapLayer === "function") refreshPoiMapLayer();
         if (state.isHost && state.roomCode) onHostSettingChange(`${catLabel}分類`);
@@ -1890,7 +1929,7 @@ function bindAllUIEvents() {
     }
     if (activeSt.length > 0) sumParts.push(`${activeSt.length}站`);
     if (typeof isPoiCategoryActive === "function" && typeof getActiveQuizPois === "function") {
-      [["airport", "機場"], ["port", "港"], ["reservoir", "水庫"], ["lake", "湖"]].forEach(([cat, lbl]) => {
+      [["airport", "機場"], ["port", "港"], ["reservoir", "水庫"], ["lake", "湖"], ["settlement", "聚落"]].forEach(([cat, lbl]) => {
         if (isPoiCategoryActive(cat)) {
           const cnt = getActiveQuizPois(cat).length;
           if (cnt > 0) sumParts.push(`${cnt}${lbl}`);

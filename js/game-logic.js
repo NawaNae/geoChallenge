@@ -202,7 +202,7 @@ function updateSuffixControlsUI() {
   if (!container) return;
 
   const activeList = getActiveQuickSuffixes();
-  const shouldShow = activeList.length > 0;
+  const shouldShow = activeList.length > 1;
   container.classList.toggle("hidden", !shouldShow);
 
   if (!shouldShow) {
@@ -372,13 +372,39 @@ function evaluateGuess(rawInput, isAutoCheck = false) {
   const isTargetingOtherFromPoi = (state.playMode === "target_click" || state.playMode === "target_random") && Boolean(state.targetId || state.targetStationKey);
   const poiSuffixRe = /(機場|基地|航空站|桃機|松機|清泉崗|漁港|商港|工業港|天然氣港|接收港|接收站|港|碼頭|一接|二接|三接|水庫|攔河堰|人工湖|大壩|壩|湖|潭|池|埤|窟|水漾森林|天使的眼淚)$/;
   const normPoiWithSuffix = typeof normalizePoiText === "function" ? normalizePoiText(coreWithSuffix) : normTw(coreWithSuffix);
+  const normPoiCombined = typeof normalizePoiText === "function" ? normalizePoiText(combined) : normTw(combined);
   const looksLikePoiInput =
     EXACT_POI_SUFFIXED_KEYS_SET.has(normPoiWithSuffix) ||
+    EXACT_POI_SUFFIXED_KEYS_SET.has(normPoiCombined) ||
     poiSuffixRe.test(coreWithSuffix) ||
     /^[A-Za-z]{3,4}$/.test(core);
 
   if (isPoiQuizActive && !isTargetingOtherFromPoi && (isTargetingPoi || isPurePoiQuiz || looksLikePoiInput)) {
-    const poiRes = tryMatchAndUnlockPoi(coreWithSuffix, isAutoCheck);
+    let poiRes = tryMatchAndUnlockPoi(coreWithSuffix, isAutoCheck);
+    if ((!poiRes || !poiRes.matched) && combined && combined !== coreWithSuffix) {
+      const combinedRes = tryMatchAndUnlockPoi(combined, isAutoCheck);
+      if (combinedRes && (combinedRes.matched || !poiRes || !poiRes.ambiguousSettlement)) {
+        poiRes = combinedRes;
+      }
+    }
+    if (poiRes && poiRes.ambiguousSettlement) {
+      const canFallbackStationInCasual = !isTargetingPoi && !isPurePoiQuiz && state.difficulty === "casual" && isStationQuizActive;
+      if (canFallbackStationInCasual && tryMatchAndUnlockStation(core, coreWithSuffix, isAutoCheck)) {
+        return true;
+      }
+      if (!isAutoCheck) {
+        const examples = (poiRes.ambiguousCandidates || [])
+          .map((c) => {
+            const tBase = String(c.townName || "").replace(/[鄉鎮市區]$/, "");
+            const cShort = String(c.countyName || "").replace(/[縣市]$/, "");
+            const pre = (tBase.length >= 2 && tBase !== cShort) ? tBase : cShort;
+            return `${pre}${c.name}`;
+          })
+          .join("、");
+        triggerWrongFeedback(`⚠️ 全臺有多處同名聚落「${coreWithSuffix}」，請加上縣市或鄉鎮前綴區分（如：${examples}）`);
+      }
+      return false;
+    }
     if (poiRes && poiRes.matched) {
       const canFallbackInCasual = !isTargetingPoi && !isPurePoiQuiz && state.difficulty === "casual";
       if (poiRes.alreadyUnlocked) {
